@@ -93,6 +93,7 @@ src/
     config/                    tunable parameters, and the canonical key map
     params/                    the runtime parameter layer: which numbers get a slider
 docs/                          feature, gesture, performance and parameter guides
+references/                    screenshots of effects to build, one folder per topic
 experiments/                   standalone one-off sketches, not part of the app
 ```
 
