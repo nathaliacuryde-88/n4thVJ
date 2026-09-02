@@ -44,6 +44,12 @@ delegate there).
 | **Ctrl / Alt / Cmd** | Colour mode: 2 colours / black & white / 1 colour |
 | **Right-click** | Hide or show the whole UI |
 
+The **SHAPE** panel on the left holds the current renderer's own parameters.
+Tweaks are kept per renderer and survive a reload; click a parameter's label to
+reset it, or the arrow in the panel header to reset that renderer. Geometric,
+Particles and Waves are wired up so far —
+[`docs/ADDING_PARAMETERS.md`](docs/ADDING_PARAMETERS.md) covers adding the rest.
+
 Gestures: an open hand is followed, a pinch slows things down, five fingers
 speed them up, and bringing both hands together triggers the explosion.
 [`docs/HAND_GESTURES.md`](docs/HAND_GESTURES.md) has the full vocabulary.
@@ -62,11 +68,13 @@ src/
       VJCanvas.tsx             one <canvas>, one renderer instance, one rAF loop
       Controls.tsx             pattern picker, camera/mic buttons, hand readout
       ColorController.tsx      hue slider → the palette every renderer draws with
+      ParamPanel.tsx           sliders, generated from the parameter registry
       CameraFeed.tsx           getUserMedia + the preview thumbnail
       HandTracker.tsx          MediaPipe hand landmarks → HandData
       AudioAnalyzer.tsx        Web Audio FFT → bass/mid/high + beat detection
       renderers/               one class per visual; render(handData, colors, audio, colorMode)
     config/                    tunable parameters, and the canonical key map
+    params/                    the runtime parameter layer: which numbers get a slider
 docs/                          feature, gesture, performance and parameter guides
 experiments/                   standalone one-off sketches, not part of the app
 ```

@@ -6,6 +6,8 @@ import { PermissionRequest } from './components/PermissionRequest';
 import { VJCanvas } from './components/VJCanvas';
 import { AudioAnalyzer } from './components/AudioAnalyzer';
 import { getPatternCategory, getRenderersByCategory } from './config/RendererCategories';
+import { ParamPanel } from './components/ParamPanel';
+import { AllParamValues, sanitizeAllParams } from './params/types';
 
 export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'rose' | 'smokehand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks';
 
@@ -97,6 +99,30 @@ export default function App() {
     ),
   );
   const [autoHueEnabled, setAutoHueEnabled] = useState(false);
+
+  // Slider overrides, per renderer, so switching away and back keeps your tweaks.
+  const [paramValues, setParamValues] = useState<AllParamValues>(() =>
+    sanitizeAllParams(loadSetting<unknown>('vj-params', {}, () => true)),
+  );
+
+  const setParam = useCallback((path: string, value: number) => {
+    setParamValues((prev) => ({
+      ...prev,
+      [currentPattern]: { ...prev[currentPattern], [path]: value },
+    }));
+  }, [currentPattern]);
+
+  /** One parameter back to its config default, or all of this renderer's. */
+  const resetParam = useCallback((path?: string) => {
+    setParamValues((prev) => {
+      if (path === undefined) {
+        const { [currentPattern]: _dropped, ...rest } = prev;
+        return rest;
+      }
+      const { [path]: _removed, ...keep } = prev[currentPattern] ?? {};
+      return { ...prev, [currentPattern]: keep };
+    });
+  }, [currentPattern]);
   
   // Renderer filter state (2D/3D)
   const [rendererFilter, setRendererFilter] = useState<'2D' | '3D'>('2D');
@@ -182,6 +208,10 @@ export default function App() {
     saveSetting('vj-saturation', saturation);
     saveSetting('vj-color-mode', colorMode);
   }, [hue, saturation, colorMode]);
+
+  useEffect(() => {
+    saveSetting('vj-params', paramValues);
+  }, [paramValues]);
 
   // Cycle patterns helper
   const cyclePattern = useCallback((direction: 'next' | 'prev') => {
@@ -377,6 +407,7 @@ export default function App() {
         smokeHandModel={smokeHandModel}
         audioData={rendererAudioData}
         colorMode={colorMode}
+        params={paramValues[currentPattern]}
       />
 
       {/* Camera Feed - Always running for hand tracking, but only visible when showCamera is true */}
@@ -395,6 +426,16 @@ export default function App() {
         sensitivity={audioSensitivity}
         onAudioData={setAudioData}
       />
+
+      {/* Per-renderer shape controls */}
+      {showUI && (
+        <ParamPanel
+          pattern={currentPattern}
+          values={paramValues[currentPattern] ?? {}}
+          onChange={setParam}
+          onReset={resetParam}
+        />
+      )}
 
       {/* Controls UI */}
       {showUI && (

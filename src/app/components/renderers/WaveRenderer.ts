@@ -1,5 +1,6 @@
 import { HandData } from '../../App';
 import { WaveConfig } from '../../config/WaveRendererConfig';
+import { ParamValues, withOverrides } from '../../params/types';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -12,6 +13,13 @@ import { WaveConfig } from '../../config/WaveRendererConfig';
  * ═══════════════════════════════════════════════════════════════════════════
  */
 export class WaveRenderer {
+  /** Live copy of WaveConfig, with any slider overrides applied. */
+  private cfg = WaveConfig;
+
+  setParams(values: ParamValues) {
+    this.cfg = withOverrides(WaveConfig, values);
+  }
+
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private time = 0;
@@ -41,7 +49,7 @@ export class WaveRenderer {
     if (this.needsGradientUpdate) {
       this.bgGradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
       this.bgGradient.addColorStop(0, '#000000');
-      this.bgGradient.addColorStop(1, colors[0] + WaveConfig.visual.backgroundTint);
+      this.bgGradient.addColorStop(1, colors[0] + this.cfg.visual.backgroundTint);
       this.needsGradientUpdate = false;
     }
     this.ctx.fillStyle = this.bgGradient!;
@@ -55,8 +63,8 @@ export class WaveRenderer {
     // ═════════════════════════════════════════════════════════════════════════
     // WAVE PARAMETERS
     // ═════════════════════════════════════════════════════════════════════════
-    let amplitude = WaveConfig.wave.baseAmplitude;
-    let frequency = WaveConfig.wave.baseFrequency;
+    let amplitude = this.cfg.wave.baseAmplitude;
+    let frequency = this.cfg.wave.baseFrequency;
     let scale = 1;
     let intensityMultiplier = 1;
     let speedMultiplier = 1;
@@ -73,7 +81,7 @@ export class WaveRenderer {
       const velocity = handData.left.velocity || 0;
       // ⭐ CAP VELOCITY to prevent explosion: max 1.0 (was causing freeze when hand moves off-screen!)
       const cappedVelocity = Math.max(0, Math.min(velocity, 1.0));
-      intensityMultiplier *= (1 + cappedVelocity * WaveConfig.velocity.intensityMultiplier);
+      intensityMultiplier *= (1 + cappedVelocity * this.cfg.velocity.intensityMultiplier);
       
       let fingerCount = handData.left.fingerCount || 0;
       // PINCH GESTURE = Treat as 1 finger (slow)
@@ -83,37 +91,37 @@ export class WaveRenderer {
       
       // ⭐ FINGER COUNT SPEED & AMPLITUDE CONTROL
       if (fingerCount === 1) {
-        speedMultiplier = WaveConfig.fingerCountSpeed.oneFinger;
-        amplitude *= WaveConfig.fingerAmplitude.oneFingerMultiplier;
+        speedMultiplier = this.cfg.fingerCountSpeed.oneFinger;
+        amplitude *= this.cfg.fingerAmplitude.oneFingerMultiplier;
       } else if (fingerCount === 2) {
-        speedMultiplier = WaveConfig.fingerCountSpeed.normalFingers;
-        amplitude *= WaveConfig.fingerAmplitude.twoFingersMultiplier;
+        speedMultiplier = this.cfg.fingerCountSpeed.normalFingers;
+        amplitude *= this.cfg.fingerAmplitude.twoFingersMultiplier;
       } else if (fingerCount === 3) {
-        speedMultiplier = WaveConfig.fingerCountSpeed.normalFingers;
-        amplitude *= WaveConfig.fingerAmplitude.threeFingersMultiplier;
+        speedMultiplier = this.cfg.fingerCountSpeed.normalFingers;
+        amplitude *= this.cfg.fingerAmplitude.threeFingersMultiplier;
       } else if (fingerCount === 4) {
-        speedMultiplier = WaveConfig.fingerCountSpeed.normalFingers;
-        amplitude *= WaveConfig.fingerAmplitude.fourFingersMultiplier;
+        speedMultiplier = this.cfg.fingerCountSpeed.normalFingers;
+        amplitude *= this.cfg.fingerAmplitude.fourFingersMultiplier;
       } else if (fingerCount >= 5) {
-        speedMultiplier = WaveConfig.fingerCountSpeed.fiveFingers;
-        amplitude *= WaveConfig.fingerAmplitude.fiveFingersMultiplier;
+        speedMultiplier = this.cfg.fingerCountSpeed.fiveFingers;
+        amplitude *= this.cfg.fingerAmplitude.fiveFingersMultiplier;
       }
       
       // Long hold = bigger waves
       const holdDuration = handData.left.holdDuration || 0;
-      if (holdDuration > WaveConfig.hold.durationThreshold) {
-        amplitude *= WaveConfig.hold.amplitudeBoost;
+      if (holdDuration > this.cfg.hold.durationThreshold) {
+        amplitude *= this.cfg.hold.amplitudeBoost;
       }
       
       // Gesture-based amplitude
       if (handData.left.gesture === 'open') {
-        amplitude *= WaveConfig.gesture.leftOpenHandBoost * intensityMultiplier;
+        amplitude *= this.cfg.gesture.leftOpenHandBoost * intensityMultiplier;
       } else if (handData.left.gesture === 'fist') {
-        amplitude = WaveConfig.gesture.leftFistAmplitude;
+        amplitude = this.cfg.gesture.leftFistAmplitude;
       } else if (handData.left.gesture === 'pinch') {
-        frequency = WaveConfig.gesture.pinchBaseFrequency + 
-                    (handData.left.pinchDistance || 0) * WaveConfig.gesture.pinchLeftMultiplier;
-        yOffsetShift = (handData.left.pinchDistance || 0) * WaveConfig.gesture.pinchLeftYOffsetMultiplier; // ⭐ NEW: Vertical shift for pinch gesture
+        frequency = this.cfg.gesture.pinchBaseFrequency + 
+                    (handData.left.pinchDistance || 0) * this.cfg.gesture.pinchLeftMultiplier;
+        yOffsetShift = (handData.left.pinchDistance || 0) * this.cfg.gesture.pinchLeftYOffsetMultiplier; // ⭐ NEW: Vertical shift for pinch gesture
       }
     }
 
@@ -128,7 +136,7 @@ export class WaveRenderer {
       const velocity = handData.right.velocity || 0;
       // ⭐ CAP VELOCITY to prevent explosion: max 1.0 (was causing freeze when hand moves off-screen!)
       const cappedVelocity = Math.max(0, Math.min(velocity, 1.0));
-      intensityMultiplier *= (1 + cappedVelocity * WaveConfig.velocity.intensityMultiplier);
+      intensityMultiplier *= (1 + cappedVelocity * this.cfg.velocity.intensityMultiplier);
       
       let fingerCount = handData.right.fingerCount || 0;
       // PINCH GESTURE = Treat as 1 finger (slow)
@@ -142,35 +150,35 @@ export class WaveRenderer {
       // left hand's contribution too.
       let rightSpeed = 1;
       if (fingerCount === 1) {
-        rightSpeed = WaveConfig.fingerCountSpeed.oneFinger;
-        amplitude *= WaveConfig.fingerAmplitude.oneFingerMultiplier;
+        rightSpeed = this.cfg.fingerCountSpeed.oneFinger;
+        amplitude *= this.cfg.fingerAmplitude.oneFingerMultiplier;
       } else if (fingerCount === 2) {
-        rightSpeed = WaveConfig.fingerCountSpeed.normalFingers;
-        amplitude *= WaveConfig.fingerAmplitude.twoFingersMultiplier;
+        rightSpeed = this.cfg.fingerCountSpeed.normalFingers;
+        amplitude *= this.cfg.fingerAmplitude.twoFingersMultiplier;
       } else if (fingerCount === 3) {
-        rightSpeed = WaveConfig.fingerCountSpeed.normalFingers;
-        amplitude *= WaveConfig.fingerAmplitude.threeFingersMultiplier;
+        rightSpeed = this.cfg.fingerCountSpeed.normalFingers;
+        amplitude *= this.cfg.fingerAmplitude.threeFingersMultiplier;
       } else if (fingerCount === 4) {
-        rightSpeed = WaveConfig.fingerCountSpeed.normalFingers;
-        amplitude *= WaveConfig.fingerAmplitude.fourFingersMultiplier;
+        rightSpeed = this.cfg.fingerCountSpeed.normalFingers;
+        amplitude *= this.cfg.fingerAmplitude.fourFingersMultiplier;
       } else if (fingerCount >= 5) {
-        rightSpeed = WaveConfig.fingerCountSpeed.fiveFingers;
-        amplitude *= WaveConfig.fingerAmplitude.fiveFingersMultiplier;
+        rightSpeed = this.cfg.fingerCountSpeed.fiveFingers;
+        amplitude *= this.cfg.fingerAmplitude.fiveFingersMultiplier;
       }
       speedMultiplier *= rightSpeed; // Multiply both hands
       
       const holdDuration = handData.right.holdDuration || 0;
-      if (holdDuration > WaveConfig.hold.durationThreshold) {
-        amplitude *= WaveConfig.hold.amplitudeBoost;
+      if (holdDuration > this.cfg.hold.durationThreshold) {
+        amplitude *= this.cfg.hold.amplitudeBoost;
       }
       
       if (handData.right.gesture === 'open') {
-        amplitude *= WaveConfig.gesture.rightOpenHandBoost * intensityMultiplier;
+        amplitude *= this.cfg.gesture.rightOpenHandBoost * intensityMultiplier;
       } else if (handData.right.gesture === 'fist') {
-        amplitude *= WaveConfig.gesture.rightFistReduction;
+        amplitude *= this.cfg.gesture.rightFistReduction;
       } else if (handData.right.gesture === 'pinch') {
-        frequency += (handData.right.pinchDistance || 0) * WaveConfig.gesture.pinchRightMultiplier;
-        yOffsetShift = (handData.right.pinchDistance || 0) * WaveConfig.gesture.pinchRightYOffsetMultiplier; // ⭐ NEW: Vertical shift for pinch gesture
+        frequency += (handData.right.pinchDistance || 0) * this.cfg.gesture.pinchRightMultiplier;
+        yOffsetShift = (handData.right.pinchDistance || 0) * this.cfg.gesture.pinchRightYOffsetMultiplier; // ⭐ NEW: Vertical shift for pinch gesture
       }
     }
     
@@ -178,31 +186,31 @@ export class WaveRenderer {
     intensityMultiplier = Math.min(intensityMultiplier, 3.0);
 
     // ⭐ CRITICAL: CAP SPEED TO PREVENT FREEZING
-    speedMultiplier = Math.min(speedMultiplier, WaveConfig.fingerCountSpeed.maxSpeed);
+    speedMultiplier = Math.min(speedMultiplier, this.cfg.fingerCountSpeed.maxSpeed);
 
     // ⭐ CRITICAL: CAP AMPLITUDE TO PREVENT OVERFLOW/FREEZING
-    amplitude = Math.min(amplitude, WaveConfig.wave.maxAmplitude);
+    amplitude = Math.min(amplitude, this.cfg.wave.maxAmplitude);
     
     // ⭐ CRITICAL: CAP FREQUENCY TO PREVENT OVERFLOW
-    frequency = Math.min(frequency, WaveConfig.wave.maxFrequency);
+    frequency = Math.min(frequency, this.cfg.wave.maxFrequency);
     
     // ⭐ SAFETY: Check for NaN or Infinity
-    if (!isFinite(amplitude)) amplitude = WaveConfig.wave.baseAmplitude;
-    if (!isFinite(frequency)) frequency = WaveConfig.wave.baseFrequency;
+    if (!isFinite(amplitude)) amplitude = this.cfg.wave.baseAmplitude;
+    if (!isFinite(frequency)) frequency = this.cfg.wave.baseFrequency;
     if (!isFinite(speedMultiplier)) speedMultiplier = 1;
 
     // ════════════════════════════════════════════════════════════════════════
     // HAND DISTANCE AFFECTS SCALE
     // ═════════════════════════════════════════════════════════════════════════
     if (handData.distanceBetweenHands) {
-      scale = 0.5 + handData.distanceBetweenHands * WaveConfig.distance.scaleMultiplier;
+      scale = 0.5 + handData.distanceBetweenHands * this.cfg.distance.scaleMultiplier;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
     // WAVE COUNT
     // ═════════════════════════════════════════════════════════════════════════
     const waveCount = handData.left || handData.right ? 
-      WaveConfig.waveCount.active : WaveConfig.waveCount.idle;
+      this.cfg.waveCount.active : this.cfg.waveCount.idle;
 
     // ⭐ PERFORMANCE FIX: Reduce calculation complexity with high finger counts
     // With 4-5 fingers, reduce segments to prevent gradual slowdown
@@ -285,7 +293,7 @@ export class WaveRenderer {
     this.ctx.beginPath();
     
     // ⭐ FIX: Ensure segments is an INTEGER
-    const segments = Math.floor(WaveConfig.wave.segments * segmentReduction);
+    const segments = Math.floor(this.cfg.wave.segments * segmentReduction);
     
     // ⭐ CRITICAL: Reduce amplitude cap even more to prevent waves reaching screen edges
     amplitude = Math.min(amplitude, 150);
@@ -296,11 +304,11 @@ export class WaveRenderer {
       // ═══════════════════════════════════════════════════════════════════════
       // LAYERED SINE WAVES for complexity
       // ═══════════════════════════════════════════════════════════════════════
-      const wave1 = Math.sin(x * frequency + time * WaveConfig.layers.primarySpeed) * amplitude;
-      const wave2 = Math.sin(x * frequency * 2 + time * WaveConfig.layers.secondarySpeed) * 
-                    (amplitude * WaveConfig.layers.secondaryAmplitude);
-      const wave3 = Math.sin(x * frequency * 0.5 + time * WaveConfig.layers.tertiarySpeed) * 
-                    (amplitude * WaveConfig.layers.tertiaryAmplitude);
+      const wave1 = Math.sin(x * frequency + time * this.cfg.layers.primarySpeed) * amplitude;
+      const wave2 = Math.sin(x * frequency * 2 + time * this.cfg.layers.secondarySpeed) * 
+                    (amplitude * this.cfg.layers.secondaryAmplitude);
+      const wave3 = Math.sin(x * frequency * 0.5 + time * this.cfg.layers.tertiarySpeed) * 
+                    (amplitude * this.cfg.layers.tertiaryAmplitude);
       
       // ═══════════════════════════════════════════════════════════════════════
       // HAND INFLUENCE - Waves bend toward hands (SIMPLIFIED)
@@ -310,15 +318,15 @@ export class WaveRenderer {
       const distToRight = Math.abs(x - rightX);
       
       // ⭐ CRITICAL FIX: Cap exponential calculations to prevent overflow
-      const leftInfluenceRaw = -distToLeft / WaveConfig.handInfluence.radius;
-      const rightInfluenceRaw = -distToRight / WaveConfig.handInfluence.radius;
+      const leftInfluenceRaw = -distToLeft / this.cfg.handInfluence.radius;
+      const rightInfluenceRaw = -distToRight / this.cfg.handInfluence.radius;
       
       // Only calculate if within reasonable range (prevent Math.exp overflow)
       if (leftInfluenceRaw > -10) {
-        handInfluence += amplitude * WaveConfig.handInfluence.strength * Math.exp(leftInfluenceRaw);
+        handInfluence += amplitude * this.cfg.handInfluence.strength * Math.exp(leftInfluenceRaw);
       }
       if (rightInfluenceRaw > -10) {
-        handInfluence += amplitude * WaveConfig.handInfluence.strength * Math.exp(rightInfluenceRaw);
+        handInfluence += amplitude * this.cfg.handInfluence.strength * Math.exp(rightInfluenceRaw);
       }
       
       // ⭐ SAFETY: Cap hand influence
@@ -352,7 +360,7 @@ export class WaveRenderer {
     gradient.addColorStop(1, color + Math.floor(safeAlpha * 100).toString(16).padStart(2, '0'));
 
     this.ctx.strokeStyle = gradient;
-    this.ctx.lineWidth = WaveConfig.wave.lineThickness;
+    this.ctx.lineWidth = this.cfg.wave.lineThickness;
     this.ctx.stroke();
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -363,7 +371,7 @@ export class WaveRenderer {
     this.ctx.closePath();
 
     const fillGradient = this.ctx.createLinearGradient(0, yOffset, 0, this.canvas.height);
-    fillGradient.addColorStop(0, color + Math.floor(safeAlpha * WaveConfig.visual.fillOpacity).toString(16).padStart(2, '0'));
+    fillGradient.addColorStop(0, color + Math.floor(safeAlpha * this.cfg.visual.fillOpacity).toString(16).padStart(2, '0'));
     fillGradient.addColorStop(1, color + '00');
 
     this.ctx.fillStyle = fillGradient;
@@ -378,16 +386,16 @@ export class WaveRenderer {
     pulse: number
   ) {
     // Calculate intended size
-    const rawSize = WaveConfig.focalPoint.baseSize * scale + 
-                    Math.sin(this.time * WaveConfig.focalPoint.pulseSpeed) * 
-                    pulse * WaveConfig.focalPoint.pulseAmount;
+    const rawSize = this.cfg.focalPoint.baseSize * scale + 
+                    Math.sin(this.time * this.cfg.focalPoint.pulseSpeed) * 
+                    pulse * this.cfg.focalPoint.pulseAmount;
     
     // ⭐ CRITICAL FIX: Prevent negative radius crash!
     // Ensure size is at least 0.1 (0 causes issues in some browsers too)
     const size = Math.max(0.1, rawSize);
     
     // Multi-layer glow
-    for (let i = 0; i < WaveConfig.focalPoint.glowLayers; i++) {
+    for (let i = 0; i < this.cfg.focalPoint.glowLayers; i++) {
       const gradient = this.ctx.createRadialGradient(x, y, 0, x, y, size * (i + 1));
       gradient.addColorStop(0, color + 'AA');
       gradient.addColorStop(1, color + '00');

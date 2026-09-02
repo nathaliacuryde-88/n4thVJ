@@ -302,27 +302,11 @@ export function Controls({
                               step="0.01"
                               value={audioSensitivity}
                               onChange={(e) => onAudioSensitivityChange(parseFloat(e.target.value))}
-                              className="w-full h-1 bg-white/20 rounded-full appearance-none cursor-pointer focus:outline-none"
+                              className="vj-slider w-full h-1 bg-white/20 rounded-full appearance-none cursor-pointer focus:outline-none"
                               style={{
                                   backgroundImage: `linear-gradient(to right, white 0%, white ${audioSensitivity * 100}%, rgba(255,255,255,0.2) ${audioSensitivity * 100}%)`
                               }}
                           />
-                          <style>{`
-                              input[type="range"]::-webkit-slider-thumb {
-                                  -webkit-appearance: none;
-                                  appearance: none;
-                                  width: 12px;
-                                  height: 12px;
-                                  background: #000000;
-                                  border: 1.5px solid #ffffff;
-                                  border-radius: 50%;
-                                  cursor: pointer;
-                                  transition: transform 0.1s;
-                              }
-                              input[type="range"]::-webkit-slider-thumb:hover {
-                                  transform: scale(1.2);
-                              }
-                          `}</style>
                       </div>
                   </div>
 

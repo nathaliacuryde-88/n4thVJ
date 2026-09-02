@@ -189,3 +189,52 @@
 html {
   font-size: var(--font-size);
 }
+/**
+ * Range inputs.
+ *
+ * These used to be two <style> blocks inside components, written as bare
+ * `input[type="range"]` selectors — so they were global, they fought each
+ * other, and the transparent thumb the hue slider needs was silently applied
+ * to every other slider in the app. Scoped by class instead.
+ */
+
+/* Draws its own thumb on top (the hue slider), so hide the native one. */
+.vj-slider-bare::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+.vj-slider-bare::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+/* The standard VJ slider: a small ring on a filled track. */
+.vj-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: #000;
+  border: 1.5px solid #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.vj-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+.vj-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: #000;
+  border: 1.5px solid #fff;
+  border-radius: 50%;
+  cursor: pointer;
+}

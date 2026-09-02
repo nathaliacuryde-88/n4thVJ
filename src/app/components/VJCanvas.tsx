@@ -26,6 +26,7 @@ import { NetworkCubeRenderer } from './renderers/NetworkCubeRenderer';
 import { ElasticNetRenderer } from './renderers/ElasticNetRenderer';
 import { DigitalBlockRenderer } from './renderers/DigitalBlockRenderer';
 import { AudioData } from '../App';
+import { ParamValues } from '../params/types';
 
 type ColorMode = 'black' | 'contrast' | 'grayscale';
 
@@ -42,6 +43,8 @@ interface VJRenderer {
   ): void;
   /** Releases GPU resources. Only the renderers that hold any implement it. */
   destroy?(): void;
+  /** Applies slider overrides. Only the renderers with a param registry entry implement it. */
+  setParams?(values: ParamValues): void;
   setVideoElement?(video: HTMLVideoElement): void;
   setSmokeHandModel?(model: 'torus' | 'hand'): void;
 }
@@ -54,6 +57,8 @@ interface VJCanvasProps {
   smokeHandModel?: 'torus' | 'hand';
   audioData?: AudioData;
   colorMode?: 'black' | 'contrast' | 'grayscale';
+  /** Slider overrides for the current pattern. */
+  params?: ParamValues;
 }
 
 export function VJCanvas({
@@ -63,10 +68,12 @@ export function VJCanvas({
   videoElement,
   smokeHandModel,
   audioData,
-  colorMode
+  colorMode,
+  params
 }: VJCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const rendererRef = useRef<VJRenderer | null>(null);
   
   // Store latest handData and dominantColors in refs so animate loop can access them
   const handDataRef = useRef<HandData>(handData);
@@ -75,6 +82,7 @@ export function VJCanvas({
   const smokeHandModelRef = useRef<'torus' | 'hand' | undefined>(smokeHandModel);
   const audioDataRef = useRef<AudioData | undefined>(audioData);
   const colorModeRef = useRef<'black' | 'contrast' | 'grayscale' | undefined>(colorMode);
+  const paramsRef = useRef<ParamValues | undefined>(params);
 
   // Update refs whenever props change
   useEffect(() => {
@@ -84,7 +92,14 @@ export function VJCanvas({
     smokeHandModelRef.current = smokeHandModel;
     audioDataRef.current = audioData;
     colorModeRef.current = colorMode;
-  }, [handData, dominantColors, videoElement, smokeHandModel, audioData, colorMode]);
+    paramsRef.current = params;
+  }, [handData, dominantColors, videoElement, smokeHandModel, audioData, colorMode, params]);
+
+  // Slider moves must not rebuild the renderer - that would reset its particles,
+  // its trails and, for the three.js ones, its whole scene.
+  useEffect(() => {
+    rendererRef.current?.setParams?.(params ?? {});
+  }, [params]);
 
   // Main render loop
   useEffect(() => {
@@ -190,6 +205,9 @@ export function VJCanvas({
         break;
     }
 
+    renderer.setParams?.(paramsRef.current ?? {});
+    rendererRef.current = renderer;
+
     // Safety check
     if (!renderer) {
       console.error('Failed to create renderer for pattern:', pattern);
@@ -228,6 +246,7 @@ export function VJCanvas({
       if (renderer && renderer.destroy) {
         renderer.destroy();
       }
+      if (rendererRef.current === renderer) rendererRef.current = null;
     };
   }, [pattern]); // Only recreate renderer when pattern changes
 

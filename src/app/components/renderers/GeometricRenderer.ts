@@ -1,5 +1,6 @@
 import { HandData } from '../../App';
 import { GeometricConfig } from '../../config/GeometricRendererConfig';
+import { ParamValues, withOverrides } from '../../params/types';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -12,6 +13,13 @@ import { GeometricConfig } from '../../config/GeometricRendererConfig';
  * ═══════════════════════════════════════════════════════════════════════════
  */
 export class GeometricRenderer {
+  /** Live copy of GeometricConfig, with any slider overrides applied. */
+  private cfg = GeometricConfig;
+
+  setParams(values: ParamValues) {
+    this.cfg = withOverrides(GeometricConfig, values);
+  }
+
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private time = 0; // Animation timer
@@ -28,7 +36,7 @@ export class GeometricRenderer {
     // ═════════════════════════════════════════════════════════════════════════
     // BACKGROUND FADE - Creates motion trails
     // ═════════════════════════════════════════════════════════════════════════
-    this.ctx.fillStyle = `rgba(0, 0, 0, ${GeometricConfig.trail.fadeAlpha})`;
+    this.ctx.fillStyle = `rgba(0, 0, 0, ${this.cfg.trail.fadeAlpha})`;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -38,7 +46,7 @@ export class GeometricRenderer {
     if (handData.clapping) {
       this.ctx.fillStyle = '#FFFFFFCC'; // White flash
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-      this.vibrationTimer = GeometricConfig.vibration.flashDuration;
+      this.vibrationTimer = this.cfg.vibration.flashDuration;
     }
     
     if (this.vibrationTimer > 0) {
@@ -50,37 +58,37 @@ export class GeometricRenderer {
     // FINGER COUNT CONTROLS
     // ═════════════════════════════════════════════════════════════════════════
     let rotationSpeed = 1;
-    let complexity = GeometricConfig.complexity.baseSides;
+    let complexity = this.cfg.complexity.baseSides;
     let strokeWidthMultiplier = 1; // New: stroke width based on finger count
 
     if (handData.left && handData.left.gesture === 'open') {
       const fingerCount = handData.left.fingerCount || 2;
       if (fingerCount === 1) {
-        rotationSpeed = GeometricConfig.fingerCountSpeed.oneFinger;
-        strokeWidthMultiplier = GeometricConfig.fingerCountStrokeWidth.oneFinger;
+        rotationSpeed = this.cfg.fingerCountSpeed.oneFinger;
+        strokeWidthMultiplier = this.cfg.fingerCountStrokeWidth.oneFinger;
       } else if (fingerCount === 2) {
-        rotationSpeed = GeometricConfig.fingerCountSpeed.normalFingers;
-        strokeWidthMultiplier = GeometricConfig.fingerCountStrokeWidth.twoFingers;
+        rotationSpeed = this.cfg.fingerCountSpeed.normalFingers;
+        strokeWidthMultiplier = this.cfg.fingerCountStrokeWidth.twoFingers;
       } else if (fingerCount === 5) {
-        rotationSpeed = GeometricConfig.fingerCountSpeed.fiveFingers;
-        strokeWidthMultiplier = GeometricConfig.fingerCountStrokeWidth.fiveFingers;
+        rotationSpeed = this.cfg.fingerCountSpeed.fiveFingers;
+        strokeWidthMultiplier = this.cfg.fingerCountStrokeWidth.fiveFingers;
       } else {
-        rotationSpeed = GeometricConfig.fingerCountSpeed.normalFingers;
-        strokeWidthMultiplier = GeometricConfig.fingerCountStrokeWidth.normalFingers;
+        rotationSpeed = this.cfg.fingerCountSpeed.normalFingers;
+        strokeWidthMultiplier = this.cfg.fingerCountStrokeWidth.normalFingers;
       }
       complexity = Math.floor(
-        GeometricConfig.complexity.baseSides + 
-        fingerCount * GeometricConfig.complexity.leftHandMultiplier
+        this.cfg.complexity.baseSides + 
+        fingerCount * this.cfg.complexity.leftHandMultiplier
       );
     }
     
     // PINCH GESTURE = SLOW (same as 1 finger before)
     if (handData.left && handData.left.gesture === 'pinch') {
-      rotationSpeed = GeometricConfig.fingerCountSpeed.oneFinger;
-      strokeWidthMultiplier = GeometricConfig.fingerCountStrokeWidth.oneFinger;
+      rotationSpeed = this.cfg.fingerCountSpeed.oneFinger;
+      strokeWidthMultiplier = this.cfg.fingerCountStrokeWidth.oneFinger;
       complexity = Math.floor(
-        GeometricConfig.complexity.baseSides + 
-        1 * GeometricConfig.complexity.leftHandMultiplier
+        this.cfg.complexity.baseSides + 
+        1 * this.cfg.complexity.leftHandMultiplier
       );
     }
 
@@ -89,39 +97,39 @@ export class GeometricRenderer {
       let rightSpeed;
       let rightStrokeMultiplier;
       if (fingerCount === 1) {
-        rightSpeed = GeometricConfig.fingerCountSpeed.oneFinger;
-        rightStrokeMultiplier = GeometricConfig.fingerCountStrokeWidth.oneFinger;
+        rightSpeed = this.cfg.fingerCountSpeed.oneFinger;
+        rightStrokeMultiplier = this.cfg.fingerCountStrokeWidth.oneFinger;
       } else if (fingerCount === 2) {
-        rightSpeed = GeometricConfig.fingerCountSpeed.normalFingers;
-        rightStrokeMultiplier = GeometricConfig.fingerCountStrokeWidth.twoFingers;
+        rightSpeed = this.cfg.fingerCountSpeed.normalFingers;
+        rightStrokeMultiplier = this.cfg.fingerCountStrokeWidth.twoFingers;
       } else if (fingerCount === 5) {
-        rightSpeed = GeometricConfig.fingerCountSpeed.fiveFingers;
-        rightStrokeMultiplier = GeometricConfig.fingerCountStrokeWidth.fiveFingers;
+        rightSpeed = this.cfg.fingerCountSpeed.fiveFingers;
+        rightStrokeMultiplier = this.cfg.fingerCountStrokeWidth.fiveFingers;
       } else {
-        rightSpeed = GeometricConfig.fingerCountSpeed.normalFingers;
-        rightStrokeMultiplier = GeometricConfig.fingerCountStrokeWidth.normalFingers;
+        rightSpeed = this.cfg.fingerCountSpeed.normalFingers;
+        rightStrokeMultiplier = this.cfg.fingerCountStrokeWidth.normalFingers;
       }
       rotationSpeed *= rightSpeed; // Multiply speeds together
       strokeWidthMultiplier = Math.max(strokeWidthMultiplier, rightStrokeMultiplier); // Use max stroke width
-      complexity += Math.floor(fingerCount * GeometricConfig.complexity.rightHandMultiplier);
+      complexity += Math.floor(fingerCount * this.cfg.complexity.rightHandMultiplier);
     }
     
     // PINCH GESTURE = SLOW (same as 1 finger before)
     if (handData.right && handData.right.gesture === 'pinch') {
-      rotationSpeed *= GeometricConfig.fingerCountSpeed.oneFinger;
-      strokeWidthMultiplier = Math.max(strokeWidthMultiplier, GeometricConfig.fingerCountStrokeWidth.oneFinger);
-      complexity += Math.floor(1 * GeometricConfig.complexity.rightHandMultiplier);
+      rotationSpeed *= this.cfg.fingerCountSpeed.oneFinger;
+      strokeWidthMultiplier = Math.max(strokeWidthMultiplier, this.cfg.fingerCountStrokeWidth.oneFinger);
+      complexity += Math.floor(1 * this.cfg.complexity.rightHandMultiplier);
     }
 
-    const rotation = this.time * rotationSpeed * GeometricConfig.animation.baseRotationMultiplier;
+    const rotation = this.time * rotationSpeed * this.cfg.animation.baseRotationMultiplier;
 
     // ═════════════════════════════════════════════════════════════════════════
     // VIBRATION SHAKE
     // ═════════════════════════════════════════════════════════════════════════
     const vibX = vibrationIntensity > 0 ? 
-      (Math.random() - 0.5) * GeometricConfig.vibration.shakeAmountX * vibrationIntensity : 0;
+      (Math.random() - 0.5) * this.cfg.vibration.shakeAmountX * vibrationIntensity : 0;
     const vibY = vibrationIntensity > 0 ? 
-      (Math.random() - 0.5) * GeometricConfig.vibration.shakeAmountY * vibrationIntensity : 0;
+      (Math.random() - 0.5) * this.cfg.vibration.shakeAmountY * vibrationIntensity : 0;
 
     // Draw motion trails
     this.drawGestureTrails(handData, colors);
@@ -146,27 +154,27 @@ export class GeometricRenderer {
     // ═════════════════════════════════════════════════════════════════════════
     // POLYGON SIZE
     // ═════════════════════════════════════════════════════════════════════════
-    const size = GeometricConfig.polygon.baseSize * (1 + vibrationIntensity);
+    const size = this.cfg.polygon.baseSize * (1 + vibrationIntensity);
 
     // ═════════════════════════════════════════════════════════════════════════
     // DRAW LAYERED POLYGONS
     // ═════════════════════════════════════════════════════════════════════════
-    for (let layer = 0; layer < GeometricConfig.layers.count; layer++) {
-      const layerScale = size * (1 + layer * GeometricConfig.layers.sizeGrowth);
-      const layerRotation = rotation + layer * GeometricConfig.layers.rotationOffset;
+    for (let layer = 0; layer < this.cfg.layers.count; layer++) {
+      const layerScale = size * (1 + layer * this.cfg.layers.sizeGrowth);
+      const layerRotation = rotation + layer * this.cfg.layers.rotationOffset;
       
       if (handData.left && handData.left.gesture === 'open') {
         this.drawPolygon(
           centerX,
           centerY,
           Math.max(
-            GeometricConfig.complexity.minSides, 
-            Math.min(GeometricConfig.complexity.maxSides, complexity + layer)
+            this.cfg.complexity.minSides, 
+            Math.min(this.cfg.complexity.maxSides, complexity + layer)
           ),
           50 * layerScale + layer * 30, // Radius calculation
           layerRotation,
           colors[layer % colors.length],
-          GeometricConfig.layers.baseOpacity - layer * GeometricConfig.layers.opacityFade,
+          this.cfg.layers.baseOpacity - layer * this.cfg.layers.opacityFade,
           strokeWidthMultiplier
         );
       }
@@ -176,13 +184,13 @@ export class GeometricRenderer {
           centerX2,
           centerY2,
           Math.max(
-            GeometricConfig.complexity.minSides,
-            Math.min(GeometricConfig.complexity.maxSides, complexity + layer)
+            this.cfg.complexity.minSides,
+            Math.min(this.cfg.complexity.maxSides, complexity + layer)
           ),
           50 * layerScale + layer * 30,
           -layerRotation, // Rotate opposite direction
           colors[(layer + 2) % colors.length],
-          GeometricConfig.layers.baseOpacity - layer * GeometricConfig.layers.opacityFade,
+          this.cfg.layers.baseOpacity - layer * this.cfg.layers.opacityFade,
           strokeWidthMultiplier
         );
       }
@@ -216,7 +224,7 @@ export class GeometricRenderer {
       const color = curr.hand === 'left' ? colors[0] : colors[2];
       
       this.ctx.strokeStyle = color + Math.floor(alpha * 100).toString(16).padStart(2, '0');
-      this.ctx.lineWidth = GeometricConfig.trail.lineThickness * alpha;
+      this.ctx.lineWidth = this.cfg.trail.lineThickness * alpha;
       this.ctx.lineCap = 'round';
       
       this.ctx.beginPath();
@@ -263,7 +271,7 @@ export class GeometricRenderer {
     this.ctx.fill();
 
     this.ctx.strokeStyle = color + Math.floor(alpha * 200).toString(16).padStart(2, '0');
-    this.ctx.lineWidth = GeometricConfig.polygon.strokeWidth * strokeWidthMultiplier;
+    this.ctx.lineWidth = this.cfg.polygon.strokeWidth * strokeWidthMultiplier;
     this.ctx.stroke();
 
     this.ctx.restore();
@@ -282,7 +290,7 @@ export class GeometricRenderer {
     });
 
     this.ctx.strokeStyle = gradient;
-    this.ctx.lineWidth = GeometricConfig.bridge.thickness * scale;
+    this.ctx.lineWidth = this.cfg.bridge.thickness * scale;
     this.ctx.lineCap = 'round';
 
     this.ctx.beginPath();
@@ -293,7 +301,7 @@ export class GeometricRenderer {
       const y = y1 + (y2 - y1) * t;
       
       // Wavy bridge effect
-      const offset = Math.sin(t * Math.PI * 4 + this.time * 2) * GeometricConfig.bridge.waveAmplitude * scale;
+      const offset = Math.sin(t * Math.PI * 4 + this.time * 2) * this.cfg.bridge.waveAmplitude * scale;
       const perpX = -(y2 - y1) / Math.hypot(x2 - x1, y2 - y1);
       const perpY = (x2 - x1) / Math.hypot(x2 - x1, y2 - y1);
       

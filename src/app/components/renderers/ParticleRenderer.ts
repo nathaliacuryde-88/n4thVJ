@@ -1,5 +1,8 @@
 import { HandData } from '../../App';
 import { ParticleConfig } from '../../config/ParticleRendererConfig';
+import { ParamValues, withOverrides } from '../../params/types';
+
+type ParticleCfg = typeof ParticleConfig;
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -23,56 +26,68 @@ class Particle {
   targetSize: number;
   alpha: number = 1; // Opacity
 
-  constructor(x: number, y: number, color: string, scale: number = 1) {
+  constructor(x: number, y: number, color: string, scale: number, cfg: ParticleCfg) {
     this.x = x;
     this.y = y;
-    const velocityRange = ParticleConfig.physics.initialVelocity;
+    const velocityRange = cfg.physics.initialVelocity;
     this.vx = (Math.random() - 0.5) * velocityRange;
     this.vy = (Math.random() - 0.5) * velocityRange;
     
     // Particle size from config
-    const [minSize, maxSize] = ParticleConfig.size.baseRange;
+    const [minSize, maxSize] = cfg.size.baseRange;
     this.baseSize = (minSize + Math.random() * (maxSize - minSize)) * scale;
     this.size = this.baseSize;
     this.targetSize = this.baseSize;
     this.color = color;
   }
 
-  update(handIsOpen: boolean, vibrationIntensity: number = 0, speedMultiplier: number = 1) {
+  update(
+    handIsOpen: boolean,
+    vibrationIntensity: number,
+    speedMultiplier: number,
+    cfg: ParticleCfg,
+  ) {
     // ═════════════════════════════════════════════════════════════════════════
     // HAND OPEN = GROW & APPEAR, HAND CLOSED = SHRINK & FADE OUT
     // ═════════════════════════════════════════════════════════════════════════
     if (handIsOpen) {
-      this.targetSize = this.baseSize * ParticleConfig.size.growthMultiplier;
-      this.alpha = ParticleConfig.controls.openOpacity;
+      this.targetSize = this.baseSize * cfg.size.growthMultiplier;
+      this.alpha = cfg.controls.openOpacity;
       
       // CLAP VIBRATION - Explosive movement
       if (vibrationIntensity > 0) {
-        this.vx += (Math.random() - 0.5) * vibrationIntensity * ParticleConfig.explosion.forceMultiplier * speedMultiplier;
-        this.vy += (Math.random() - 0.5) * vibrationIntensity * ParticleConfig.explosion.forceMultiplier * speedMultiplier;
-        this.targetSize = this.baseSize * (1.2 + vibrationIntensity * ParticleConfig.explosion.growthFactor);
+        this.vx += (Math.random() - 0.5) * vibrationIntensity * cfg.explosion.forceMultiplier * speedMultiplier;
+        this.vy += (Math.random() - 0.5) * vibrationIntensity * cfg.explosion.forceMultiplier * speedMultiplier;
+        this.targetSize = this.baseSize * (1.2 + vibrationIntensity * cfg.explosion.growthFactor);
       }
     } else {
       // Hand closed - particles shrink AND fade out quickly
-      this.targetSize = this.baseSize * ParticleConfig.size.shrinkMultiplier;
+      this.targetSize = this.baseSize * cfg.size.shrinkMultiplier;
       // Fade out quickly when hand closes
-      this.alpha = Math.max(0, this.alpha - ParticleConfig.controls.fadeOutRate);
+      this.alpha = Math.max(0, this.alpha - cfg.controls.fadeOutRate);
     }
 
     // SMOOTH SIZE TRANSITIONS
-    this.size += (this.targetSize - this.size) * ParticleConfig.size.transitionSpeed;
+    this.size += (this.targetSize - this.size) * cfg.size.transitionSpeed;
 
     // Move particle
     this.x += this.vx * speedMultiplier;
     this.y += this.vy * speedMultiplier;
 
     // Damping - slow down over time
-    this.vx *= ParticleConfig.physics.damping;
-    this.vy *= ParticleConfig.physics.damping;
+    this.vx *= cfg.physics.damping;
+    this.vy *= cfg.physics.damping;
   }
 }
 
 export class ParticleRenderer {
+  /** Live copy of ParticleConfig, with any slider overrides applied. */
+  private cfg = ParticleConfig;
+
+  setParams(values: ParamValues) {
+    this.cfg = withOverrides(ParticleConfig, values);
+  }
+
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private particles: Particle[] = [];
@@ -89,7 +104,7 @@ export class ParticleRenderer {
     this.time += 0.016;
 
     // BACKGROUND FADE - Creates motion trails
-    this.ctx.fillStyle = `rgba(0, 0, 0, ${ParticleConfig.trail.fadeAlpha})`;
+    this.ctx.fillStyle = `rgba(0, 0, 0, ${this.cfg.trail.fadeAlpha})`;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // CLAPPING EXPLOSION
@@ -112,7 +127,7 @@ export class ParticleRenderer {
 
     // FINGER COUNT SPEED CONTROL
     // ═════════════════════════════════════════════════════════════════════════
-    let speedMultiplier = ParticleConfig.controls.fingerCountSpeed.twoFingers; // Default medium speed
+    let speedMultiplier = this.cfg.controls.fingerCountSpeed.twoFingers; // Default medium speed
     let leftHandOpen = false;
     let rightHandOpen = false;
     let leftFingerCount = 0;
@@ -143,29 +158,30 @@ export class ParticleRenderer {
     
     // Map finger count to speed multiplier
     if (maxFingerCount === 1) {
-      speedMultiplier = ParticleConfig.controls.fingerCountSpeed.oneFinger;
+      speedMultiplier = this.cfg.controls.fingerCountSpeed.oneFinger;
     } else if (maxFingerCount === 2) {
-      speedMultiplier = ParticleConfig.controls.fingerCountSpeed.twoFingers;
+      speedMultiplier = this.cfg.controls.fingerCountSpeed.twoFingers;
     } else if (maxFingerCount === 3) {
-      speedMultiplier = ParticleConfig.controls.fingerCountSpeed.threeFingers;
+      speedMultiplier = this.cfg.controls.fingerCountSpeed.threeFingers;
     } else if (maxFingerCount === 4) {
-      speedMultiplier = ParticleConfig.controls.fingerCountSpeed.fourFingers;
+      speedMultiplier = this.cfg.controls.fingerCountSpeed.fourFingers;
     } else if (maxFingerCount >= 5) {
-      speedMultiplier = ParticleConfig.controls.fingerCountSpeed.fiveFingers;
+      speedMultiplier = this.cfg.controls.fingerCountSpeed.fiveFingers;
     }
 
     // EMIT NEW PARTICLES FROM HANDS
     if (handData.left) {
       const isOpen = handData.left.gesture === 'open';
       
-      const emissionRate = isOpen ? ParticleConfig.emission.openHandRate : ParticleConfig.emission.closedHandRate;
+      const emissionRate = isOpen ? this.cfg.emission.openHandRate : this.cfg.emission.closedHandRate;
       
       if (Math.random() < emissionRate) {
         this.particles.push(new Particle(
           handData.left.position.x * this.canvas.width,
           handData.left.position.y * this.canvas.height,
           colors[Math.floor(Math.random() * colors.length)],
-          1
+          1,
+          this.cfg,
         ));
       }
     }
@@ -173,21 +189,22 @@ export class ParticleRenderer {
     if (handData.right) {
       const isOpen = handData.right.gesture === 'open';
       
-      const emissionRate = isOpen ? ParticleConfig.emission.openHandRate : ParticleConfig.emission.closedHandRate;
+      const emissionRate = isOpen ? this.cfg.emission.openHandRate : this.cfg.emission.closedHandRate;
       
       if (Math.random() < emissionRate) {
         this.particles.push(new Particle(
           handData.right.position.x * this.canvas.width,
           handData.right.position.y * this.canvas.height,
           colors[Math.floor(Math.random() * colors.length)],
-          1
+          1,
+          this.cfg,
         ));
       }
     }
 
     // UPDATE AND DRAW ALL PARTICLES
     this.particles = this.particles.filter(particle => {
-      particle.update(anyHandOpen, vibrationIntensity, speedMultiplier);
+      particle.update(anyHandOpen, vibrationIntensity, speedMultiplier, this.cfg);
       
       // Remove particles that are too faded
       if (particle.alpha < 0.01) return false;
@@ -196,14 +213,14 @@ export class ParticleRenderer {
       this.ctx.globalAlpha = particle.alpha;
       
       // MULTI-LAYER GLOW - Creates soft, massive look
-      for (let layer = 0; layer < ParticleConfig.glow.layers; layer++) {
-        const layerSize = particle.size * (1 + layer * ParticleConfig.glow.expansion);
+      for (let layer = 0; layer < this.cfg.glow.layers; layer++) {
+        const layerSize = particle.size * (1 + layer * this.cfg.glow.expansion);
         const gradient = this.ctx.createRadialGradient(
           particle.x, particle.y, 0,
           particle.x, particle.y, layerSize
         );
         
-        const opacity = (1 - layer * ParticleConfig.glow.layerFade) * particle.alpha;
+        const opacity = (1 - layer * this.cfg.glow.layerFade) * particle.alpha;
         gradient.addColorStop(0, particle.color + Math.floor(opacity * 255).toString(16).padStart(2, '0'));
         gradient.addColorStop(0.5, particle.color + Math.floor(opacity * 150).toString(16).padStart(2, '0'));
         gradient.addColorStop(1, particle.color + '00'); // Transparent edge
@@ -219,8 +236,8 @@ export class ParticleRenderer {
     });
 
     // PARTICLE LIMIT - Prevent slowdown
-    if (this.particles.length > ParticleConfig.limits.maxParticles) {
-      this.particles = this.particles.slice(-ParticleConfig.limits.maxParticles);
+    if (this.particles.length > this.cfg.limits.maxParticles) {
+      this.particles = this.particles.slice(-this.cfg.limits.maxParticles);
     }
   }
 
@@ -229,15 +246,16 @@ export class ParticleRenderer {
     const centerY = this.canvas.height / 2;
     
     // MASSIVE BURST
-    for (let i = 0; i < ParticleConfig.explosion.particleCount; i++) {
+    for (let i = 0; i < this.cfg.explosion.particleCount; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const [minSpeed, maxSpeed] = ParticleConfig.explosion.speedRange;
+      const [minSpeed, maxSpeed] = this.cfg.explosion.speedRange;
       const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
       
       const particle = new Particle(
         centerX, centerY,
         colors[Math.floor(Math.random() * colors.length)],
-        ParticleConfig.explosion.sizeMultiplier
+        this.cfg.explosion.sizeMultiplier,
+        this.cfg,
       );
       particle.vx = Math.cos(angle) * speed;
       particle.vy = Math.sin(angle) * speed;
@@ -252,14 +270,14 @@ export class ParticleRenderer {
     setTimeout(() => {
       this.ctx.fillStyle = colors[0] + '80'; // Color flash
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    }, ParticleConfig.explosion.flashDelay);
+    }, this.cfg.explosion.flashDelay);
     
-    this.vibrationTimer = ParticleConfig.explosion.vibrationDuration;
+    this.vibrationTimer = this.cfg.explosion.vibrationDuration;
     
     // Prevent rapid re-triggering
     this.isExploding = true;
     setTimeout(() => {
       this.isExploding = false;
-    }, ParticleConfig.explosion.cooldown);
+    }, this.cfg.explosion.cooldown);
   }
 }

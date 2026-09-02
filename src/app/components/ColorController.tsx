@@ -143,10 +143,7 @@ export function ColorController({
             max="360"
             value={hue}
             onChange={(e) => onHueChange(Number(e.target.value))}
-            className="absolute inset-0 w-full appearance-none bg-transparent cursor-pointer"
-            style={{
-              WebkitAppearance: 'none',
-            }}
+            className="vj-slider-bare absolute inset-0 w-full appearance-none bg-transparent cursor-pointer"
           />
           {/* Custom handle */}
           <div
@@ -173,25 +170,6 @@ export function ColorController({
           {autoHueEnabled ? '⟳ AUTO' : 'AUTO'}
         </button>
       )}
-
-      {/* Hide default slider styles */}
-      <style>{`
-        input[type="range"]::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 20px;
-          height: 20px;
-          background: transparent;
-          cursor: pointer;
-        }
-        input[type="range"]::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
-          background: transparent;
-          cursor: pointer;
-          border: none;
-        }
-      `}</style>
     </div>
   );
 }
