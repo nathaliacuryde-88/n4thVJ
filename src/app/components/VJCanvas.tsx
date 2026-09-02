@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { HandData, VisualPattern } from '../App';
 import { ParticleRenderer } from './renderers/ParticleRenderer';
 import { GeometricRenderer } from './renderers/GeometricRenderer';
@@ -187,6 +187,15 @@ export function VJCanvas({
   const animationFrameRef = useRef<number | null>(null);
   const rendererRef = useRef<VJRenderer | null>(null);
   const pipelineRef = useRef<PostPipeline | null>(null);
+  const fallbackCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  /**
+   * A canvas can only ever hold one kind of context. If the pipeline dies after
+   * taking the WebGL2 one — a shader that will not compile on some driver — then
+   * asking that same canvas for a 2D context returns null forever, and the page
+   * stays black with no way back. Flipping this remounts the canvas as a fresh
+   * element so the 2D fallback actually has somewhere to draw.
+   */
+  const [pipelineFailed, setPipelineFailed] = useState(false);
   const deckRef = useRef<Deck | null>(null);
   const outgoingRef = useRef<FadingDeck | null>(null);
   
@@ -228,15 +237,20 @@ export function VJCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    if (pipelineFailed) {
+      fallbackCtxRef.current = canvas.getContext('2d');
+      return;
+    }
+
     let pipeline: PostPipeline | null = null;
     try {
       pipeline = new PostPipeline(canvas);
       pipeline.setParams(fxParamsRef.current ?? {});
       pipelineRef.current = pipeline;
     } catch (error) {
-      // No WebGL2: fall back to showing the renderers' own canvas directly.
       console.error('Post pipeline unavailable, falling back to direct output:', error);
       pipelineRef.current = null;
+      setPipelineFailed(true);
     }
 
     return () => {
@@ -244,7 +258,7 @@ export function VJCanvas({
       pipelineRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pipelineFailed]);
 
   // ═══════════════════════════════════════════════════════════════════════
   // DECKS
@@ -317,12 +331,9 @@ export function VJCanvas({
             fade < 1 && outgoingRef.current ? outgoingRef.current.canvas : null,
             fade,
           );
-        } else {
-          const visibleCtx = canvasRef.current?.getContext('2d');
-          if (visibleCtx) {
-            // No WebGL2 — no crossfade either, just the current deck.
-            visibleCtx.drawImage(deck.canvas, 0, 0);
-          }
+        } else if (fallbackCtxRef.current) {
+          // No pipeline — no crossfade either, just the current deck.
+          fallbackCtxRef.current.drawImage(deck.canvas, 0, 0);
         }
       }
 
@@ -384,6 +395,9 @@ export function VJCanvas({
 
   return (
     <canvas
+      // Remounting as a new element is the only way to get a 2D context after
+      // WebGL2 has claimed the old one.
+      key={pipelineFailed ? 'fallback-2d' : 'pipeline-gl'}
       ref={canvasRef}
       className="absolute inset-0 w-full h-full z-0"
     />

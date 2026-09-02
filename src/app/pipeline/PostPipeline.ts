@@ -24,6 +24,28 @@ import {
 
 type Cfg = typeof PipelineConfig;
 
+/** A stage runs only if it is switched on, has opacity, and is doing something. */
+function stageLive(stage: { enabled: number; mix: number }, doingSomething: boolean): boolean {
+  return stage.enabled >= 0.5 && stage.mix > 0 && doingSomething;
+}
+
+/**
+ * Whether the chain would alter the image at all. Exported so the UI can show
+ * it without re-deriving the rules.
+ */
+export function fxActive(values: ParamValues): boolean {
+  const c = withOverrides(PipelineConfig, values);
+  if (c.master.enabled < 0.5) return false;
+  return (
+    stageLive(c.feedback, c.feedback.amount > 0) ||
+    stageLive(c.displace, c.displace.amount > 0) ||
+    stageLive(c.rgbSplit, c.rgbSplit.amount > 0) ||
+    stageLive(c.kaleido, c.kaleido.segments >= 2) ||
+    stageLive(c.quantize, c.quantize.pixel > 1 || c.quantize.levels >= 2) ||
+    stageLive(c.bloom, c.bloom.amount > 0)
+  );
+}
+
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  * POST PIPELINE
@@ -114,14 +136,14 @@ export class PostPipeline {
     this.cfg = withOverrides(PipelineConfig, values);
   }
 
-  /** A stage is live only if it is switched on, has opacity, and is doing something. */
   private live(stage: { enabled: number; mix: number }, doingSomething: boolean): boolean {
-    return stage.enabled >= 0.5 && stage.mix > 0 && doingSomething;
+    return this.cfg.master.enabled >= 0.5 && stageLive(stage, doingSomething);
   }
 
   /** True when at least one stage is live. */
   private get active(): boolean {
     const c = this.cfg;
+    if (c.master.enabled < 0.5) return false;
     return (
       this.live(c.feedback, c.feedback.amount > 0) ||
       this.live(c.displace, c.displace.amount > 0) ||

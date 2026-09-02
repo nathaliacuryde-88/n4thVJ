@@ -42,7 +42,8 @@ delegate there).
 | **C** | Camera preview on/off |
 | **A** | Audio-reactive mode on/off |
 | **Ctrl / Alt / Cmd** | Colour mode: 2 colours / black & white / 1 colour |
-| **I** | Idle drive on/off |
+| **I** | Auto-motion on/off |
+| **X** | Bypass the whole FX chain |
 | **Right-click** | Hide or show the whole UI |
 
 The panel on the left has two tabs. **SHAPE** holds the current renderer's own
@@ -61,10 +62,18 @@ reset it, or the arrow in the panel header to reset the tab. Geometric, Particle
 and Waves have SHAPE parameters so far —
 [`docs/ADDING_PARAMETERS.md`](docs/ADDING_PARAMETERS.md) covers adding the rest.
 
-Several visuals only draw where a hand is. With **idle drive** on (the default,
-and the ∞ button) they are driven by a slow synthetic figure whenever nothing is
-tracked, so they never sit black — useful in a dark room, where tracking drops.
-Real hands take over the moment they appear.
+Four buttons sit bottom-left, labelled: **CAM** shows the camera preview, **MIC**
+drives the visuals from the microphone, **AUTO** is auto-motion, and **FX**
+bypasses the whole post chain.
+
+**AUTO** matters more than it sounds. Several visuals only draw where a hand is,
+so with nothing tracked they sit black. With auto-motion on — the default — they
+are driven by a slow synthetic figure instead, which keeps them alive in a dark
+room where tracking drops. Real hands take over the moment they appear.
+
+**FX** lights up whenever the chain is altering the image. Its settings persist
+across reloads, so this is how you tell at a glance that a look from an earlier
+session is still on, and how you take it off without losing it.
 
 Gestures: an open hand is followed, a pinch slows things down, five fingers
 speed them up, and bringing both hands together triggers the explosion.

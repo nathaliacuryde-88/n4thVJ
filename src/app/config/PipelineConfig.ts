@@ -12,6 +12,19 @@
 
 export const PipelineConfig = {
   /**
+   * MASTER — one switch over the whole chain.
+   *
+   * Settings here persist across reloads, so it is entirely possible to arrive
+   * at a page still wearing a heavy feedback smear set an hour ago and conclude
+   * the thing is broken. This is the way out, and the FX button in the corner
+   * lights up whenever the chain is altering the image at all.
+   */
+  master: {
+    /** 0 bypasses every stage at once, keeping all of their settings. */
+    enabled: 1,
+  },
+
+  /**
    * TRANSITION — how a pattern change reaches the screen.
    *
    * Both renderers run for the length of the fade, so a slow one costs two

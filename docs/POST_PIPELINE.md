@@ -20,6 +20,16 @@ Every effect defaults to **off**. With the whole chain at rest the pipeline
 detects it and blits the source straight to screen — one texture copy, no passes,
 output identical to what the renderer drew.
 
+## The master switch
+
+**FX** in the corner bypasses the entire chain, and lights up whenever the chain
+is altering the image at all. `X` does the same from the keyboard.
+
+This matters because FX settings persist across reloads. Without it, arriving at
+a page still wearing a heavy feedback smear set an hour earlier looks exactly
+like the app being broken: every visual buried under the same wash, and switching
+between them apparently doing nothing.
+
 ## Layers
 
 Each stage is a layer, in the TouchDesigner sense:

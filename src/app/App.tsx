@@ -9,6 +9,7 @@ import { getPatternCategory, getRenderersByCategory } from './config/RendererCat
 import { ParamPanel, ParamSection } from './components/ParamPanel';
 import { PIPELINE_PARAMS, RENDERER_PARAMS } from './params/registry';
 import { AllParamValues, ParamValues, sanitizeAllParams } from './params/types';
+import { fxActive } from './pipeline/PostPipeline';
 
 export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks';
 
@@ -181,6 +182,13 @@ export default function App() {
 
   const setFxParam = useCallback((path: string, value: number) => {
     setFxParams((prev) => ({ ...prev, [path]: value }));
+  }, []);
+
+  // One switch over the whole chain, so a heavy look left over from an earlier
+  // session is one click away from gone rather than a hunt through the panel.
+  const fxEnabled = (fxParams['master.enabled'] ?? 1) >= 0.5;
+  const toggleFx = useCallback(() => {
+    setFxParams((prev) => ({ ...prev, 'master.enabled': (prev['master.enabled'] ?? 1) >= 0.5 ? 0 : 1 }));
   }, []);
 
   const resetFxParam = useCallback((path?: string) => {
@@ -357,6 +365,12 @@ export default function App() {
         return;
       }
       
+      // Master FX bypass (X)
+      if (e.key.toLowerCase() === 'x') {
+        toggleFx();
+        return;
+      }
+
       // Idle drive (I)
       if (e.key.toLowerCase() === 'i') {
         setIdleDrive(prev => !prev);
@@ -435,7 +449,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [rendererFilter, cyclePattern]);
+  }, [rendererFilter, cyclePattern, toggleFx]);
 
   // Right-click to toggle UI visibility
   useEffect(() => {
@@ -584,6 +598,9 @@ export default function App() {
           onAudioTriggerBeatsChange={setAudioTriggerBeats}
           idleDrive={idleDrive}
           onIdleDriveToggle={() => setIdleDrive(prev => !prev)}
+          fxEnabled={fxEnabled}
+          fxActive={fxActive(fxParams)}
+          onFxToggle={toggleFx}
           smokeHandModel={smokeHandModel}
           onSmokeHandModelChange={setSmokeHandModel}
         />

@@ -1,5 +1,5 @@
 import { Hand, HandData, VisualPattern } from '../App';
-import { Video, VideoOff, Mic, MicOff, Infinity as InfinityIcon } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, Orbit, Sparkles } from 'lucide-react';
 import { ColorController } from './ColorController';
 import { getRenderersByCategory } from '../config/RendererCategories';
 
@@ -55,8 +55,50 @@ interface ControlsProps {
   onAudioTriggerBeatsChange: (enabled: boolean) => void;
   idleDrive: boolean;
   onIdleDriveToggle: () => void;
+  fxEnabled: boolean;
+  fxActive: boolean;
+  onFxToggle: () => void;
   smokeHandModel?: 'torus' | 'hand';
   onSmokeHandModelChange?: (model: 'torus' | 'hand') => void;
+}
+
+function ControlButton({
+  label,
+  active,
+  warn,
+  onClick,
+  title,
+  children,
+}: {
+  label: string;
+  active: boolean;
+  warn?: boolean;
+  onClick: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button onClick={onClick} title={title} className="flex flex-col items-center gap-1 group/btn">
+      <span
+        className={`w-8 h-8 rounded-full transition-all flex items-center justify-center group-hover/btn:scale-105 group-active/btn:scale-95 ${
+          active
+            ? warn
+              ? 'bg-cyan-400 text-black shadow-lg shadow-cyan-400/40'
+              : 'bg-white text-black shadow-lg shadow-white/40'
+            : 'bg-white/10 text-white/60 group-hover/btn:bg-white/20 group-hover/btn:text-white'
+        }`}
+      >
+        {children}
+      </span>
+      <span
+        className={`text-[8px] tracking-widest transition-colors ${
+          active ? 'text-white/80' : 'text-white/35'
+        }`}
+      >
+        {label}
+      </span>
+    </button>
+  );
 }
 
 export function Controls({
@@ -89,6 +131,9 @@ export function Controls({
   onAudioTriggerBeatsChange,
   idleDrive,
   onIdleDriveToggle,
+  fxEnabled,
+  fxActive,
+  onFxToggle,
   smokeHandModel,
   onSmokeHandModelChange
 }: ControlsProps) {
@@ -203,54 +248,65 @@ export function Controls({
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* BOTTOM LEFT - CAMERA + RECORDING CONTROLS */}
+      {/* BOTTOM ROW — controls, colour bar, hand/audio readout                */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <div className="absolute left-6 bottom-[25px] font-mono z-50 flex flex-col gap-4 pointer-events-auto">
-        {/* Camera & Recording Controls Buttons */}
-        <div className="bg-black/70 backdrop-blur-sm rounded-full py-2 px-3 border border-white/20 flex items-center gap-2 w-fit h-[50px]">
-          <button
+      {/* One row, not three overlapping absolute elements. The colour bar used
+          to span the full width on top of the buttons at either end and swallow
+          their clicks, which on a narrow window made them unusable. */}
+      <div className="absolute bottom-[25px] left-6 right-6 z-50 flex items-end gap-4 font-mono pointer-events-none">
+        <div className="shrink-0 pointer-events-auto">
+        {/* Icons alone were a guessing game — each one says what it is. */}
+        <div className="bg-black/70 backdrop-blur-sm rounded-2xl py-2 px-3 border border-white/20 flex items-end gap-2.5 w-fit">
+          <ControlButton
+            label="CAM"
+            active={showCamera}
             onClick={onCameraToggle}
-            className={`w-8 h-8 rounded-full transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95 ${ 
-              showCamera
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50'
-                : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
-            }`}
-            title="Toggle Camera View (C)"
+            title="Show the camera preview (C)"
           >
             {showCamera ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
-          </button>
-          
-          <button
+          </ControlButton>
+
+          <ControlButton
+            label="MIC"
+            active={audioEnabled}
             onClick={onAudioToggle}
-            className={`w-8 h-8 rounded-full transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95 ${ 
-              audioEnabled
-                ? 'bg-white text-black shadow-lg shadow-white/50'
-                : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
-            }`}
-            title="Toggle Audio Reactive Mode (A)"
+            title="Audio-reactive mode: drive the visuals from the microphone (A)"
           >
             {audioEnabled ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
-          </button>
+          </ControlButton>
 
-          <button
+          <ControlButton
+            label="AUTO"
+            active={idleDrive}
             onClick={onIdleDriveToggle}
-            className={`w-8 h-8 rounded-full transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95 ${ 
-              idleDrive
-                ? 'bg-white text-black shadow-lg shadow-white/50'
-                : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
-            }`}
-            title="Idle drive: keep hand-driven visuals moving when no hands are tracked (I)"
+            title="Auto-motion: keep hand-driven visuals moving when no hands are tracked (I)"
           >
-            <InfinityIcon className="w-3.5 h-3.5" />
-          </button>
+            <Orbit className="w-3.5 h-3.5" />
+          </ControlButton>
+
+          <div className="w-px h-8 bg-white/15 self-center" />
+
+          <ControlButton
+            label="FX"
+            active={fxEnabled && fxActive}
+            warn={fxEnabled && fxActive}
+            onClick={onFxToggle}
+            title={
+              fxEnabled
+                ? 'Post effects are on. Click to bypass the whole chain, keeping every setting (X)'
+                : 'Post effects bypassed. Click to bring them back (X)'
+            }
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+          </ControlButton>
         </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* BOTTOM - MINIMALIST COLOR BAR */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      <div className="absolute bottom-[25px] left-0 right-0 flex justify-center z-50 pointer-events-none">
-        <div className="bg-black/70 backdrop-blur-sm rounded-full py-2 px-6 border border-white/20 max-w-4xl w-full mx-4 pointer-events-auto">
+        <div className="flex-1 min-w-0 flex justify-center pointer-events-none">
+          <div className="bg-black/70 backdrop-blur-sm rounded-full py-2 px-6 border border-white/20 max-w-4xl w-full pointer-events-auto">
           <ColorController 
             selectedColors={selectedColors} 
             onColorsChange={onColorsChange}
@@ -271,7 +327,7 @@ export function Controls({
       
       {/* Hand Status - Hidden when audio enabled */}
       {!audioEnabled && (
-          <div className="absolute bottom-[25px] right-6 z-50 bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 space-y-2 text-xs min-w-[200px] font-mono animate-in fade-in duration-300">
+          <div className="shrink-0 bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 space-y-2 text-xs min-w-[200px] font-mono animate-in fade-in duration-300 pointer-events-auto">
           <div className="text-white/80 mb-2">HAND</div>
           <div className="space-y-1">
               {handData.left && <HandStatus label="L HAND" hand={handData.left} />}
@@ -295,7 +351,7 @@ export function Controls({
 
       {/* Audio Controls - Visible when audio enabled - Vertical Rectangle Style */}
       {audioEnabled && (
-          <div className="absolute bottom-[25px] right-6 z-50 animate-in slide-in-from-right-5 fade-in duration-300">
+          <div className="shrink-0 animate-in slide-in-from-right-5 fade-in duration-300 pointer-events-auto">
               <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 border border-white/20 font-mono flex flex-col gap-4 w-[160px]">
                   
                   {/* Header */}
@@ -365,6 +421,8 @@ export function Controls({
               </div>
           </div>
       )}
+      </div>
+
     </>
   );
 }
