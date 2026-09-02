@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spectral Hand Scanner - LiDAR Point Cloud</title>
+  <style>
+    body { 
+      margin: 0; 
+      padding: 0; 
+      background: #000; 
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+    }
+    
+    /* The canvas covers the whole window */
+    canvas { 
+      display: block; 
+      width: 100vw; 
+      height: 100vh; 
+      cursor: none;
+    }
+    
+    /* Hide the video element, we only want the artistic output */
+    video { 
+      display: none; 
+    }
+    
+    #loading {
+      position: absolute; 
+      top: 50%; 
+      left: 50%; 
+      transform: translate(-50%, -50%);
+      color: #00FF00; 
+      font-family: 'Courier New', monospace; 
+      font-size: 14px; 
+      text-align: center;
+      letter-spacing: 2px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    
+    #info {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: rgba(255, 255, 255, 0.3);
+      font-size: 11px;
+      letter-spacing: 1px;
+      line-height: 1.6;
+    }
+    
+    #stats {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      color: rgba(0, 255, 0, 0.5);
+      font-size: 10px;
+      text-align: right;
+      letter-spacing: 1px;
+      line-height: 1.8;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <div id="loading">
+    ╔════════════════════════════╗<br>
+    ║ SPECTRAL SCANNER v2.1     ║<br>
+    ║ INITIALIZING LIDAR ARRAY  ║<br>
+    ║ CAMERA ACCESS REQUIRED    ║<br>
+    ╚════════════════════════════╝
+  </div>
+  
+  <div id="info">
+    SPECTRAL HAND SCANNER<br>
+    MODE: LIDAR POINT CLOUD<br>
+    STATUS: <span id="status">STANDBY</span>
+  </div>
+  
+  <div id="stats">
+    HANDS DETECTED: <span id="handCount">0</span><br>
+    POINTS RENDERED: <span id="pointCount">0</span><br>
+    FPS: <span id="fps">--</span>
+  </div>
+
+  <video id="input_video"></video>
+  <canvas id="output_canvas"></canvas>
+
+  <script>
+    const videoElement = document.getElementById('input_video');
+    const canvasElement = document.getElementById('output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+    const loading = document.getElementById('loading');
+    const statusEl = document.getElementById('status');
+    const handCountEl = document.getElementById('handCount');
+    const pointCountEl = document.getElementById('pointCount');
+    const fpsEl = document.getElementById('fps');
+    
+    let frameCount = 0;
+    let lastTime = Date.now();
+
+    // Resize canvas to match window
+    function resize() {
+      canvasElement.width = window.innerWidth;
+      canvasElement.height = window.innerHeight;
+    }
+    window.onresize = resize;
+    resize();
+
+    // THE ARTISTIC RENDER FUNCTION
+    function onResults(results) {
+      loading.style.display = 'none';
+      
+      // Calculate FPS
+      frameCount++;
+      const now = Date.now();
+      if (now - lastTime > 1000) {
+        fpsEl.textContent = frameCount;
+        frameCount = 0;
+        lastTime = now;
+      }
+
+      // 1. Create the "Ghost Trails" effect
+      // Instead of clearing the canvas completely, we draw a semi-transparent black rectangle.
+      // This makes old frames fade out slowly (creating motion blur).
+      canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.15)'; 
+      canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+      let totalPoints = 0;
+      
+      // If hand detected
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        statusEl.textContent = 'SCANNING';
+        statusEl.style.color = '#00FF00';
+        handCountEl.textContent = results.multiHandLandmarks.length;
+        
+        for (const landmarks of results.multiHandLandmarks) {
+          
+          // Loop through all 21 hand points
+          for (let i = 0; i < landmarks.length; i++) {
+            const x = landmarks[i].x * canvasElement.width;
+            const y = landmarks[i].y * canvasElement.height;
+            const z = landmarks[i].z; // Depth information
+
+            // 2. The "Point Cloud" Style
+            // Instead of drawing one dot, we draw a "glitch cluster" around the point
+            const particleCount = 8; // How dense the noise is
+            const scatter = 12; // How spread out the noise is (pixels)
+
+            for (let j = 0; j < particleCount; j++) {
+              // Random jitter calculation
+              const offsetX = (Math.random() - 0.5) * scatter;
+              const offsetY = (Math.random() - 0.5) * scatter;
+              
+              // Random opacity for flickering effect
+              const opacity = 0.5 + Math.random() * 0.5; 
+              
+              // Vary brightness based on depth (z coordinate)
+              const depthBrightness = Math.max(0.3, 1 - Math.abs(z) * 2);
+              
+              canvasCtx.fillStyle = `rgba(255, 255, 255, ${opacity * depthBrightness})`;
+              
+              // Draw tiny rectangles (looks more digital than circles)
+              const size = 1.5 + Math.random() * 0.5;
+              canvasCtx.fillRect(x + offsetX, y + offsetY, size, size);
+              
+              totalPoints++;
+            }
+            
+            // Add occasional "scan line" glitch effect
+            if (Math.random() > 0.95) {
+              canvasCtx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+              canvasCtx.fillRect(0, y, canvasElement.width, 1);
+            }
+          }
+          
+          // Optional: Draw faint wireframe lines connecting the dots
+          // This creates the "skeleton" structure
+          if (typeof drawConnectors !== 'undefined' && typeof HAND_CONNECTIONS !== 'undefined') {
+            drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+              color: 'rgba(255, 255, 255, 0.08)', 
+              lineWidth: 0.5
+            });
+          }
+          
+          // Draw extra glowing points on key landmarks (fingertips and palm)
+          const keyPoints = [4, 8, 12, 16, 20, 0]; // Fingertips + wrist
+          keyPoints.forEach(idx => {
+            const x = landmarks[idx].x * canvasElement.width;
+            const y = landmarks[idx].y * canvasElement.height;
+            
+            // Glow effect
+            const gradient = canvasCtx.createRadialGradient(x, y, 0, x, y, 15);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            
+            canvasCtx.fillStyle = gradient;
+            canvasCtx.beginPath();
+            canvasCtx.arc(x, y, 15, 0, Math.PI * 2);
+            canvasCtx.fill();
+          });
+        }
+      } else {
+        statusEl.textContent = 'STANDBY';
+        statusEl.style.color = 'rgba(255, 255, 255, 0.5)';
+        handCountEl.textContent = '0';
+      }
+      
+      pointCountEl.textContent = totalPoints;
+      
+      // Add scan line effect across the screen
+      const scanY = (Date.now() / 10) % canvasElement.height;
+      canvasCtx.fillStyle = 'rgba(0, 255, 0, 0.05)';
+      canvasCtx.fillRect(0, scanY, canvasElement.width, 2);
+    }
+
+    // INITIALIZE MEDIAPIPE HANDS
+    const hands = new Hands({
+      locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+      }
+    });
+
+    hands.setOptions({
+      maxNumHands: 2,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    hands.onResults(onResults);
+
+    // ACTIVATE CAMERA
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await hands.send({image: videoElement});
+      },
+      width: 1280,
+      height: 720
+    });
+    
+    camera.start().catch(err => {
+      loading.innerHTML = '╔════════════════════════════╗<br>║ CAMERA ACCESS DENIED      ║<br>║ PLEASE GRANT PERMISSIONS  ║<br>╚════════════════════════════╝';
+      loading.style.color = '#FF0000';
+      console.error('Camera error:', err);
+    });
+  </script>
+</body>
+</html>
