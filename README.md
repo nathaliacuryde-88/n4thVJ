@@ -4,8 +4,14 @@ A browser VJ instrument: 25 canvas visualisers you drive with your hands in fron
 of a webcam, or with whatever the microphone is hearing. Everything runs locally
 in the page — the camera and audio streams never leave the machine.
 
+### → **https://nathaliacuryde-88.github.io/n4thVJ/**
+
+Allow the camera when the browser asks — hand tracking is what most of the
+renderers react to.
+
 Reconstructed from the Figma Make export of
 [boat-stable-82790887.figma.site](https://boat-stable-82790887.figma.site).
+Every push to the development branch redeploys the page.
 
 ## Running it
 
