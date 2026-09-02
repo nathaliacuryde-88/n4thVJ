@@ -1,5 +1,6 @@
 import { HandData, AudioData } from '../../App';
 import * as THREE from 'three';
+import { disposeThree } from './disposeThree';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -186,8 +187,8 @@ export class NetworkWebRenderer {
     // 1. Determine Interaction Level
     let target = 0.0;
     
-    if (handData.left || handData.right) {
-      const hand = handData.left || handData.right;
+    const hand = handData.left || handData.right;
+    if (hand) {
       
       // Hand Position -> Rotation
       this.handX += (hand.position.x - this.handX) * 0.1;
@@ -309,5 +310,9 @@ export class NetworkWebRenderer {
     
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.drawImage(this.threeCanvas, 0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  destroy() {
+    disposeThree(this.scene, this.renderer);
   }
 }

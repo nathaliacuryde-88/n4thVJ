@@ -136,7 +136,11 @@ export class WaveRenderer {
         fingerCount = 1;
       }
       
-      let rightSpeed;
+      // Neutral by default: 0 fingers matches no branch below, and an
+      // undefined rightSpeed turned speedMultiplier into NaN, which the
+      // isFinite() guard further down reset to 1 - silently discarding the
+      // left hand's contribution too.
+      let rightSpeed = 1;
       if (fingerCount === 1) {
         rightSpeed = WaveConfig.fingerCountSpeed.oneFinger;
         amplitude *= WaveConfig.fingerAmplitude.oneFingerMultiplier;

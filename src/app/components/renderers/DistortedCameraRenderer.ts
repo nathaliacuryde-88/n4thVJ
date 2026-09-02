@@ -340,6 +340,7 @@ export class DistortedCameraRenderer {
       }
     }
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
     console.log('🎥 DistortedCameraRenderer destroyed');
   }
 }

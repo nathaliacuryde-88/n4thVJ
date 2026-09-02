@@ -1,4 +1,4 @@
-import { HandData, AudioData } from '../../App';
+import { Hand, HandData, AudioData } from '../../App';
 
 interface FlowElement {
   x: number;
@@ -69,7 +69,7 @@ export class FlowFieldRenderer {
       this.initializeField();
     }
 
-    const hands = [];
+    const hands: Hand[] = [];
     if (handData.left) hands.push(handData.left);
     if (handData.right) hands.push(handData.right);
 

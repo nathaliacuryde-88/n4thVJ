@@ -1,8 +1,29 @@
-import { HandData, VisualPattern } from '../App';
+import { Hand, HandData, VisualPattern } from '../App';
 import { Video, VideoOff, Mic, MicOff } from 'lucide-react';
 import { ColorController } from './ColorController';
-import { getPatternCategory, RENDERER_CATEGORIES, getRenderersByCategory } from '../config/RendererCategories';
-import { useState } from 'react';
+import { getRenderersByCategory } from '../config/RendererCategories';
+
+/**
+ * The one-word gesture readout for a hand, or null when there is nothing to
+ * say (no finger count and not pinching).
+ */
+function fingerLabel(hand: Hand): string | null {
+  if (hand.gesture === 'pinch') return 'PINCH';
+  if (hand.fingerCount === undefined) return null;
+  if (hand.fingerCount === 2) return 'MED';
+  if (hand.fingerCount >= 5) return 'FAST';
+  return `${hand.fingerCount}F`;
+}
+
+function HandStatus({ label, hand }: { label: string; hand: Hand }) {
+  const status = fingerLabel(hand);
+  return (
+    <div>
+      <div className="text-white/90">{label}</div>
+      {status && <div className="text-cyan-400">{status}</div>}
+    </div>
+  );
+}
 
 interface ControlsProps {
   currentPattern: VisualPattern;
@@ -140,13 +161,7 @@ export function Controls({
                 2D
               </button>
               <button
-                onClick={() => {
-                  onRendererFilterChange('3D');
-                  const first3DPattern = getRenderersByCategory('3D')[0];
-                  if (first3DPattern) {
-                    onPatternChange(first3DPattern.pattern);
-                  }
-                }}
+                onClick={() => onRendererFilterChange('3D')}
                 className={`px-3 py-1 rounded text-[10px] transition-all ${
                   rendererFilter === '3D'
                     ? 'bg-purple-500/30 text-purple-300'
@@ -243,36 +258,8 @@ export function Controls({
           <div className="absolute bottom-[25px] right-6 z-50 bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 space-y-2 text-xs min-w-[200px] font-mono animate-in fade-in duration-300">
           <div className="text-white/80 mb-2">HAND</div>
           <div className="space-y-1">
-              {handData.left && (
-              <div>
-                  <div className="text-white/90">
-                  L HAND
-                  </div>
-                  {(handData.left.fingerCount !== undefined || handData.left.gesture === 'pinch') && (
-                  <div className="text-cyan-400">
-                      {handData.left.gesture === 'pinch' && 'PINCH'}
-                      {handData.left.gesture !== 'pinch' && handData.left.fingerCount === 2 && 'MED'}
-                      {handData.left.gesture !== 'pinch' && handData.left.fingerCount >= 5 && 'FAST'}
-                      {handData.left.gesture !== 'pinch' && handData.left.fingerCount !== 2 && handData.left.fingerCount < 5 && `${handData.left.fingerCount}F`}
-                  </div>
-                  )}
-              </div>
-              )}
-              {handData.right && (
-              <div>
-                  <div className="text-white/90">
-                  R HAND
-                  </div>
-                  {(handData.right.fingerCount !== undefined || handData.right.gesture === 'pinch') && (
-                  <div className="text-cyan-400">
-                      {handData.right.gesture === 'pinch' && 'PINCH'}
-                      {handData.right.gesture !== 'pinch' && handData.right.fingerCount === 2 && 'MED'}
-                      {handData.right.gesture !== 'pinch' && handData.right.fingerCount >= 5 && 'FAST'}
-                      {handData.right.gesture !== 'pinch' && handData.right.fingerCount !== 2 && handData.right.fingerCount < 5 && `${handData.right.fingerCount}F`}
-                  </div>
-                  )}
-              </div>
-              )}
+              {handData.left && <HandStatus label="L HAND" hand={handData.left} />}
+              {handData.right && <HandStatus label="R HAND" hand={handData.right} />}
               {handData.clapping && (
               <div className="text-red-500 text-base animate-bounce">
                   CLAP!

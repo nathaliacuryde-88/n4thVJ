@@ -1,10 +1,14 @@
 # VJ Visual Renderers - Quick Parameter Guide
 
-This guide shows you exactly where to tweak each visual effect. All 11 renderers with their key adjustable parameters.
+Where to tweak each visual effect. This covers the ten renderers with an extracted
+parameter block; the rest hold their constants inline.
+
+**The canonical key map is [`src/app/config/RendererCategories.ts`](../src/app/config/RendererCategories.ts)** —
+keys are scoped to the 2D or 3D tab, so `1` means Geometric in 2D and Glitch Network in 3D.
 
 ---
 
-## 1. GEOMETRIC (Key 1) - `/components/renderers/GeometricRenderer.ts`
+## GEOMETRIC — 2D, key `1` · [`GeometricRenderer.ts`](../src/app/components/renderers/GeometricRenderer.ts)
 
 **What it does:** Rotating geometric polygons following hands
 
@@ -21,7 +25,7 @@ This guide shows you exactly where to tweak each visual effect. All 11 renderers
 
 ---
 
-## 2. PARTICLES (Key 2) - `/components/renderers/ParticleRenderer.ts`
+## PARTICLES — 2D, key `2` · [`ParticleRenderer.ts`](../src/app/components/renderers/ParticleRenderer.ts)
 
 **What it does:** Massive soft particles that grow/shrink with hand gestures
 
@@ -39,7 +43,7 @@ This guide shows you exactly where to tweak each visual effect. All 11 renderers
 
 ---
 
-## 3. WAVES (Key 3) - `/components/renderers/WaveRenderer.ts`
+## WAVES — 2D, key `3` · [`WaveRenderer.ts`](../src/app/components/renderers/WaveRenderer.ts)
 
 **What it does:** Flowing sine waves influenced by hand movements
 
@@ -60,7 +64,7 @@ This guide shows you exactly where to tweak each visual effect. All 11 renderers
 
 ---
 
-## 4. GLITCH NETWORK (Key 4) - `/components/renderers/GlitchRenderer.ts`
+## GLITCH NETWORK — 3D, key `1` · [`GlitchRenderer.ts`](../src/app/components/renderers/GlitchRenderer.ts)
 
 **What it does:** Network of nodes orbiting hands with glitch effects
 
@@ -80,7 +84,7 @@ This guide shows you exactly where to tweak each visual effect. All 11 renderers
 
 ---
 
-## 5. TECHNICAL HAND TRACKER (Key 5) - `/components/renderers/TechnicalHandRenderer.ts`
+## TECHNICAL HAND TRACKER — 2D, key `4` · [`TechnicalHandRenderer.ts`](../src/app/components/renderers/TechnicalHandRenderer.ts)
 
 **What it does:** Shows hand skeleton wireframes with technical overlay
 
@@ -96,7 +100,7 @@ This guide shows you exactly where to tweak each visual effect. All 11 renderers
 
 ---
 
-## 6. LOTTIE INSPIRED (Key 6) - `/components/renderers/LottieInspiredRenderer.ts`
+## LOTTIE INSPIRED — 2D, key `5` · [`LottieInspiredRenderer.ts`](../src/app/components/renderers/LottieInspiredRenderer.ts)
 
 **What it does:** Morphing organic shapes like Lottie animations
 
@@ -112,7 +116,7 @@ This guide shows you exactly where to tweak each visual effect. All 11 renderers
 
 ---
 
-## 7. LINE FIELD (Key 7) - `/components/renderers/LineFieldRenderer.ts`
+## LINE FIELD — 2D, key `6` · [`LineFieldRenderer.ts`](../src/app/components/renderers/LineFieldRenderer.ts)
 
 **What it does:** Grid of lines bending toward hands like a force field
 
@@ -128,7 +132,7 @@ This guide shows you exactly where to tweak each visual effect. All 11 renderers
 
 ---
 
-## 8. CHROMATIC GLOW (Key 8) - `/components/renderers/ChromaticRenderer.ts`
+## CHROMATIC GLOW — 2D, key `7` · [`ChromaticRenderer.ts`](../src/app/components/renderers/ChromaticRenderer.ts)
 
 **What it does:** Chromatic aberration effect with RGB channel separation
 
@@ -144,7 +148,7 @@ This guide shows you exactly where to tweak each visual effect. All 11 renderers
 
 ---
 
-## 9. HALFTONE MATRIX (Key 9) - `/components/renderers/HalftoneRenderer.ts`
+## HALFTONE MATRIX — 2D, key `8` · [`HalftoneRenderer.ts`](../src/app/components/renderers/HalftoneRenderer.ts)
 
 **What it does:** Dot matrix/halftone pattern effect
 
@@ -160,7 +164,7 @@ This guide shows you exactly where to tweak each visual effect. All 11 renderers
 
 ---
 
-## 10. DIGITAL GRID (Key 0) - `/components/renderers/MatrixGridRenderer.ts`
+## DIGITAL GRID — 2D, key `9` · [`MatrixGridRenderer.ts`](../src/app/components/renderers/MatrixGridRenderer.ts)
 
 **What it does:** Matrix-style digital rain and grid
 
@@ -175,37 +179,6 @@ This guide shows you exactly where to tweak each visual effect. All 11 renderers
 - **Line 191: Ripple Size** `300` → Hand ripple radius (150-600)
 - **Line 199: Ripple Rings** `5` → Ripple wave count (3-10)
 - **Line 256: Explosion Drops** `50` → Clap burst (30-100)
-
----
-
-## 11. MANDALA SPHERE (Key -) - `/components/renderers/MandalaRenderer.ts`
-
-**What it does:** Calm, meditative visualization with rotating mandala, orbiting circles, clustering particles, and reactive vertical lines
-
-**Key Parameters:**
-- **Line 45: Base Rotation Speed** `0.002` → Mandala rotation (0.001-0.01, slow to fast)
-- **Line 46: Hand Rotation Multiplier** `0.05` → Hand influence on rotation (0.01-0.1)
-- **Line 47: Mandala Size** `300` → Central mandala diameter (200-500)
-- **Line 60: Particle Count** `80` → Scattered square particles (50-150)
-- **Line 120: Orbiting Circles** `4` → Satellites per hand (3-6)
-- **Line 123: Orbit Radius** `80-120` → Circle distance from hand (50-150)
-- **Line 124: Circle Size** `20-35` → Individual circle size (15-40)
-- **Line 125: Orbit Speed** `0.01-0.03` → How fast circles orbit (0.005-0.05)
-- **Line 207: Particle Drift Speed** `0.02` → Attraction to hands (0.01-0.1)
-- **Line 233: Vertical Line Count** `15` → Bottom line elements (10-30)
-- **Line 249: Max Line Height** `0.4` → How tall lines grow (0.2-0.6)
-- **Line 279: Crosshair Size** `40` → Corner element size (30-60)
-- **Line 280: Crosshair Thickness** `2` → Line width (1-3)
-- **Line 336: Background Tint** `'15'` → Radial gradient opacity (10-30)
-- **Line 111: Mandala Opacity** `0.4` → Central star transparency (0.2-0.8)
-
-**Behavioral Notes:**
-- Open hands = satellites orbit faster and farther
-- Closed hands = satellites move closer and slower
-- Clapping = all circles explode outward with gravity
-- Hand height controls vertical line growth
-- Particles gently drift toward open hands
-- Dual-layer mandala rotates in opposite directions
 
 ---
 

@@ -1,5 +1,6 @@
 import { HandData } from '../../App';
 import * as THREE from 'three';
+import { disposeThree } from './disposeThree';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -390,5 +391,9 @@ export class CubeWallRenderer {
       this.canvas.width, 
       this.canvas.height
     );
+  }
+
+  destroy() {
+    disposeThree(this.scene, this.renderer);
   }
 }

@@ -189,6 +189,21 @@ export class DigitalBlockRenderer {
   }
 
   render(handData: HandData, colors: string[], audioData?: AudioData) {
+    // This renderer draws into its own stacked canvas rather than blitting into
+    // the 2D one, so nothing resizes it for us: without this, resizing the
+    // window just stretches the last frame via CSS.
+    if (
+      this.threeCanvas.width !== this.canvas.width ||
+      this.threeCanvas.height !== this.canvas.height
+    ) {
+      this.threeCanvas.width = this.canvas.width;
+      this.threeCanvas.height = this.canvas.height;
+      this.camera.aspect = this.canvas.width / this.canvas.height;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(this.canvas.width, this.canvas.height, false);
+      this.composer.setSize(this.canvas.width, this.canvas.height);
+    }
+
     const time = performance.now() * 0.001;
     this.uniforms.uTime.value = time;
     
@@ -256,10 +271,11 @@ export class DigitalBlockRenderer {
   }
   
   destroy() {
-    this.renderer.dispose();
     this.composer.dispose();
     this.geometry?.dispose();
     this.material.dispose();
+    this.renderer.dispose();
+    this.renderer.forceContextLoss();
     
     if (this.threeCanvas.parentElement) {
       this.threeCanvas.parentElement.removeChild(this.threeCanvas);

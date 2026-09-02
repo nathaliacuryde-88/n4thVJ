@@ -1,35 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ParticleRenderer } from './components/renderers/ParticleRenderer';
-import { GeometricRenderer } from './components/renderers/GeometricRenderer';
-import { WaveRenderer } from './components/renderers/WaveRenderer';
-import { GlitchRenderer } from './components/renderers/GlitchRenderer';
-import { TechnicalHandRenderer } from './components/renderers/TechnicalHandRenderer';
-import { LottieInspiredRenderer } from './components/renderers/LottieInspiredRenderer';
-import { ChromaticRenderer } from './components/renderers/ChromaticRenderer';
-import { HalftoneRenderer } from './components/renderers/HalftoneRenderer';
-import { MatrixGridRenderer } from './components/renderers/MatrixGridRenderer';
-import { LineFieldRenderer } from './components/renderers/LineFieldRenderer';
-import { DistortedCameraRenderer } from './components/renderers/DistortedCameraRenderer';
-import { CyberStreamRenderer } from './components/renderers/CyberStreamRenderer';
-import { FaceCloudRenderer } from './components/renderers/FaceCloudRenderer';
-import { FaceRenderer } from './components/renderers/FaceRenderer';
-import { MorphingSphereRenderer } from './components/renderers/MorphingSphereRenderer';
-import { CubeWallRenderer } from './components/renderers/CubeWallRenderer';
-import { RoseRenderer } from './components/renderers/RoseRenderer';
-import { SmokeHandRenderer } from './components/renderers/SmokeHandRenderer';
 import { CameraFeed } from './components/CameraFeed';
 import { Controls } from './components/Controls';
 import { HandTracker } from './components/HandTracker';
 import { PermissionRequest } from './components/PermissionRequest';
 import { VJCanvas } from './components/VJCanvas';
 import { AudioAnalyzer } from './components/AudioAnalyzer';
-import { NetworkCubeRenderer } from './components/renderers/NetworkCubeRenderer';
-import { ElasticNetRenderer } from './components/renderers/ElasticNetRenderer';
-import { LiquidChromeRenderer } from './components/renderers/LiquidChromeRenderer';
-import { ThickLineRenderer } from './components/renderers/ThickLineRenderer';
-import { LottieClassicRenderer } from './components/renderers/LottieClassicRenderer';
-import { FlowFieldRenderer } from './components/renderers/FlowFieldRenderer';
-import { getRenderersByCategory } from './config/RendererCategories';
+import { getPatternCategory, getRenderersByCategory } from './config/RendererCategories';
 
 export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'rose' | 'smokehand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks';
 
@@ -42,47 +18,84 @@ export interface AudioData {
   beatIntensity: number; // 0-1, strength of beat
 }
 
-export interface HandData {
-  left: {
-    position: { x: number; y: number };
-    gesture: 'open' | 'fist' | 'pinch' | 'none';
-    pinchDistance?: number;
-    velocity?: number; // Speed of hand movement (0-1+)
-    holdDuration?: number; // How long current gesture has been held (seconds)
-    fingerCount?: number; // Number of extended fingers (1-5) - controls speed multiplier
-    landmarks?: Array<{ x: number; y: number; z: number }>; // MediaPipe hand landmarks (21 points)
-  } | null;
-  right: {
-    position: { x: number; y: number };
-    gesture: 'open' | 'fist' | 'pinch' | 'none';
-    pinchDistance?: number;
-    velocity?: number;
-    holdDuration?: number;
-    fingerCount?: number; // Number of extended fingers (1-5) - controls speed multiplier
-    landmarks?: Array<{ x: number; y: number; z: number }>; // MediaPipe hand landmarks (21 points)
-  } | null;
-  distanceBetweenHands?: number;
-  clapping?: boolean; // True when hands rapidly come together - triggers vibration + explosion
-  clapIntensity?: number; // 0-1, how strong the clap was
-  gestureTrail?: { x: number; y: number; hand: 'left' | 'right' }[]; // Last N positions
+/** One tracked hand, as produced by {@link HandTracker} from MediaPipe landmarks. */
+export interface Hand {
+  position: { x: number; y: number };
+  gesture: 'open' | 'fist' | 'pinch' | 'none';
+  pinchDistance?: number;
+  /** Speed of hand movement (0-1+). */
+  velocity?: number;
+  /** How long the current gesture has been held, in seconds. */
+  holdDuration?: number;
+  /** Number of extended fingers (1-5) - controls speed multiplier. */
+  fingerCount?: number;
+  /** MediaPipe hand landmarks (21 points). */
+  landmarks?: Array<{ x: number; y: number; z: number }>;
 }
 
+export interface HandData {
+  left: Hand | null;
+  right: Hand | null;
+  distanceBetweenHands?: number;
+  /** True when hands rapidly come together - triggers vibration + explosion. */
+  clapping?: boolean;
+  /** 0-1, how strong the clap was. */
+  clapIntensity?: number;
+  /** Last N positions. */
+  gestureTrail?: { x: number; y: number; hand: 'left' | 'right' }[];
+}
+
+type ColorMode = 'black' | 'contrast' | 'grayscale';
+
+/**
+ * localStorage throws outright in some privacy modes, so every access is
+ * guarded and a bad stored value falls back to the default rather than
+ * taking the whole app down at startup.
+ */
+function loadSetting<T>(key: string, fallback: T, isValid: (value: unknown) => boolean): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    const parsed = JSON.parse(raw);
+    return isValid(parsed) ? (parsed as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveSetting(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Storage full or blocked - the session just will not be remembered.
+  }
+}
+
+const isNumberIn = (min: number, max: number) => (v: unknown) =>
+  typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
+
 export default function App() {
-  // Load saved settings from localStorage
   const [currentPattern, setCurrentPattern] = useState<VisualPattern>('geometric'); // Always start with Geometric (2D option 1)
   
   const [showCamera, setShowCamera] = useState(false); // Camera off by default
   const [showUI, setShowUI] = useState(true); // UI visibility toggle
   
-  const [dominantColors, setDominantColors] = useState<string[]>(() => {
-    const saved = localStorage.getItem('vj-colors');
-    return saved ? JSON.parse(saved) : ['#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#f43f5e'];
-  });
+  // Derived from hue/saturation/colorMode by ColorController on every change,
+  // so it is that triple - not this palette - that gets persisted below.
+  const [dominantColors, setDominantColors] = useState<string[]>([
+    '#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#f43f5e',
+  ]);
   
   // Color controller state (hue, saturation, mode)
-  const [hue, setHue] = useState(245);
-  const [saturation, setSaturation] = useState(100);
-  const [colorMode, setColorMode] = useState<'black' | 'contrast' | 'grayscale'>('contrast');
+  const [hue, setHue] = useState(() => loadSetting('vj-hue', 245, isNumberIn(0, 360)));
+  const [saturation, setSaturation] = useState(() =>
+    loadSetting('vj-saturation', 100, isNumberIn(0, 100)),
+  );
+  const [colorMode, setColorMode] = useState<ColorMode>(() =>
+    loadSetting<ColorMode>('vj-color-mode', 'contrast', (v) =>
+      v === 'black' || v === 'contrast' || v === 'grayscale',
+    ),
+  );
   const [autoHueEnabled, setAutoHueEnabled] = useState(false);
   
   // Renderer filter state (2D/3D)
@@ -161,11 +174,14 @@ export default function App() {
     distanceBetweenHands: 0.4 - audioData.bass * 0.2,
   } : handData;
 
-  // Save settings to localStorage when they change
+  // Remember the palette across reloads. The previous version stored the
+  // derived colours instead, which ColorController overwrote from its defaults
+  // on mount before anything could read them back.
   useEffect(() => {
-    localStorage.setItem('vj-pattern', currentPattern);
-    localStorage.setItem('vj-colors', JSON.stringify(dominantColors));
-  }, [currentPattern, dominantColors]);
+    saveSetting('vj-hue', hue);
+    saveSetting('vj-saturation', saturation);
+    saveSetting('vj-color-mode', colorMode);
+  }, [hue, saturation, colorMode]);
 
   // Cycle patterns helper
   const cyclePattern = useCallback((direction: 'next' | 'prev') => {
@@ -196,6 +212,16 @@ export default function App() {
   // Keyboard shortcuts for pattern switching
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
+      // Colour mode rides on the modifier keys themselves, so read those first.
+      if (e.key === 'Control') { setColorMode('contrast'); return; }
+      if (e.key === 'Alt') { setColorMode('grayscale'); return; }
+      if (e.key === 'Meta') { setColorMode('black'); return; }
+
+      // Leave the browser's own chords alone: Cmd/Ctrl+C used to toggle the
+      // camera instead of copying, and Cmd/Ctrl+A switched on the microphone
+      // instead of selecting all.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
       // Global Camera Toggle (C)
       if (e.key.toLowerCase() === 'c') {
         setShowCamera(prev => !prev);
@@ -277,11 +303,6 @@ export default function App() {
           setSaturation(prev => Math.max(0, prev - 5));
           break;
       }
-      
-      // Color mode shortcuts
-      if (e.key === 'Control') setColorMode('contrast');
-      if (e.key === 'Alt') setColorMode('grayscale');
-      if (e.key === 'Meta' || e.key === 'Fn') setColorMode('black');
     };
 
     window.addEventListener('keydown', handleKeyPress);
@@ -319,8 +340,12 @@ export default function App() {
 
   const handleRendererFilterChange = (filter: '2D' | '3D') => {
     setRendererFilter(filter);
-    if (filter === '3D') {
-      setCurrentPattern('glitch');
+    // Only jump if the pattern on screen does not belong to the tab being
+    // opened. Switching to 2D used to leave a 3D pattern running with no
+    // button lit, and switching to 3D always slammed back to Glitch.
+    if (getPatternCategory(currentPattern) !== filter) {
+      const first = getRenderersByCategory(filter)[0];
+      if (first) setCurrentPattern(first.pattern);
     }
   };
 

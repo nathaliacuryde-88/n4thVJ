@@ -210,16 +210,22 @@ export class FaceRenderer {
       return;
     }
 
-    // FIX: Only trigger re-initialization if not already trying AND not failed
-    if ((!this.faceLandmarker || !this.video || !this.drawingUtils) && !this.isLocalInitializing && !this.hasFailed) {
-      const videoElement = document.querySelector('video') as HTMLVideoElement;
-      
-      if (videoElement && videoElement.srcObject) {
-        console.log('📹 Video found during render, triggering init once...');
-        // This will only run once because isLocalInitializing will be set to true
-        this.initializeMediaPipe();
+    // Nothing to detect with until the model, the video and the drawing utils
+    // all exist. Bail out whatever the reason - the old code only returned when
+    // it was also about to re-initialize, so an in-flight init fell through to
+    // this.video.currentTime below and threw on a null video.
+    if (!this.faceLandmarker || !this.video || !this.drawingUtils) {
+      // Only trigger re-initialization if not already trying AND not failed.
+      if (!this.isLocalInitializing && !this.hasFailed) {
+        const videoElement = document.querySelector('video') as HTMLVideoElement;
+
+        if (videoElement && videoElement.srcObject) {
+          console.log('📹 Video found during render, triggering init once...');
+          // This will only run once because isLocalInitializing will be set to true
+          this.initializeMediaPipe();
+        }
       }
-      
+
       // Show waiting message
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       this.ctx.fillStyle = '#666666';

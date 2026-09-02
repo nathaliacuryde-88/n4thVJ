@@ -20,18 +20,41 @@ export function AudioAnalyzer({ onAudioData, enabled, sensitivity }: AudioAnalyz
   
   const [error, setError] = useState<string | null>(null);
 
+  // Read inside the analyse loop rather than closed over, so that dragging the
+  // GAIN slider no longer tears the microphone down and re-prompts for
+  // permission on every step.
+  const sensitivityRef = useRef(sensitivity);
+  sensitivityRef.current = sensitivity;
+
   useEffect(() => {
-    if (!enabled) {
-      // Cleanup when disabled
-      if (animationFrameRef.current) {
+    // getUserMedia is in flight across an await; if the effect is torn down
+    // meanwhile, the resolved stream must be stopped rather than stored, or the
+    // microphone indicator stays lit with nothing listening.
+    let cancelled = false;
+
+    const teardown = () => {
+      cancelled = true;
+      if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
+      const context = audioContextRef.current;
+      audioContextRef.current = null;
+      // close() on an already-closed context rejects; the old code closed the
+      // same context from both the effect body and its cleanup.
+      if (context && context.state !== 'closed') {
+        void context.close();
       }
+      analyzerRef.current = null;
+      dataArrayRef.current = null;
+    };
+
+    if (!enabled) {
+      teardown();
       
       // Send empty audio data
       onAudioData({
@@ -50,6 +73,10 @@ export function AudioAnalyzer({ onAudioData, enabled, sensitivity }: AudioAnalyz
     const initAudio = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (cancelled) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
         streamRef.current = stream;
 
         const audioContext = new AudioContext();
@@ -70,6 +97,7 @@ export function AudioAnalyzer({ onAudioData, enabled, sensitivity }: AudioAnalyz
         setError(null);
         analyze();
       } catch (err) {
+        if (cancelled) return;
         setError('Microphone access denied');
         console.error('Audio initialization error:', err);
       }
@@ -110,6 +138,7 @@ export function AudioAnalyzer({ onAudioData, enabled, sensitivity }: AudioAnalyz
       }
       
       // Normalize to 0-1 range and apply sensitivity
+      const sensitivity = sensitivityRef.current;
       const bass = Math.min(1, (bassSum / (bassEnd * 255)) * (1 + sensitivity));
       const mid = Math.min(1, (midSum / ((midEnd - bassEnd) * 255)) * (1 + sensitivity));
       const high = Math.min(1, (highSum / ((bufferLength - midEnd) * 255)) * (1 + sensitivity));
@@ -149,18 +178,8 @@ export function AudioAnalyzer({ onAudioData, enabled, sensitivity }: AudioAnalyz
 
     initAudio();
 
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
-    };
-  }, [enabled, sensitivity, onAudioData]);
+    return teardown;
+  }, [enabled, onAudioData]);
 
   if (error) {
     return (

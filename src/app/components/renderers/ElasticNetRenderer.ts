@@ -1,5 +1,6 @@
 import { HandData, AudioData } from '../../App';
 import * as THREE from 'three';
+import { disposeThree } from './disposeThree';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -139,9 +140,9 @@ export class ElasticNetRenderer {
     let targetY = 0;
     let force = 0;
     
-    if (handData.left || handData.right) {
+    const hand = handData.left || handData.right;
+    if (hand) {
       this.isHandPresent = true;
-      const hand = handData.left || handData.right;
       // Map screen coords (0-1) to world coords approx (-6 to 6)
       targetX = (hand.position.x - 0.5) * 12; 
       targetY = -(hand.position.y - 0.5) * 10; // Invert Y
@@ -309,5 +310,9 @@ export class ElasticNetRenderer {
       0, 0, 
       this.canvas.width, this.canvas.height
     );
+  }
+
+  destroy() {
+    disposeThree(this.scene, this.renderer);
   }
 }

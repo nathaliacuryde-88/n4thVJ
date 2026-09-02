@@ -280,9 +280,9 @@ export class SmokeHandRenderer {
 
     // Hand tracking logic
     if (handData.right && handData.right.gesture === 'open' && handData.right.landmarks) {
-      const hand = handData.right;
-      const indexTip = hand.landmarks[8];
-      const thumbTip = hand.landmarks[4];
+      const landmarks = handData.right.landmarks;
+      const indexTip = landmarks[8];
+      const thumbTip = landmarks[4];
 
       // Map hand position to 3D space
       const ndcX = indexTip.x * 2 - 1;
@@ -310,9 +310,9 @@ export class SmokeHandRenderer {
       targetExpansion = THREE.MathUtils.clamp(targetExpansion, 0.0, 1.0);
     } else if (handData.left && handData.left.gesture === 'open' && handData.left.landmarks) {
       // Support left hand too
-      const hand = handData.left;
-      const indexTip = hand.landmarks[8];
-      const thumbTip = hand.landmarks[4];
+      const landmarks = handData.left.landmarks;
+      const indexTip = landmarks[8];
+      const thumbTip = landmarks[4];
 
       const ndcX = indexTip.x * 2 - 1;
       const ndcY = -(indexTip.y * 2 - 1);
@@ -400,13 +400,15 @@ export class SmokeHandRenderer {
       SmokeHandRenderer.HAND_MODEL_URL,
       (object) => {
         // Find the mesh in the loaded OBJ
-        let mesh: THREE.Mesh | null = null;
+        const meshes: THREE.Mesh[] = [];
         object.traverse((child) => {
           if (child instanceof THREE.Mesh) {
-            mesh = child;
+            meshes.push(child);
           }
         });
-        
+
+        // Last mesh wins, as before.
+        const mesh = meshes[meshes.length - 1];
         if (mesh && mesh.geometry) {
           console.log('✅ Hand model loaded successfully');
           this.cachedHandGeometry = mesh.geometry;
@@ -440,8 +442,9 @@ export class SmokeHandRenderer {
     if (this.backgroundParticles) {
       this.scene.remove(this.backgroundParticles);
     }
-    this.renderer.dispose();
     this.composer.dispose();
+    this.renderer.dispose();
+    this.renderer.forceContextLoss();
     
     // Remove the Three.js canvas element
     if (this.threeCanvas && this.threeCanvas.parentElement) {

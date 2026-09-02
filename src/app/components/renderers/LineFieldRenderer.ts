@@ -1,4 +1,4 @@
-import { HandData } from '../../App';
+import { Hand, HandData } from '../../App';
 
 interface Line {
   x: number;
@@ -67,7 +67,7 @@ export class LineFieldRenderer {
     let rotationSpeed = 0.1; // Default medium speed
     let maxFingerCount = 0;
 
-    const hands = [];
+    const hands: Hand[] = [];
     if (handData.left) hands.push(handData.left);
     if (handData.right) hands.push(handData.right);
 

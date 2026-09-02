@@ -351,7 +351,8 @@ export class LiquidChromeRenderer {
   }
   
   destroy() {
-      this.renderer.dispose();
-      this.material.dispose();
+    this.renderer.dispose();
+    this.renderer.forceContextLoss();
+    this.material.dispose();
   }
 }

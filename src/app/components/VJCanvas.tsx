@@ -27,6 +27,25 @@ import { ElasticNetRenderer } from './renderers/ElasticNetRenderer';
 import { DigitalBlockRenderer } from './renderers/DigitalBlockRenderer';
 import { AudioData } from '../App';
 
+type ColorMode = 'black' | 'contrast' | 'grayscale';
+
+/**
+ * What VJCanvas needs from a renderer. Every renderer draws into the same 2D
+ * context; the three.js ones keep an offscreen WebGL canvas and blit it across.
+ */
+interface VJRenderer {
+  render(
+    handData: HandData,
+    colors: string[],
+    audioData?: AudioData,
+    colorMode?: ColorMode,
+  ): void;
+  /** Releases GPU resources. Only the renderers that hold any implement it. */
+  destroy?(): void;
+  setVideoElement?(video: HTMLVideoElement): void;
+  setSmokeHandModel?(model: 'torus' | 'hand'): void;
+}
+
 interface VJCanvasProps {
   handData: HandData;
   dominantColors: string[];
@@ -47,12 +66,12 @@ export function VJCanvas({
   colorMode
 }: VJCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | null>(null);
   
   // Store latest handData and dominantColors in refs so animate loop can access them
   const handDataRef = useRef<HandData>(handData);
   const dominantColorsRef = useRef<string[]>(dominantColors);
-  const videoElementRef = useRef<HTMLVideoElement | null>(videoElement);
+  const videoElementRef = useRef<HTMLVideoElement | null>(videoElement ?? null);
   const smokeHandModelRef = useRef<'torus' | 'hand' | undefined>(smokeHandModel);
   const audioDataRef = useRef<AudioData | undefined>(audioData);
   const colorModeRef = useRef<'black' | 'contrast' | 'grayscale' | undefined>(colorMode);
@@ -61,7 +80,7 @@ export function VJCanvas({
   useEffect(() => {
     handDataRef.current = handData;
     dominantColorsRef.current = dominantColors;
-    videoElementRef.current = videoElement;
+    videoElementRef.current = videoElement ?? null;
     smokeHandModelRef.current = smokeHandModel;
     audioDataRef.current = audioData;
     colorModeRef.current = colorMode;
@@ -84,7 +103,7 @@ export function VJCanvas({
     window.addEventListener('resize', resizeCanvas);
 
     // Create renderer based on pattern
-    let renderer: any;
+    let renderer: VJRenderer;
     switch (pattern) {
       case 'geometric':
         renderer = new GeometricRenderer(canvas, ctx);
@@ -132,7 +151,7 @@ export function VJCanvas({
         renderer = new DistortedCameraRenderer(canvas, ctx);
         // Set video element for camera feed
         if (videoElement) {
-          renderer.setVideoElement(videoElement);
+          renderer.setVideoElement?.(videoElement);
         }
         break;
       case 'cyberstream':
@@ -180,13 +199,13 @@ export function VJCanvas({
     // Animation loop
     const animate = () => {
       // Update video element for holographic renderer if needed
-      if (pattern === 'distortedcamera' && renderer && videoElementRef.current) {
-        renderer.setVideoElement(videoElementRef.current);
+      if (pattern === 'distortedcamera' && videoElementRef.current) {
+        renderer.setVideoElement?.(videoElementRef.current);
       }
       
       // Update smoke hand model if needed
-      if (pattern === 'smokehand' && renderer && smokeHandModelRef.current) {
-        renderer.setSmokeHandModel(smokeHandModelRef.current);
+      if (pattern === 'smokehand' && smokeHandModelRef.current) {
+        renderer.setSmokeHandModel?.(smokeHandModelRef.current);
       }
       
       renderer.render(

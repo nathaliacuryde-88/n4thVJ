@@ -238,8 +238,8 @@ export class RoseRenderer {
     const high = audioData ? audioData.high : 0;
     
     // Hand Gestures
-    if (handData.left || handData.right) {
-        const hand = handData.left || handData.right;
+    const hand = handData.left || handData.right;
+    if (hand) {
         
         // 5 Fingers = Maximum breakdown (Large voxels, high noise)
         if (hand.fingerCount === 5 || hand.gesture === 'open') {
@@ -296,6 +296,7 @@ export class RoseRenderer {
   public destroy() {
     this.scene.clear();
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
     this.material.dispose();
     this.threeCanvas.remove();
   }

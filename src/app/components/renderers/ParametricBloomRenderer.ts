@@ -654,16 +654,18 @@ export class ParametricBloomRenderer {
     );
   }
 
-  cleanup() {
+  destroy() {
     // Dispose of Three.js resources
     this.flowers.forEach(flower => {
-      flower.mesh.geometry.dispose();
+      // flower.mesh is a Group: the geometry lives on the meshes inside it.
       flower.mesh.traverse((child) => {
         if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
           (child.material as THREE.Material).dispose();
         }
       });
     });
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
   }
 }
