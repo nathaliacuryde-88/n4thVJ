@@ -42,6 +42,7 @@ delegate there).
 | **C** | Camera preview on/off |
 | **A** | Audio-reactive mode on/off |
 | **Ctrl / Alt / Cmd** | Colour mode: 2 colours / black & white / 1 colour |
+| **I** | Idle drive on/off |
 | **Right-click** | Hide or show the whole UI |
 
 The panel on the left has two tabs. **SHAPE** holds the current renderer's own
@@ -50,10 +51,20 @@ feedback, noise displacement, chromatic aberration, kaleidoscope, quantize and
 bloom, described in [`docs/POST_PIPELINE.md`](docs/POST_PIPELINE.md). Every
 effect defaults to off, and with all of them off the frame goes straight to
 screen untouched.
+
+Each FX stage is a layer: the dot beside its name bypasses it without losing its
+settings, and **Mix** is its opacity, so effects can be eased in rather than
+snapped on. Changing visual is a crossfade between two live renderers, not a
+cut — its length is the **Transition** layer.
 Tweaks are kept per renderer and survive a reload; click a parameter's label to
 reset it, or the arrow in the panel header to reset the tab. Geometric, Particles
 and Waves have SHAPE parameters so far —
 [`docs/ADDING_PARAMETERS.md`](docs/ADDING_PARAMETERS.md) covers adding the rest.
+
+Several visuals only draw where a hand is. With **idle drive** on (the default,
+and the ∞ button) they are driven by a slow synthetic figure whenever nothing is
+tracked, so they never sit black — useful in a dark room, where tracking drops.
+Real hands take over the moment they appear.
 
 Gestures: an open hand is followed, a pinch slows things down, five fingers
 speed them up, and bringing both hands together triggers the explosion.

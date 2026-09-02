@@ -12,10 +12,31 @@
 
 export const PipelineConfig = {
   /**
+   * TRANSITION — how a pattern change reaches the screen.
+   *
+   * Both renderers run for the length of the fade, so a slow one costs two
+   * renderers at once. That is fine between 2D patterns and worth watching
+   * between two heavy three.js ones.
+   */
+  transition: {
+    /** Bypass. 0 = hard cut, whatever the duration says. */
+    enabled: 1,
+
+    /** Seconds to cross from the outgoing visual to the incoming one. */
+    duration: 0.6,
+  },
+
+  /**
    * FEEDBACK — last frame's output, transformed and screened under this one.
    * The single biggest change in character available here.
    */
   feedback: {
+    /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
+    enabled: 1,
+
+    /** Stage opacity: blends between this stage's input and its output. */
+    mix: 1,
+
     /**
      * How much of the previous frame survives.
      * 0 = off. 0.8 = long smear. Above ~0.97 the image never really clears.
@@ -45,6 +66,12 @@ export const PipelineConfig = {
 
   /** DISPLACE — push pixels along a drifting noise field. */
   displace: {
+    /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
+    enabled: 1,
+
+    /** Stage opacity: blends between this stage's input and its output. */
+    mix: 1,
+
     /** 0 = off. Around 0.02 is heat haze; past 0.15 the image dissolves. */
     amount: 0,
     /** Noise frequency. Low = broad wobble, high = fine grain. */
@@ -55,12 +82,24 @@ export const PipelineConfig = {
 
   /** RGB SPLIT — radial chromatic aberration, sharp centre, fringed edges. */
   rgbSplit: {
+    /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
+    enabled: 1,
+
+    /** Stage opacity: blends between this stage's input and its output. */
+    mix: 1,
+
     /** 0 = off. 0.01 is a subtle edge; 0.05 is an obvious split. */
     amount: 0,
   },
 
   /** KALEIDOSCOPE — fold the frame into mirrored wedges. */
   kaleido: {
+    /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
+    enabled: 1,
+
+    /** Stage opacity: blends between this stage's input and its output. */
+    mix: 1,
+
     /** Below 2 = off. */
     segments: 0,
     /** Rotation of the fold, in radians. */
@@ -69,6 +108,12 @@ export const PipelineConfig = {
 
   /** QUANTIZE — throw away spatial then colour resolution. */
   quantize: {
+    /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
+    enabled: 1,
+
+    /** Stage opacity: blends between this stage's input and its output. */
+    mix: 1,
+
     /** Block size in pixels. 1 or below = off. */
     pixel: 0,
     /** Colour steps per channel. Below 2 = off. 3-6 posterizes hard. */
@@ -77,6 +122,12 @@ export const PipelineConfig = {
 
   /** BLOOM — bleed the highlights. */
   bloom: {
+    /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
+    enabled: 1,
+
+    /** Stage opacity: blends between this stage's input and its output. */
+    mix: 1,
+
     /** 0 = off. */
     amount: 0,
     /** Luminance above which a pixel glows. */

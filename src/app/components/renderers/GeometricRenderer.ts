@@ -160,6 +160,10 @@ export class GeometricRenderer {
     // DRAW LAYERED POLYGONS
     // ═════════════════════════════════════════════════════════════════════════
     for (let layer = 0; layer < this.cfg.layers.count; layer++) {
+      // Radius in pixels. This used to be multiplied by a further 50 at each
+      // draw call below, which with the default baseSize of 100 put every
+      // polygon at a 5000px radius — you were seeing chords of a circle far
+      // larger than the screen, and the Size slider moved nothing you could see.
       const layerScale = size * (1 + layer * this.cfg.layers.sizeGrowth);
       const layerRotation = rotation + layer * this.cfg.layers.rotationOffset;
       
@@ -171,7 +175,7 @@ export class GeometricRenderer {
             this.cfg.complexity.minSides, 
             Math.min(this.cfg.complexity.maxSides, complexity + layer)
           ),
-          50 * layerScale + layer * 30, // Radius calculation
+          layerScale + layer * 30,
           layerRotation,
           colors[layer % colors.length],
           this.cfg.layers.baseOpacity - layer * this.cfg.layers.opacityFade,
@@ -187,7 +191,7 @@ export class GeometricRenderer {
             this.cfg.complexity.minSides,
             Math.min(this.cfg.complexity.maxSides, complexity + layer)
           ),
-          50 * layerScale + layer * 30,
+          layerScale + layer * 30,
           -layerRotation, // Rotate opposite direction
           colors[(layer + 2) % colors.length],
           this.cfg.layers.baseOpacity - layer * this.cfg.layers.opacityFade,
@@ -290,7 +294,10 @@ export class GeometricRenderer {
     });
 
     this.ctx.strokeStyle = gradient;
-    this.ctx.lineWidth = this.cfg.bridge.thickness * scale;
+    // thickness and waveAmplitude are pixels. They used to be multiplied by the
+    // polygon size as well, which at the default 100 made this a 500px-wide
+    // line swinging +/-3000px — the diagonal bands across the whole screen.
+    this.ctx.lineWidth = this.cfg.bridge.thickness;
     this.ctx.lineCap = 'round';
 
     this.ctx.beginPath();
@@ -301,7 +308,7 @@ export class GeometricRenderer {
       const y = y1 + (y2 - y1) * t;
       
       // Wavy bridge effect
-      const offset = Math.sin(t * Math.PI * 4 + this.time * 2) * this.cfg.bridge.waveAmplitude * scale;
+      const offset = Math.sin(t * Math.PI * 4 + this.time * 2) * this.cfg.bridge.waveAmplitude;
       const perpX = -(y2 - y1) / Math.hypot(x2 - x1, y2 - y1);
       const perpY = (x2 - x1) / Math.hypot(x2 - x1, y2 - y1);
       

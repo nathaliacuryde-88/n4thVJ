@@ -25,8 +25,9 @@ import { NetworkCubeRenderer } from './renderers/NetworkCubeRenderer';
 import { ElasticNetRenderer } from './renderers/ElasticNetRenderer';
 import { DigitalBlockRenderer } from './renderers/DigitalBlockRenderer';
 import { AudioData } from '../App';
-import { ParamValues } from '../params/types';
+import { ParamValues, withOverrides } from '../params/types';
 import { PostPipeline } from '../pipeline/PostPipeline';
+import { PipelineConfig } from '../config/PipelineConfig';
 
 type ColorMode = 'black' | 'contrast' | 'grayscale';
 
@@ -47,6 +48,114 @@ interface VJRenderer {
   setParams?(values: ParamValues): void;
   setVideoElement?(video: HTMLVideoElement): void;
   setSmokeHandModel?(model: 'torus' | 'hand'): void;
+}
+
+/** Build the renderer for a pattern. Unknown patterns fall back to Geometric. */
+function createRenderer(
+  pattern: VisualPattern,
+  canvas: HTMLCanvasElement,
+  ctx: CanvasRenderingContext2D,
+  videoElement: HTMLVideoElement | null,
+): VJRenderer {
+  
+  let renderer: VJRenderer;
+  switch (pattern) {
+    case 'geometric':
+      renderer = new GeometricRenderer(canvas, ctx);
+      break;
+    case 'particles':
+      renderer = new ParticleRenderer(canvas, ctx);
+      break;
+    case 'waves':
+      renderer = new WaveRenderer(canvas, ctx);
+      break;
+    case 'glitch':
+      renderer = new GlitchRenderer(canvas, ctx);
+      break;
+    case 'technical':
+      renderer = new TechnicalHandRenderer(canvas, ctx);
+      break;
+    case 'lottie':
+      renderer = new LottieInspiredRenderer(canvas, ctx);
+      break;
+    case 'lottie-classic':
+      renderer = new LottieClassicRenderer(canvas, ctx);
+      break;
+    case 'linefield':
+      renderer = new LineFieldRenderer(canvas, ctx);
+      break;
+    case 'thicklines':
+      renderer = new ThickLineRenderer(canvas, ctx);
+      break;
+    case 'flowfield':
+      renderer = new FlowFieldRenderer(canvas, ctx);
+      break;
+    case 'liquidchrome':
+      renderer = new LiquidChromeRenderer(canvas, ctx);
+      break;
+    case 'chromatic':
+      renderer = new ChromaticRenderer(canvas, ctx);
+      break;
+    case 'halftone':
+      renderer = new HalftoneRenderer(canvas, ctx);
+      break;
+    case 'matrix':
+      renderer = new MatrixGridRenderer(canvas, ctx);
+      break;
+    case 'distortedcamera':
+      renderer = new DistortedCameraRenderer(canvas, ctx);
+      // Set video element for camera feed
+      if (videoElement) {
+        renderer.setVideoElement?.(videoElement);
+      }
+      break;
+    case 'cyberstream':
+      renderer = new CyberStreamRenderer(canvas, ctx);
+      break;
+    case 'facecloud':
+      renderer = new FaceCloudRenderer(canvas, ctx);
+      break;
+    case 'face':
+      renderer = new FaceRenderer(canvas, ctx);
+      break;
+    case 'morphing':
+      renderer = new MorphingSphereRenderer(canvas, ctx);
+      break;
+    case 'cubewall':
+      renderer = new CubeWallRenderer(canvas, ctx);
+      break;
+    case 'smokehand':
+      renderer = new SmokeHandRenderer(canvas, ctx);
+      break;
+    case 'network-cube':
+      renderer = new NetworkCubeRenderer(canvas, ctx);
+      break;
+    case 'elastic-net':
+      renderer = new ElasticNetRenderer(canvas, ctx);
+      break;
+    case 'digitalblocks':
+      renderer = new DigitalBlockRenderer(canvas, ctx);
+      break;
+    default:
+      // Fallback to geometric if pattern is invalid
+      renderer = new GeometricRenderer(canvas, ctx);
+      break;
+  }
+
+  return renderer;
+}
+
+/** A renderer plus the canvas it draws into. */
+interface Deck {
+  renderer: VJRenderer;
+  canvas: HTMLCanvasElement;
+  pattern: VisualPattern;
+}
+
+/** The deck on its way out during a crossfade. */
+interface FadingDeck extends Deck {
+  fadeStart: number;
+  duration: number;
 }
 
 interface VJCanvasProps {
@@ -78,11 +187,8 @@ export function VJCanvas({
   const animationFrameRef = useRef<number | null>(null);
   const rendererRef = useRef<VJRenderer | null>(null);
   const pipelineRef = useRef<PostPipeline | null>(null);
-  /** Renderers draw here; the pipeline reads it and presents to the visible canvas. */
-  const sourceCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  if (sourceCanvasRef.current === null && typeof document !== 'undefined') {
-    sourceCanvasRef.current = document.createElement('canvas');
-  }
+  const deckRef = useRef<Deck | null>(null);
+  const outgoingRef = useRef<FadingDeck | null>(null);
   
   // Store latest handData and dominantColors in refs so animate loop can access them
   const handDataRef = useRef<HandData>(handData);
@@ -140,149 +246,84 @@ export function VJCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Main render loop
+  // ═══════════════════════════════════════════════════════════════════════
+  // DECKS
+  // ═══════════════════════════════════════════════════════════════════════
+  // A pattern change does not tear the old renderer down. It becomes the
+  // outgoing deck and keeps drawing into its own canvas for the length of the
+  // crossfade, so the transition is between two live visuals rather than a cut
+  // or a fade from a frozen frame. Both decks run at once for that window.
+
+  // One rAF loop for the lifetime of the component, driving whichever decks
+  // exist. Rebuilding it per pattern is what forced the hard cut before.
   useEffect(() => {
-    const canvas = sourceCanvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Set canvas size. The pipeline sizes the visible canvas itself from the
-    // source; the fallback path has to be kept in step here.
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+    const resize = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      for (const deck of [deckRef.current, outgoingRef.current]) {
+        if (deck) {
+          deck.canvas.width = width;
+          deck.canvas.height = height;
+        }
+      }
       const visible = canvasRef.current;
       if (visible && !pipelineRef.current) {
-        visible.width = canvas.width;
-        visible.height = canvas.height;
+        visible.width = width;
+        visible.height = height;
       }
     };
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    resize();
+    window.addEventListener('resize', resize);
 
-    // Create renderer based on pattern
-    let renderer: VJRenderer;
-    switch (pattern) {
-      case 'geometric':
-        renderer = new GeometricRenderer(canvas, ctx);
-        break;
-      case 'particles':
-        renderer = new ParticleRenderer(canvas, ctx);
-        break;
-      case 'waves':
-        renderer = new WaveRenderer(canvas, ctx);
-        break;
-      case 'glitch':
-        renderer = new GlitchRenderer(canvas, ctx);
-        break;
-      case 'technical':
-        renderer = new TechnicalHandRenderer(canvas, ctx);
-        break;
-      case 'lottie':
-        renderer = new LottieInspiredRenderer(canvas, ctx);
-        break;
-      case 'lottie-classic':
-        renderer = new LottieClassicRenderer(canvas, ctx);
-        break;
-      case 'linefield':
-        renderer = new LineFieldRenderer(canvas, ctx);
-        break;
-      case 'thicklines':
-        renderer = new ThickLineRenderer(canvas, ctx);
-        break;
-      case 'flowfield':
-        renderer = new FlowFieldRenderer(canvas, ctx);
-        break;
-      case 'liquidchrome':
-        renderer = new LiquidChromeRenderer(canvas, ctx);
-        break;
-      case 'chromatic':
-        renderer = new ChromaticRenderer(canvas, ctx);
-        break;
-      case 'halftone':
-        renderer = new HalftoneRenderer(canvas, ctx);
-        break;
-      case 'matrix':
-        renderer = new MatrixGridRenderer(canvas, ctx);
-        break;
-      case 'distortedcamera':
-        renderer = new DistortedCameraRenderer(canvas, ctx);
-        // Set video element for camera feed
-        if (videoElement) {
-          renderer.setVideoElement?.(videoElement);
-        }
-        break;
-      case 'cyberstream':
-        renderer = new CyberStreamRenderer(canvas, ctx);
-        break;
-      case 'facecloud':
-        renderer = new FaceCloudRenderer(canvas, ctx);
-        break;
-      case 'face':
-        renderer = new FaceRenderer(canvas, ctx);
-        break;
-      case 'morphing':
-        renderer = new MorphingSphereRenderer(canvas, ctx);
-        break;
-      case 'cubewall':
-        renderer = new CubeWallRenderer(canvas, ctx);
-        break;
-      case 'smokehand':
-        renderer = new SmokeHandRenderer(canvas, ctx);
-        break;
-      case 'network-cube':
-        renderer = new NetworkCubeRenderer(canvas, ctx);
-        break;
-      case 'elastic-net':
-        renderer = new ElasticNetRenderer(canvas, ctx);
-        break;
-      case 'digitalblocks':
-        renderer = new DigitalBlockRenderer(canvas, ctx);
-        break;
-      default:
-        // Fallback to geometric if pattern is invalid
-        renderer = new GeometricRenderer(canvas, ctx);
-        break;
-    }
-
-    renderer.setParams?.(paramsRef.current ?? {});
-    rendererRef.current = renderer;
-
-    const visibleCtx = pipelineRef.current ? null : canvasRef.current?.getContext('2d') ?? null;
-
-    // Safety check
-    if (!renderer) {
-      console.error('Failed to create renderer for pattern:', pattern);
-      return;
-    }
-
-    // Animation loop
-    const animate = () => {
-      // Update video element for holographic renderer if needed
-      if (pattern === 'distortedcamera' && videoElementRef.current) {
-        renderer.setVideoElement?.(videoElementRef.current);
+    const drawDeck = (deck: Deck) => {
+      if (deck.pattern === 'distortedcamera' && videoElementRef.current) {
+        deck.renderer.setVideoElement?.(videoElementRef.current);
       }
-      
-      // Update smoke hand model if needed
-      if (pattern === 'smokehand' && smokeHandModelRef.current) {
-        renderer.setSmokeHandModel?.(smokeHandModelRef.current);
+      if (deck.pattern === 'smokehand' && smokeHandModelRef.current) {
+        deck.renderer.setSmokeHandModel?.(smokeHandModelRef.current);
       }
-      
-      renderer.render(
-        handDataRef.current, 
-        dominantColorsRef.current, 
-        audioDataRef.current, 
-        colorModeRef.current
+      deck.renderer.render(
+        handDataRef.current,
+        dominantColorsRef.current,
+        audioDataRef.current,
+        colorModeRef.current,
       );
+    };
 
-      const pipeline = pipelineRef.current;
-      if (pipeline) {
-        pipeline.render(canvas, performance.now() / 1000);
-      } else if (visibleCtx) {
-        // No WebGL2 — copy the frame across untouched.
-        visibleCtx.drawImage(canvas, 0, 0);
+    const animate = () => {
+      const deck = deckRef.current;
+      const outgoing = outgoingRef.current;
+
+      if (deck) {
+        drawDeck(deck);
+
+        let fade = 1;
+        if (outgoing) {
+          const elapsed = (performance.now() - outgoing.fadeStart) / 1000;
+          fade = outgoing.duration > 0 ? Math.min(1, elapsed / outgoing.duration) : 1;
+          if (fade >= 1) {
+            outgoing.renderer.destroy?.();
+            outgoingRef.current = null;
+          } else {
+            drawDeck(outgoing);
+          }
+        }
+
+        const pipeline = pipelineRef.current;
+        if (pipeline) {
+          pipeline.render(
+            deck.canvas,
+            performance.now() / 1000,
+            fade < 1 && outgoingRef.current ? outgoingRef.current.canvas : null,
+            fade,
+          );
+        } else {
+          const visibleCtx = canvasRef.current?.getContext('2d');
+          if (visibleCtx) {
+            // No WebGL2 — no crossfade either, just the current deck.
+            visibleCtx.drawImage(deck.canvas, 0, 0);
+          }
+        }
       }
 
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -291,16 +332,55 @@ export function VJCanvas({
     animate();
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      if (renderer && renderer.destroy) {
-        renderer.destroy();
-      }
-      if (rendererRef.current === renderer) rendererRef.current = null;
+      window.removeEventListener('resize', resize);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      outgoingRef.current?.renderer.destroy?.();
+      outgoingRef.current = null;
+      deckRef.current?.renderer.destroy?.();
+      deckRef.current = null;
+      rendererRef.current = null;
     };
-  }, [pattern]); // Only recreate renderer when pattern changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Swap decks when the pattern changes.
+  useEffect(() => {
+    const previous = deckRef.current;
+    if (previous?.pattern === pattern) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let renderer: VJRenderer;
+    try {
+      renderer = createRenderer(pattern, canvas, ctx, videoElementRef.current);
+    } catch (error) {
+      console.error('Failed to create renderer for pattern:', pattern, error);
+      return;
+    }
+    renderer.setParams?.(paramsRef.current ?? {});
+
+    deckRef.current = { renderer, canvas, pattern };
+    rendererRef.current = renderer;
+
+    if (previous) {
+      // Only one deck can be fading at a time; a switch during a fade drops
+      // whatever was already on its way out rather than stacking renderers.
+      outgoingRef.current?.renderer.destroy?.();
+
+      const cfg = withOverrides(PipelineConfig, fxParamsRef.current ?? {}).transition;
+      const duration = cfg.enabled >= 0.5 ? cfg.duration : 0;
+      if (duration > 0) {
+        outgoingRef.current = { ...previous, fadeStart: performance.now(), duration };
+      } else {
+        previous.renderer.destroy?.();
+        outgoingRef.current = null;
+      }
+    }
+  }, [pattern]);
 
   return (
     <canvas

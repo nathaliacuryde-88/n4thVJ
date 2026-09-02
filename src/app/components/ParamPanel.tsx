@@ -132,11 +132,41 @@ export function ParamPanel({ sections }: { sections: ParamSection[] }) {
 
         {!collapsed && (
           <div className="overflow-y-auto px-3 py-2 min-h-0">
-            {active.entry.groups.map((group) => (
+            {active.entry.groups.map((group) => {
+              const toggleValue = group.togglePath
+                ? active.values[group.togglePath] ??
+                  getByPath(active.entry.config, group.togglePath) ??
+                  1
+                : 1;
+              const on = toggleValue >= 0.5;
+
+              return (
               <div key={group.name} className="mb-3 last:mb-1">
-                <div className="text-[8px] text-white/35 tracking-widest uppercase mb-1.5">
-                  {group.name}
-                </div>
+                {group.togglePath ? (
+                  <button
+                    onClick={() => active.onChange(group.togglePath!, on ? 0 : 1)}
+                    title={on ? `Bypass ${group.name}` : `Enable ${group.name}`}
+                    className="flex items-center gap-1.5 w-full mb-1.5 group/head"
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                        on ? 'bg-cyan-300' : 'bg-white/20'
+                      }`}
+                    />
+                    <span
+                      className={`text-[8px] tracking-widest uppercase transition-colors ${
+                        on ? 'text-white/55 group-hover/head:text-white/80' : 'text-white/25'
+                      }`}
+                    >
+                      {group.name}
+                    </span>
+                  </button>
+                ) : (
+                  <div className="text-[8px] text-white/35 tracking-widest uppercase mb-1.5">
+                    {group.name}
+                  </div>
+                )}
+                <div className={on ? '' : 'opacity-35 pointer-events-none'}>
                 {group.params.map((spec) => {
                   const fallback = getByPath(active.entry.config, spec.path);
                   if (fallback === undefined) return null;
@@ -152,8 +182,10 @@ export function ParamPanel({ sections }: { sections: ParamSection[] }) {
                     />
                   );
                 })}
+                </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -1,5 +1,5 @@
 import { Hand, HandData, VisualPattern } from '../App';
-import { Video, VideoOff, Mic, MicOff } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, Infinity as InfinityIcon } from 'lucide-react';
 import { ColorController } from './ColorController';
 import { getRenderersByCategory } from '../config/RendererCategories';
 
@@ -53,6 +53,8 @@ interface ControlsProps {
   onAudioControlDensityChange: (enabled: boolean) => void;
   audioTriggerBeats: boolean;
   onAudioTriggerBeatsChange: (enabled: boolean) => void;
+  idleDrive: boolean;
+  onIdleDriveToggle: () => void;
   smokeHandModel?: 'torus' | 'hand';
   onSmokeHandModelChange?: (model: 'torus' | 'hand') => void;
 }
@@ -85,6 +87,8 @@ export function Controls({
   onAudioControlDensityChange,
   audioTriggerBeats,
   onAudioTriggerBeatsChange,
+  idleDrive,
+  onIdleDriveToggle,
   smokeHandModel,
   onSmokeHandModelChange
 }: ControlsProps) {
@@ -226,6 +230,18 @@ export function Controls({
             title="Toggle Audio Reactive Mode (A)"
           >
             {audioEnabled ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
+          </button>
+
+          <button
+            onClick={onIdleDriveToggle}
+            className={`w-8 h-8 rounded-full transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95 ${ 
+              idleDrive
+                ? 'bg-white text-black shadow-lg shadow-white/50'
+                : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+            }`}
+            title="Idle drive: keep hand-driven visuals moving when no hands are tracked (I)"
+          >
+            <InfinityIcon className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

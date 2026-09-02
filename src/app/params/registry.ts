@@ -97,6 +97,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Size',
         params: [
+          { path: 'size.baseRange.0', label: 'Radius min', min: 2, max: 300, step: 2 },
+          { path: 'size.baseRange.1', label: 'Radius max', min: 2, max: 400, step: 2 },
           { path: 'size.growthMultiplier', label: 'Grow', min: 0.2, max: 6, step: 0.1 },
           { path: 'size.shrinkMultiplier', label: 'Shrink', min: 0.05, max: 2, step: 0.05 },
           { path: 'size.transitionSpeed', label: 'Ease', min: 0.02, max: 1, step: 0.01 },
@@ -182,8 +184,17 @@ export const PIPELINE_PARAMS: RendererParams = {
   config: PipelineConfig,
   groups: [
     {
-      name: 'Feedback',
+      name: 'Transition',
+      togglePath: 'transition.enabled',
       params: [
+        { path: 'transition.duration', label: 'Crossfade', min: 0.05, max: 5, step: 0.05, hint: 'seconds between visuals' },
+      ],
+    },
+    {
+      name: 'Feedback',
+      togglePath: 'feedback.enabled',
+      params: [
+        { path: 'feedback.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
         { path: 'feedback.amount', label: 'Amount', min: 0, max: 0.99, step: 0.01, hint: '0 = off' },
         { path: 'feedback.zoom', label: 'Zoom', min: 0.9, max: 1.1, step: 0.001, hint: '>1 tunnels out' },
         { path: 'feedback.rotate', label: 'Rotate', min: -0.05, max: 0.05, step: 0.0005 },
@@ -194,7 +205,9 @@ export const PIPELINE_PARAMS: RendererParams = {
     },
     {
       name: 'Displace',
+      togglePath: 'displace.enabled',
       params: [
+        { path: 'displace.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
         { path: 'displace.amount', label: 'Amount', min: 0, max: 0.3, step: 0.002 },
         { path: 'displace.scale', label: 'Scale', min: 0.5, max: 40, step: 0.5 },
         { path: 'displace.speed', label: 'Speed', min: 0, max: 3, step: 0.02 },
@@ -202,27 +215,35 @@ export const PIPELINE_PARAMS: RendererParams = {
     },
     {
       name: 'Chromatic',
+      togglePath: 'rgbSplit.enabled',
       params: [
+        { path: 'rgbSplit.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
         { path: 'rgbSplit.amount', label: 'RGB split', min: 0, max: 0.1, step: 0.001 },
       ],
     },
     {
       name: 'Kaleidoscope',
+      togglePath: 'kaleido.enabled',
       params: [
+        { path: 'kaleido.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
         { path: 'kaleido.segments', label: 'Segments', min: 0, max: 24, step: 1, hint: '<2 = off' },
         { path: 'kaleido.spin', label: 'Spin', min: -3.14, max: 3.14, step: 0.01 },
       ],
     },
     {
       name: 'Quantize',
+      togglePath: 'quantize.enabled',
       params: [
+        { path: 'quantize.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
         { path: 'quantize.pixel', label: 'Pixel size', min: 0, max: 64, step: 1, hint: '<=1 = off' },
         { path: 'quantize.levels', label: 'Colour steps', min: 0, max: 16, step: 1, hint: '<2 = off' },
       ],
     },
     {
       name: 'Bloom',
+      togglePath: 'bloom.enabled',
       params: [
+        { path: 'bloom.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
         { path: 'bloom.amount', label: 'Amount', min: 0, max: 3, step: 0.05 },
         { path: 'bloom.threshold', label: 'Threshold', min: 0, max: 1, step: 0.01 },
       ],

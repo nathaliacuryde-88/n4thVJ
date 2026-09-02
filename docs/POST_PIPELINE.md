@@ -20,6 +20,31 @@ Every effect defaults to **off**. With the whole chain at rest the pipeline
 detects it and blits the source straight to screen — one texture copy, no passes,
 output identical to what the renderer drew.
 
+## Layers
+
+Each stage is a layer, in the TouchDesigner sense:
+
+- **The dot beside the stage name is its bypass.** Click it and the stage leaves
+  the chain entirely — it stops costing anything — but every setting it holds is
+  kept, greyed out, waiting. Click again and the look comes straight back.
+- **Mix is that stage's opacity.** It blends between the stage's input and its
+  output, so an effect can be eased in over a bar rather than snapped on.
+
+A stage runs only when all three are true: switched on, mix above zero, and
+actually doing something. Otherwise it is skipped, not run with a neutral value.
+
+## Transitions
+
+A pattern change is a crossfade, not a cut. The outgoing renderer keeps running
+into its own canvas for the length of the fade and the two are blended *before*
+the chain, so feedback and everything downstream see one continuous image
+instead of a jump. **Crossfade** sets the length; bypassing the Transition layer
+gives you hard cuts back.
+
+Both renderers run for the duration, so a long fade between two heavy three.js
+patterns is the expensive case. Switching again mid-fade drops whatever was
+already on its way out rather than stacking decks.
+
 ## Feedback is the important one
 
 The others are filters. Feedback is a loop: the **output of the entire chain** is

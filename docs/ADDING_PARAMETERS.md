@@ -100,6 +100,22 @@ halftone: {
 
 The sliders appear. Nothing else to do.
 
+## Toggles
+
+A group can carry a `togglePath` pointing at a 0/1 value in the config. The panel
+renders that as a switch in the group header and dims the group when it is off:
+
+```ts
+{
+  name: 'Dots',
+  togglePath: 'dots.enabled',
+  params: [ … ],
+}
+```
+
+Acting on it is the renderer's job — check the flag and skip the work, so that
+switching a layer off actually costs nothing.
+
 ## Choosing ranges
 
 `min` and `max` are the **useful performing range**, not the range that avoids a

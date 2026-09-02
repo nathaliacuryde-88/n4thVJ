@@ -27,6 +27,11 @@ export interface ParamSpec {
 /** Sliders that belong together, rendered as one titled block. */
 export interface ParamGroup {
   name: string;
+  /**
+   * Path to a 0/1 bypass flag. When set, the group header becomes a switch —
+   * the TouchDesigner layer model: kill the stage without losing its settings.
+   */
+  togglePath?: string;
   params: ParamSpec[];
 }
 

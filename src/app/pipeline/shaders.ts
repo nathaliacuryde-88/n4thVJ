@@ -52,6 +52,7 @@ uniform float uZoom;
 uniform float uRotate;
 uniform vec2  uOffset;
 uniform float uHueShift;
+uniform float uMix;
 
 void main() {
   vec3 src = texture(uTex, vUv).rgb;
@@ -67,7 +68,8 @@ void main() {
   vec3 fb = texture(uFeedback, clamp(fuv, 0.0, 1.0)).rgb * uAmount;
   fb = hueRotate(fb, uHueShift);
 
-  fragColor = vec4(1.0 - (1.0 - src) * (1.0 - clamp(fb, 0.0, 1.0)), 1.0);
+  vec3 wet = 1.0 - (1.0 - src) * (1.0 - clamp(fb, 0.0, 1.0));
+  fragColor = vec4(mix(src, wet, uMix), 1.0);
 }`;
 
 /**
@@ -79,6 +81,7 @@ export const DISPLACE = `${COMMON}
 uniform float uAmount;
 uniform float uScale;
 uniform float uSpeed;
+uniform float uMix;
 
 void main() {
   float t = uTime * uSpeed;
@@ -86,7 +89,8 @@ void main() {
     valueNoise(vUv * uScale + vec2(t, 0.0)),
     valueNoise(vUv * uScale + vec2(0.0, t) + 17.3)
   ) - 0.5;
-  fragColor = texture(uTex, clamp(vUv + d * uAmount, 0.0, 1.0));
+  vec3 wet = texture(uTex, clamp(vUv + d * uAmount, 0.0, 1.0)).rgb;
+  fragColor = vec4(mix(texture(uTex, vUv).rgb, wet, uMix), 1.0);
 }`;
 
 /**
@@ -96,20 +100,22 @@ void main() {
  */
 export const RGB_SPLIT = `
 uniform float uAmount;
+uniform float uMix;
 
 void main() {
   vec2 dir = (vUv - 0.5) * uAmount;
-  fragColor = vec4(
+  vec3 wet = vec3(
     texture(uTex, clamp(vUv + dir, 0.0, 1.0)).r,
     texture(uTex, vUv).g,
-    texture(uTex, clamp(vUv - dir, 0.0, 1.0)).b,
-    1.0);
+    texture(uTex, clamp(vUv - dir, 0.0, 1.0)).b);
+  fragColor = vec4(mix(texture(uTex, vUv).rgb, wet, uMix), 1.0);
 }`;
 
 /** KALEIDOSCOPE — fold the frame into mirrored wedges around the centre. */
 export const KALEIDO = `
 uniform float uSegments;
 uniform float uSpin;
+uniform float uMix;
 
 void main() {
   vec2 p = vUv - 0.5;
@@ -124,7 +130,8 @@ void main() {
 
   vec2 q = vec2(cos(a), sin(a)) * r;
   q.x /= uResolution.x / uResolution.y;
-  fragColor = texture(uTex, clamp(q + 0.5, 0.0, 1.0));
+  vec3 wet = texture(uTex, clamp(q + 0.5, 0.0, 1.0)).rgb;
+  fragColor = vec4(mix(texture(uTex, vUv).rgb, wet, uMix), 1.0);
 }`;
 
 /**
@@ -135,6 +142,7 @@ void main() {
 export const QUANTIZE = `
 uniform float uPixel;
 uniform float uLevels;
+uniform float uMix;
 
 void main() {
   vec2 uv = vUv;
@@ -146,7 +154,7 @@ void main() {
   if (uLevels >= 2.0) {
     c = floor(c * uLevels + 0.5) / uLevels;
   }
-  fragColor = vec4(c, 1.0);
+  fragColor = vec4(mix(texture(uTex, vUv).rgb, c, uMix), 1.0);
 }`;
 
 /** BLOOM 1/3 — keep only what is brighter than the threshold. */
@@ -178,11 +186,21 @@ void main() {
 export const BLOOM_COMPOSITE = `
 uniform sampler2D uBloom;
 uniform float uAmount;
+uniform float uMix;
 
 void main() {
   vec3 base = texture(uTex, vUv).rgb;
   vec3 glow = texture(uBloom, vUv).rgb * uAmount;
-  fragColor = vec4(base + glow, 1.0);
+  fragColor = vec4(mix(base, base + glow, uMix), 1.0);
+}`;
+
+/** Crossfade between the outgoing visual (uTex) and the incoming one (uNext). */
+export const BLEND = `
+uniform sampler2D uNext;
+uniform float uMix;
+
+void main() {
+  fragColor = vec4(mix(texture(uTex, vUv).rgb, texture(uNext, vUv).rgb, uMix), 1.0);
 }`;
 
 /** Straight copy, used to fill the feedback buffer and to present to screen. */
