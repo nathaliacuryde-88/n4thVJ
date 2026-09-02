@@ -1,4 +1,5 @@
 import { HandData } from '../../App';
+import { alphaHex } from './alpha';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -441,7 +442,7 @@ export class GlitchRenderer {
       block.life -= 0.016;
       
       if (block.life > 0) {
-        this.ctx.fillStyle = block.color + Math.floor(block.life * 255).toString(16).padStart(2, '0');
+        this.ctx.fillStyle = block.color + alphaHex(block.life * 255);
         this.ctx.fillRect(block.x, block.y, block.width, block.height);
         return true;
       }

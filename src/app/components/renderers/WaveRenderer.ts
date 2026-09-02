@@ -1,4 +1,5 @@
 import { HandData } from '../../App';
+import { alphaHex } from './alpha';
 import { WaveConfig } from '../../config/WaveRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 
@@ -355,9 +356,9 @@ export class WaveRenderer {
     const safeAlpha = Math.max(0, Math.min(1, alpha));
     
     const gradient = this.ctx.createLinearGradient(0, 0, this.canvas.width, 0);
-    gradient.addColorStop(0, color + Math.floor(safeAlpha * 100).toString(16).padStart(2, '0'));
-    gradient.addColorStop(0.5, color + Math.floor(safeAlpha * 255).toString(16).padStart(2, '0'));
-    gradient.addColorStop(1, color + Math.floor(safeAlpha * 100).toString(16).padStart(2, '0'));
+    gradient.addColorStop(0, color + alphaHex(safeAlpha * 100));
+    gradient.addColorStop(0.5, color + alphaHex(safeAlpha * 255));
+    gradient.addColorStop(1, color + alphaHex(safeAlpha * 100));
 
     this.ctx.strokeStyle = gradient;
     this.ctx.lineWidth = this.cfg.wave.lineThickness;
@@ -371,7 +372,7 @@ export class WaveRenderer {
     this.ctx.closePath();
 
     const fillGradient = this.ctx.createLinearGradient(0, yOffset, 0, this.canvas.height);
-    fillGradient.addColorStop(0, color + Math.floor(safeAlpha * this.cfg.visual.fillOpacity).toString(16).padStart(2, '0'));
+    fillGradient.addColorStop(0, color + alphaHex(safeAlpha * this.cfg.visual.fillOpacity));
     fillGradient.addColorStop(1, color + '00');
 
     this.ctx.fillStyle = fillGradient;

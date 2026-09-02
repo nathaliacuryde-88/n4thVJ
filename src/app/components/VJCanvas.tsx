@@ -154,6 +154,8 @@ interface Deck {
   renderer: VJRenderer;
   canvas: HTMLCanvasElement;
   pattern: VisualPattern;
+  /** Set once a frame has thrown, so the failure is reported only once. */
+  reportedError?: boolean;
 }
 
 /** The deck on its way out during a crossfade. */
@@ -293,20 +295,39 @@ export function VJCanvas({
     resize();
     window.addEventListener('resize', resize);
 
+    /**
+     * One renderer throwing must not end the show.
+     *
+     * An exception here used to escape the rAF callback, which stops the loop
+     * for good: the canvas freezes on its last frame and nothing — not even
+     * switching pattern — brings it back without a reload. A single bad frame
+     * from one visual is not a reason to lose the set, so it is caught, said
+     * once, and the loop carries on. The pattern can still be switched away
+     * from, which is the thing that actually recovers it.
+     */
     const drawDeck = (deck: Deck) => {
-      if (videoElementRef.current) {
-        deck.renderer.setVideoElement?.(videoElementRef.current);
+      try {
+        if (videoElementRef.current) {
+          deck.renderer.setVideoElement?.(videoElementRef.current);
+        }
+        if (deck.pattern === 'smokehand' && smokeHandModelRef.current) {
+          deck.renderer.setSmokeHandModel?.(smokeHandModelRef.current);
+        }
+        deck.renderer.render(
+          handDataRef.current,
+          dominantColorsRef.current,
+          audioDataRef.current,
+          colorModeRef.current,
+        );
+      } catch (error) {
+        if (!deck.reportedError) {
+          deck.reportedError = true;
+          console.error(`Renderer "${deck.pattern}" threw while drawing:`, error);
+        }
       }
-      if (deck.pattern === 'smokehand' && smokeHandModelRef.current) {
-        deck.renderer.setSmokeHandModel?.(smokeHandModelRef.current);
-      }
-      deck.renderer.render(
-        handDataRef.current,
-        dominantColorsRef.current,
-        audioDataRef.current,
-        colorModeRef.current,
-      );
     };
+
+    let pipelineThrew = false;
 
     const animate = () => {
       const deck = deckRef.current;
@@ -329,12 +350,19 @@ export function VJCanvas({
 
         const pipeline = pipelineRef.current;
         if (pipeline) {
-          pipeline.render(
-            deck.canvas,
-            performance.now() / 1000,
-            fade < 1 && outgoingRef.current ? outgoingRef.current.canvas : null,
-            fade,
-          );
+          try {
+            pipeline.render(
+              deck.canvas,
+              performance.now() / 1000,
+              fade < 1 && outgoingRef.current ? outgoingRef.current.canvas : null,
+              fade,
+            );
+          } catch (error) {
+            if (!pipelineThrew) {
+              pipelineThrew = true;
+              console.error('Post pipeline threw while presenting:', error);
+            }
+          }
         } else if (fallbackCtxRef.current) {
           // No pipeline — no crossfade either, just the current deck.
           fallbackCtxRef.current.drawImage(deck.canvas, 0, 0);

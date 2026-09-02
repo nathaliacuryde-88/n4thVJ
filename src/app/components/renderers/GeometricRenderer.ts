@@ -1,4 +1,5 @@
 import { HandData } from '../../App';
+import { alphaHex } from './alpha';
 import { GeometricConfig } from '../../config/GeometricRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 
@@ -227,7 +228,7 @@ export class GeometricRenderer {
       const alpha = i / trail.length; // Fade along trail
       const color = curr.hand === 'left' ? colors[0] : colors[2];
       
-      this.ctx.strokeStyle = color + Math.floor(alpha * 100).toString(16).padStart(2, '0');
+      this.ctx.strokeStyle = color + alphaHex(alpha * 100);
       this.ctx.lineWidth = this.cfg.trail.lineThickness * alpha;
       this.ctx.lineCap = 'round';
       
@@ -268,13 +269,13 @@ export class GeometricRenderer {
 
     // Radial gradient fill
     const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
-    gradient.addColorStop(0, color + Math.floor(alpha * 255).toString(16).padStart(2, '0'));
+    gradient.addColorStop(0, color + alphaHex(alpha * 255));
     gradient.addColorStop(1, color + '00'); // Fade to transparent at edge
 
     this.ctx.fillStyle = gradient;
     this.ctx.fill();
 
-    this.ctx.strokeStyle = color + Math.floor(alpha * 200).toString(16).padStart(2, '0');
+    this.ctx.strokeStyle = color + alphaHex(alpha * 200);
     this.ctx.lineWidth = this.cfg.polygon.strokeWidth * strokeWidthMultiplier;
     this.ctx.stroke();
 

@@ -1,4 +1,5 @@
 import { HandData } from '../../App';
+import { alphaHex } from './alpha';
 import { ParticleConfig } from '../../config/ParticleRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 
@@ -221,8 +222,8 @@ export class ParticleRenderer {
         );
         
         const opacity = (1 - layer * this.cfg.glow.layerFade) * particle.alpha;
-        gradient.addColorStop(0, particle.color + Math.floor(opacity * 255).toString(16).padStart(2, '0'));
-        gradient.addColorStop(0.5, particle.color + Math.floor(opacity * 150).toString(16).padStart(2, '0'));
+        gradient.addColorStop(0, particle.color + alphaHex(opacity * 255));
+        gradient.addColorStop(0.5, particle.color + alphaHex(opacity * 150));
         gradient.addColorStop(1, particle.color + '00'); // Transparent edge
 
         this.ctx.fillStyle = gradient;
