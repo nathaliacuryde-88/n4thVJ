@@ -47,3 +47,7 @@ itself, which is a different effect entirely — this needs its own buffer.
 Everything it needs already exists in this codebase: MediaPipe hand landmarks,
 the camera video element, ping-ponged render targets, and a displacement shader.
 What is missing is the height-field buffer and the slope-to-refraction step.
+
+
+**Built** as `Water Ripple`, first of the TD family (TD tab, key 1) —
+[`RippleRenderer.ts`](../../src/app/components/renderers/RippleRenderer.ts).

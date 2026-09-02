@@ -1,7 +1,7 @@
 import { Hand, HandData, VisualPattern } from '../App';
 import { Video, VideoOff, Mic, MicOff, Orbit, Sparkles } from 'lucide-react';
 import { ColorController } from './ColorController';
-import { getRenderersByCategory } from '../config/RendererCategories';
+import { getRenderersByCategory, RendererCategory } from '../config/RendererCategories';
 
 /**
  * The one-word gesture readout for a hand, or null when there is nothing to
@@ -41,8 +41,8 @@ interface ControlsProps {
   onColorModeChange: (mode: 'black' | 'contrast' | 'grayscale') => void;
   autoHueEnabled: boolean;
   onAutoHueToggle: () => void;
-  rendererFilter: '2D' | '3D';
-  onRendererFilterChange: (filter: '2D' | '3D') => void;
+  rendererFilter: RendererCategory;
+  onRendererFilterChange: (filter: RendererCategory) => void;
   audioEnabled: boolean;
   onAudioToggle: () => void;
   audioSensitivity: number;
@@ -197,28 +197,25 @@ export function Controls({
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
         <div className="bg-black/70 backdrop-blur-sm rounded-full py-2 px-6 border border-white/20 font-mono">
           <div className="flex items-center gap-4">
-            {/* 2D/3D Filter Buttons */}
+            {/* Renderer family */}
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => onRendererFilterChange('2D')}
-                className={`px-3 py-1 rounded text-[10px] transition-all ${
-                  rendererFilter === '2D'
-                    ? 'bg-cyan-500/30 text-cyan-300'
-                    : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'
-                }`}
-              >
-                2D
-              </button>
-              <button
-                onClick={() => onRendererFilterChange('3D')}
-                className={`px-3 py-1 rounded text-[10px] transition-all ${
-                  rendererFilter === '3D'
-                    ? 'bg-purple-500/30 text-purple-300'
-                    : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'
-                }`}
-              >
-                3D
-              </button>
+              {([
+                { key: '2D', on: 'bg-cyan-500/30 text-cyan-300' },
+                { key: '3D', on: 'bg-purple-500/30 text-purple-300' },
+                { key: 'TD', on: 'bg-emerald-500/30 text-emerald-300' },
+              ] as const).map(({ key, on }) => (
+                <button
+                  key={key}
+                  onClick={() => onRendererFilterChange(key)}
+                  className={`px-3 py-1 rounded text-[10px] transition-all ${
+                    rendererFilter === key
+                      ? on
+                      : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'
+                  }`}
+                >
+                  {key}
+                </button>
+              ))}
             </div>
 
             {/* Separator */}

@@ -23,6 +23,7 @@ import { GeometricConfig } from '../config/GeometricRendererConfig';
 import { ParticleConfig } from '../config/ParticleRendererConfig';
 import { WaveConfig } from '../config/WaveRendererConfig';
 import { PipelineConfig } from '../config/PipelineConfig';
+import { RippleConfig } from '../config/RippleRendererConfig';
 import { ParamGroup } from './types';
 
 export interface RendererParams {
@@ -118,6 +119,43 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'explosion.particleCount', label: 'Burst', min: 0, max: 300, step: 5 },
           { path: 'explosion.forceMultiplier', label: 'Force', min: 0, max: 50, step: 1 },
           { path: 'explosion.sizeMultiplier', label: 'Size', min: 0.2, max: 6, step: 0.1 },
+        ],
+      },
+    ],
+  },
+
+  ripple: {
+    config: RippleConfig,
+    groups: [
+      {
+        name: 'Hand',
+        params: [
+          { path: 'stamp.radius', label: 'Size', min: 0.01, max: 0.3, step: 0.005 },
+          { path: 'stamp.strength', label: 'Weight', min: 0.05, max: 1, step: 0.01 },
+          { path: 'stamp.fingerScale', label: 'Fingers', min: 0, max: 1, step: 0.05, hint: '0 = palm only' },
+          { path: 'stamp.audioSwell', label: 'Bass swell', min: 0, max: 3, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Trail',
+        params: [
+          { path: 'field.decay', label: 'Length', min: 0.8, max: 0.998, step: 0.002, hint: 'higher = lingers' },
+          { path: 'field.spread', label: 'Spread', min: 0.2, max: 8, step: 0.1 },
+        ],
+      },
+      {
+        name: 'Water',
+        params: [
+          { path: 'refraction.amount', label: 'Refraction', min: 0, max: 0.4, step: 0.005 },
+          { path: 'refraction.dispersion', label: 'Dispersion', min: 0, max: 1.5, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Gloss',
+        params: [
+          { path: 'highlight.amount', label: 'Amount', min: 0, max: 3, step: 0.05 },
+          { path: 'highlight.sharpness', label: 'Sharpness', min: 0.5, max: 20, step: 0.5 },
+          { path: 'highlight.tint', label: 'Tint', min: 0, max: 1, step: 0.05, hint: 'palette into the gloss' },
         ],
       },
     ],

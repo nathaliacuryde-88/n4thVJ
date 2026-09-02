@@ -24,6 +24,7 @@ import { LottieClassicRenderer } from './renderers/LottieClassicRenderer';
 import { NetworkCubeRenderer } from './renderers/NetworkCubeRenderer';
 import { ElasticNetRenderer } from './renderers/ElasticNetRenderer';
 import { DigitalBlockRenderer } from './renderers/DigitalBlockRenderer';
+import { RippleRenderer } from './renderers/RippleRenderer';
 import { AudioData } from '../App';
 import { ParamValues, withOverrides } from '../params/types';
 import { PostPipeline } from '../pipeline/PostPipeline';
@@ -132,6 +133,9 @@ function createRenderer(
       break;
     case 'elastic-net':
       renderer = new ElasticNetRenderer(canvas, ctx);
+      break;
+    case 'ripple':
+      renderer = new RippleRenderer(canvas, ctx);
       break;
     case 'digitalblocks':
       renderer = new DigitalBlockRenderer(canvas, ctx);
@@ -290,7 +294,7 @@ export function VJCanvas({
     window.addEventListener('resize', resize);
 
     const drawDeck = (deck: Deck) => {
-      if (deck.pattern === 'distortedcamera' && videoElementRef.current) {
+      if (videoElementRef.current) {
         deck.renderer.setVideoElement?.(videoElementRef.current);
       }
       if (deck.pattern === 'smokehand' && smokeHandModelRef.current) {

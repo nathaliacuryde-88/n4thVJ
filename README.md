@@ -1,6 +1,6 @@
 # n4thVJ — Interactive VJ Experiment Page
 
-A browser VJ instrument: 24 visualisers you drive with your hands in front
+A browser VJ instrument: 25 visualisers you drive with your hands in front
 of a webcam, or with whatever the microphone is hearing. Everything runs locally
 in the page — the camera and audio streams never leave the machine.
 
@@ -35,7 +35,7 @@ delegate there).
 
 | | |
 |---|---|
-| **2D / 3D** | Two banks of renderers. Keys are scoped to the open bank. |
+| **2D / 3D / TD** | Three families of renderers. Keys are scoped to the open one. |
 | **1‑9, 0, -, =, Q, W, D** | Jump to a renderer. The button row shows the key for each. |
 | **← / →** | Previous / next renderer in the open bank |
 | **↑ / ↓** | Saturation ±5 |
@@ -81,6 +81,22 @@ speed them up, and bringing both hands together triggers the explosion.
 
 Hue, saturation and colour mode are remembered across reloads; the renderer
 always opens on Geometric.
+
+## The three families
+
+**2D** draws with canvas primitives — lines, arcs, fills. **3D** runs three.js
+scenes and blits them across.
+
+**TD** is the newest and works differently: a signal chain rather than a
+drawing. Something builds a field over time, and that field is then used to
+distort something else. **Water Ripple** is the first — a soft blob is stamped
+where your hands are, fed through a feedback loop with decay and spread to build
+a greyscale height field, and the camera image is bent by the slope of it, with
+a white gloss riding the ridge. Follow the patch it came from in
+[`references/water-ripple-effect`](references/water-ripple-effect).
+
+It wants the camera. Without one it draws the height field alone, which still
+reads as something, and with auto-motion on it runs by itself.
 
 ## Layout
 

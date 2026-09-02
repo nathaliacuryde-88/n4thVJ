@@ -12,7 +12,13 @@
 
 import { VisualPattern } from '../App';
 
-export type RendererCategory = '2D' | '3D';
+/**
+ * '2D'  — HTML5 canvas primitives
+ * '3D'  — three.js scenes blitted into the canvas
+ * 'TD'  — TouchDesigner-style signal chains: a field built by feedback, then
+ *         used to distort something else. See references/.
+ */
+export type RendererCategory = '2D' | '3D' | 'TD';
 
 export interface RendererInfo {
   pattern: VisualPattern;
@@ -194,6 +200,17 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '0',
     description: 'Elastic neural network simulation'
   },
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TD RENDERERS — signal chains: build a field, then distort something with it
+  // ═══════════════════════════════════════════════════════════════════════════
+  ripple: {
+    pattern: 'ripple',
+    name: 'Water Ripple',
+    category: 'TD',
+    key: '1',
+    description: 'Camera refracted through a height field your hands leave behind'
+  },
+
   digitalblocks: {
     pattern: 'digitalblocks',
     name: 'Digital Horizon',

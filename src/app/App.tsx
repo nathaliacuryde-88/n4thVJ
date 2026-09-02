@@ -5,13 +5,13 @@ import { HandTracker } from './components/HandTracker';
 import { PermissionRequest } from './components/PermissionRequest';
 import { VJCanvas } from './components/VJCanvas';
 import { AudioAnalyzer } from './components/AudioAnalyzer';
-import { getPatternCategory, getRenderersByCategory } from './config/RendererCategories';
+import { getPatternCategory, getRenderersByCategory, RendererCategory } from './config/RendererCategories';
 import { ParamPanel, ParamSection } from './components/ParamPanel';
 import { PIPELINE_PARAMS, RENDERER_PARAMS } from './params/registry';
 import { AllParamValues, ParamValues, sanitizeAllParams } from './params/types';
 import { fxActive } from './pipeline/PostPipeline';
 
-export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks';
+export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple';
 
 export interface AudioData {
   bass: number; // 0-1, controls scale/blooming
@@ -219,7 +219,7 @@ export default function App() {
   }, [currentPattern]);
   
   // Renderer filter state (2D/3D)
-  const [rendererFilter, setRendererFilter] = useState<'2D' | '3D'>('2D');
+  const [rendererFilter, setRendererFilter] = useState<RendererCategory>('2D');
   
   const [handData, setHandData] = useState<HandData>({ left: null, right: null });
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
@@ -383,49 +383,17 @@ export default function App() {
         return;
       }
 
-      // 2D Mode Shortcuts
-      if (rendererFilter === '2D') {
-        // Number Keys
-        switch(e.key) {
-          case '1': setCurrentPattern('geometric'); break;
-          case '2': setCurrentPattern('particles'); break;
-          case '3': setCurrentPattern('waves'); break;
-          case '4': setCurrentPattern('technical'); break;
-          case '5': setCurrentPattern('lottie'); break;
-          case '6': setCurrentPattern('linefield'); break;
-          case '7': setCurrentPattern('chromatic'); break;
-          case '8': setCurrentPattern('halftone'); break;
-          case '9': setCurrentPattern('matrix'); break;
-          case '0': setCurrentPattern('digitalblocks'); break;
-          
-          // Letters/Symbols
-          case '-': setCurrentPattern('liquidchrome'); break;
-          case '=': setCurrentPattern('thicklines'); break;
-          case 'q': case 'Q': setCurrentPattern('lottie-classic'); break;
-          case 'w': case 'W': setCurrentPattern('distortedcamera'); break;
-        }
+      // Jump straight to a renderer by its key, within the open family.
+      // Derived from RENDERER_CATEGORIES rather than restated, so the keyboard
+      // and the button row can never drift apart — the old hand-written switches
+      // had already gone stale, with two dead cases in 3D.
+      const match = getRenderersByCategory(rendererFilter)
+        .find(r => r.key.toLowerCase() === e.key.toLowerCase());
+      if (match) {
+        setCurrentPattern(match.pattern);
+        return;
       }
-      
-      // 3D Mode Shortcuts
-      if (rendererFilter === '3D') {
-        // Number Keys
-        switch(e.key) {
-          case '1': setCurrentPattern('glitch'); break;
-          case '2': setCurrentPattern('cyberstream'); break;
-          case '3': /* Unassigned in list, kept generic? */ break; // Morphing moved to =
-          case '4': setCurrentPattern('cubewall'); break;
-          case '5': setCurrentPattern('facecloud'); break;
-          case '7': /* Unassigned, Face moved to - */ break;
-          case '8': setCurrentPattern('smokehand'); break;
-          case '9': setCurrentPattern('network-cube'); break;
-          case '0': setCurrentPattern('elastic-net'); break;
-          
-          // Letters/Symbols
-          case '-': setCurrentPattern('face'); break;
-          case '=': setCurrentPattern('morphing'); break;
-        }
-      }
-      
+
       // Arrow Key Controls (Pattern Cycling & Saturation)
       switch (e.key) {
         case 'ArrowLeft':
@@ -480,7 +448,7 @@ export default function App() {
     setShowPermissionRequest(false);
   };
 
-  const handleRendererFilterChange = (filter: '2D' | '3D') => {
+  const handleRendererFilterChange = (filter: RendererCategory) => {
     setRendererFilter(filter);
     // Only jump if the pattern on screen does not belong to the tab being
     // opened. Switching to 2D used to leave a 3D pattern running with no
