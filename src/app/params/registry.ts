@@ -22,6 +22,7 @@ import { VisualPattern } from '../App';
 import { GeometricConfig } from '../config/GeometricRendererConfig';
 import { ParticleConfig } from '../config/ParticleRendererConfig';
 import { WaveConfig } from '../config/WaveRendererConfig';
+import { PipelineConfig } from '../config/PipelineConfig';
 import { ParamGroup } from './types';
 
 export interface RendererParams {
@@ -172,3 +173,59 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
 export function paramSpecsFor(pattern: VisualPattern) {
   return RENDERER_PARAMS[pattern]?.groups.flatMap((g) => g.params) ?? [];
 }
+
+/**
+ * The post pipeline's own sliders. Not keyed by pattern: these apply to the
+ * finished frame whatever produced it, and every one defaults to off.
+ */
+export const PIPELINE_PARAMS: RendererParams = {
+  config: PipelineConfig,
+  groups: [
+    {
+      name: 'Feedback',
+      params: [
+        { path: 'feedback.amount', label: 'Amount', min: 0, max: 0.99, step: 0.01, hint: '0 = off' },
+        { path: 'feedback.zoom', label: 'Zoom', min: 0.9, max: 1.1, step: 0.001, hint: '>1 tunnels out' },
+        { path: 'feedback.rotate', label: 'Rotate', min: -0.05, max: 0.05, step: 0.0005 },
+        { path: 'feedback.offsetX', label: 'Drift X', min: -0.02, max: 0.02, step: 0.0005 },
+        { path: 'feedback.offsetY', label: 'Drift Y', min: -0.02, max: 0.02, step: 0.0005 },
+        { path: 'feedback.hueShift', label: 'Hue drift', min: -0.2, max: 0.2, step: 0.002 },
+      ],
+    },
+    {
+      name: 'Displace',
+      params: [
+        { path: 'displace.amount', label: 'Amount', min: 0, max: 0.3, step: 0.002 },
+        { path: 'displace.scale', label: 'Scale', min: 0.5, max: 40, step: 0.5 },
+        { path: 'displace.speed', label: 'Speed', min: 0, max: 3, step: 0.02 },
+      ],
+    },
+    {
+      name: 'Chromatic',
+      params: [
+        { path: 'rgbSplit.amount', label: 'RGB split', min: 0, max: 0.1, step: 0.001 },
+      ],
+    },
+    {
+      name: 'Kaleidoscope',
+      params: [
+        { path: 'kaleido.segments', label: 'Segments', min: 0, max: 24, step: 1, hint: '<2 = off' },
+        { path: 'kaleido.spin', label: 'Spin', min: -3.14, max: 3.14, step: 0.01 },
+      ],
+    },
+    {
+      name: 'Quantize',
+      params: [
+        { path: 'quantize.pixel', label: 'Pixel size', min: 0, max: 64, step: 1, hint: '<=1 = off' },
+        { path: 'quantize.levels', label: 'Colour steps', min: 0, max: 16, step: 1, hint: '<2 = off' },
+      ],
+    },
+    {
+      name: 'Bloom',
+      params: [
+        { path: 'bloom.amount', label: 'Amount', min: 0, max: 3, step: 0.05 },
+        { path: 'bloom.threshold', label: 'Threshold', min: 0, max: 1, step: 0.01 },
+      ],
+    },
+  ],
+};

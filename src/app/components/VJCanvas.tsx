@@ -16,7 +16,6 @@ import { FaceCloudRenderer } from './renderers/FaceCloudRenderer';
 import { FaceRenderer } from './renderers/FaceRenderer';
 import { MorphingSphereRenderer } from './renderers/MorphingSphereRenderer';
 import { CubeWallRenderer } from './renderers/CubeWallRenderer';
-import { RoseRenderer } from './renderers/RoseRenderer';
 import { SmokeHandRenderer } from './renderers/SmokeHandRenderer';
 import { ThickLineRenderer } from './renderers/ThickLineRenderer';
 import { FlowFieldRenderer } from './renderers/FlowFieldRenderer';
@@ -27,6 +26,7 @@ import { ElasticNetRenderer } from './renderers/ElasticNetRenderer';
 import { DigitalBlockRenderer } from './renderers/DigitalBlockRenderer';
 import { AudioData } from '../App';
 import { ParamValues } from '../params/types';
+import { PostPipeline } from '../pipeline/PostPipeline';
 
 type ColorMode = 'black' | 'contrast' | 'grayscale';
 
@@ -59,6 +59,8 @@ interface VJCanvasProps {
   colorMode?: 'black' | 'contrast' | 'grayscale';
   /** Slider overrides for the current pattern. */
   params?: ParamValues;
+  /** Slider overrides for the post pipeline (the FX tab). */
+  fxParams?: ParamValues;
 }
 
 export function VJCanvas({
@@ -69,11 +71,18 @@ export function VJCanvas({
   smokeHandModel,
   audioData,
   colorMode,
-  params
+  params,
+  fxParams
 }: VJCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
   const rendererRef = useRef<VJRenderer | null>(null);
+  const pipelineRef = useRef<PostPipeline | null>(null);
+  /** Renderers draw here; the pipeline reads it and presents to the visible canvas. */
+  const sourceCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  if (sourceCanvasRef.current === null && typeof document !== 'undefined') {
+    sourceCanvasRef.current = document.createElement('canvas');
+  }
   
   // Store latest handData and dominantColors in refs so animate loop can access them
   const handDataRef = useRef<HandData>(handData);
@@ -83,6 +92,7 @@ export function VJCanvas({
   const audioDataRef = useRef<AudioData | undefined>(audioData);
   const colorModeRef = useRef<'black' | 'contrast' | 'grayscale' | undefined>(colorMode);
   const paramsRef = useRef<ParamValues | undefined>(params);
+  const fxParamsRef = useRef<ParamValues | undefined>(fxParams);
 
   // Update refs whenever props change
   useEffect(() => {
@@ -93,7 +103,8 @@ export function VJCanvas({
     audioDataRef.current = audioData;
     colorModeRef.current = colorMode;
     paramsRef.current = params;
-  }, [handData, dominantColors, videoElement, smokeHandModel, audioData, colorMode, params]);
+    fxParamsRef.current = fxParams;
+  }, [handData, dominantColors, videoElement, smokeHandModel, audioData, colorMode, params, fxParams]);
 
   // Slider moves must not rebuild the renderer - that would reset its particles,
   // its trails and, for the three.js ones, its whole scene.
@@ -101,18 +112,52 @@ export function VJCanvas({
     rendererRef.current?.setParams?.(params ?? {});
   }, [params]);
 
-  // Main render loop
+  useEffect(() => {
+    pipelineRef.current?.setParams(fxParams ?? {});
+  }, [fxParams]);
+
+  // The post pipeline owns the visible canvas and outlives every pattern switch,
+  // so its WebGL context is created once rather than per renderer.
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let pipeline: PostPipeline | null = null;
+    try {
+      pipeline = new PostPipeline(canvas);
+      pipeline.setParams(fxParamsRef.current ?? {});
+      pipelineRef.current = pipeline;
+    } catch (error) {
+      // No WebGL2: fall back to showing the renderers' own canvas directly.
+      console.error('Post pipeline unavailable, falling back to direct output:', error);
+      pipelineRef.current = null;
+    }
+
+    return () => {
+      pipeline?.destroy();
+      pipelineRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Main render loop
+  useEffect(() => {
+    const canvas = sourceCanvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size
+    // Set canvas size. The pipeline sizes the visible canvas itself from the
+    // source; the fallback path has to be kept in step here.
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      const visible = canvasRef.current;
+      if (visible && !pipelineRef.current) {
+        visible.width = canvas.width;
+        visible.height = canvas.height;
+      }
     };
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -184,9 +229,6 @@ export function VJCanvas({
       case 'cubewall':
         renderer = new CubeWallRenderer(canvas, ctx);
         break;
-      case 'rose':
-        renderer = new RoseRenderer(canvas, ctx);
-        break;
       case 'smokehand':
         renderer = new SmokeHandRenderer(canvas, ctx);
         break;
@@ -207,6 +249,8 @@ export function VJCanvas({
 
     renderer.setParams?.(paramsRef.current ?? {});
     rendererRef.current = renderer;
+
+    const visibleCtx = pipelineRef.current ? null : canvasRef.current?.getContext('2d') ?? null;
 
     // Safety check
     if (!renderer) {
@@ -232,7 +276,15 @@ export function VJCanvas({
         audioDataRef.current, 
         colorModeRef.current
       );
-      
+
+      const pipeline = pipelineRef.current;
+      if (pipeline) {
+        pipeline.render(canvas, performance.now() / 1000);
+      } else if (visibleCtx) {
+        // No WebGL2 — copy the frame across untouched.
+        visibleCtx.drawImage(canvas, 0, 0);
+      }
+
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 

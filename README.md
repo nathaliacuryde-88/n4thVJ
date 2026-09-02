@@ -1,6 +1,6 @@
 # n4thVJ — Interactive VJ Experiment Page
 
-A browser VJ instrument: 25 canvas visualisers you drive with your hands in front
+A browser VJ instrument: 24 visualisers you drive with your hands in front
 of a webcam, or with whatever the microphone is hearing. Everything runs locally
 in the page — the camera and audio streams never leave the machine.
 
@@ -44,10 +44,15 @@ delegate there).
 | **Ctrl / Alt / Cmd** | Colour mode: 2 colours / black & white / 1 colour |
 | **Right-click** | Hide or show the whole UI |
 
-The **SHAPE** panel on the left holds the current renderer's own parameters.
+The panel on the left has two tabs. **SHAPE** holds the current renderer's own
+parameters; **FX** holds the post chain that runs on the finished frame —
+feedback, noise displacement, chromatic aberration, kaleidoscope, quantize and
+bloom, described in [`docs/POST_PIPELINE.md`](docs/POST_PIPELINE.md). Every
+effect defaults to off, and with all of them off the frame goes straight to
+screen untouched.
 Tweaks are kept per renderer and survive a reload; click a parameter's label to
-reset it, or the arrow in the panel header to reset that renderer. Geometric,
-Particles and Waves are wired up so far —
+reset it, or the arrow in the panel header to reset the tab. Geometric, Particles
+and Waves have SHAPE parameters so far —
 [`docs/ADDING_PARAMETERS.md`](docs/ADDING_PARAMETERS.md) covers adding the rest.
 
 Gestures: an open hand is followed, a pinch slows things down, five fingers
@@ -73,6 +78,7 @@ src/
       HandTracker.tsx          MediaPipe hand landmarks → HandData
       AudioAnalyzer.tsx        Web Audio FFT → bass/mid/high + beat detection
       renderers/               one class per visual; render(handData, colors, audio, colorMode)
+    pipeline/                  the GPU post chain: feedback, displace, RGB split, bloom…
     config/                    tunable parameters, and the canonical key map
     params/                    the runtime parameter layer: which numbers get a slider
 docs/                          feature, gesture, performance and parameter guides
@@ -93,5 +99,5 @@ context, and browsers only allow a handful at a time.
 MediaPipe Tasks Vision is imported from jsDelivr at runtime rather than bundled,
 and four model/mesh files are fetched from Google and from
 [NPC-88/3dfiles](https://github.com/NPC-88/3dfiles) (pinned by commit). Face Mesh,
-3D Plants and Smoke Hand need network access the first time they are opened;
+Smoke Hand needs network access the first time it is opened;
 everything else works offline. See [`ATTRIBUTIONS.md`](ATTRIBUTIONS.md).

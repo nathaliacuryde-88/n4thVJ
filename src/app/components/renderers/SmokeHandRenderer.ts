@@ -43,20 +43,10 @@ export class SmokeHandRenderer {
     
     // Create a separate canvas for Three.js WebGL rendering
     this.threeCanvas = document.createElement('canvas');
-    this.threeCanvas.style.position = 'absolute';
-    this.threeCanvas.style.top = '0';
-    this.threeCanvas.style.left = '0';
-    this.threeCanvas.style.width = '100%';
-    this.threeCanvas.style.height = '100%';
-    this.threeCanvas.style.pointerEvents = 'none';
-    this.threeCanvas.style.zIndex = '10'; // Above base canvas (z-0) but behind UI (z-50)
     this.threeCanvas.width = canvas.width;
     this.threeCanvas.height = canvas.height;
     
     // Append to the same parent as the base canvas (the main app container)
-    if (canvas.parentElement) {
-      canvas.parentElement.appendChild(this.threeCanvas);
-    }
     
     // Initialize Three.js
     this.scene = new THREE.Scene();
@@ -358,6 +348,10 @@ export class SmokeHandRenderer {
 
     // Render with bloom
     this.composer.render();
+
+    // Into the shared 2D canvas, not the DOM: the post pipeline reads that one.
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.drawImage(this.threeCanvas, 0, 0, this.canvas.width, this.canvas.height);
   }
 
   public resize(width: number, height: number) {
@@ -445,11 +439,6 @@ export class SmokeHandRenderer {
     this.composer.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();
-    
-    // Remove the Three.js canvas element
-    if (this.threeCanvas && this.threeCanvas.parentElement) {
-      this.threeCanvas.parentElement.removeChild(this.threeCanvas);
-    }
     
     console.log('💨 SmokeHandRenderer destroyed');
   }

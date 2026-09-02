@@ -35,19 +35,9 @@ export class DigitalBlockRenderer {
     
     // Create Three.js canvas
     this.threeCanvas = document.createElement('canvas');
-    this.threeCanvas.style.position = 'absolute';
-    this.threeCanvas.style.top = '0';
-    this.threeCanvas.style.left = '0';
-    this.threeCanvas.style.width = '100%';
-    this.threeCanvas.style.height = '100%';
-    this.threeCanvas.style.pointerEvents = 'none';
-    this.threeCanvas.style.zIndex = '1'; 
     this.threeCanvas.width = canvas.width;
     this.threeCanvas.height = canvas.height;
     
-    if (canvas.parentElement) {
-      canvas.parentElement.appendChild(this.threeCanvas);
-    }
     
     // Three.js Init
     this.scene = new THREE.Scene();
@@ -268,6 +258,10 @@ export class DigitalBlockRenderer {
     
     // Render
     this.composer.render();
+
+    // Into the shared 2D canvas, not the DOM: the post pipeline reads that one.
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.drawImage(this.threeCanvas, 0, 0, this.canvas.width, this.canvas.height);
   }
   
   destroy() {
@@ -276,10 +270,6 @@ export class DigitalBlockRenderer {
     this.material.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();
-    
-    if (this.threeCanvas.parentElement) {
-      this.threeCanvas.parentElement.removeChild(this.threeCanvas);
-    }
     console.log('📼 DigitalBlockRenderer destroyed');
   }
   

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
-import { VisualPattern } from '../App';
-import { RENDERER_PARAMS } from '../params/registry';
+import { RendererParams } from '../params/registry';
 import { getByPath, ParamSpec, ParamValues } from '../params/types';
 
-interface ParamPanelProps {
-  pattern: VisualPattern;
+/** One tab: a set of sliders with its own values and handlers. */
+export interface ParamSection {
+  key: string;
+  label: string;
+  entry: RendererParams;
   values: ParamValues;
   onChange: (path: string, value: number) => void;
   onReset: (path?: string) => void;
@@ -64,37 +66,64 @@ function Slider({
 }
 
 /**
- * The sliders for whichever renderer is on screen. Built entirely from
- * RENDERER_PARAMS — this component knows nothing about any specific visual, so
- * exposing a new one is a registry entry rather than a UI change.
+ * The slider panel. Built entirely from the sections it is handed, so it knows
+ * nothing about any specific visual or effect — exposing something new is a
+ * registry entry rather than a change here.
  */
-export function ParamPanel({ pattern, values, onChange, onReset }: ParamPanelProps) {
+export function ParamPanel({ sections }: { sections: ParamSection[] }) {
   const [collapsed, setCollapsed] = useState(false);
-  const entry = RENDERER_PARAMS[pattern];
+  const [activeKey, setActiveKey] = useState(sections[0]?.key);
 
-  if (!entry) return null;
+  const available = sections.filter((s) => s.entry.groups.length > 0);
+  if (available.length === 0) return null;
 
-  const touched = entry.groups.some((g) =>
-    g.params.some((p) => values[p.path] !== undefined),
+  const active = available.find((s) => s.key === activeKey) ?? available[0];
+  const touched = active.entry.groups.some((g) =>
+    g.params.some((p) => active.values[p.path] !== undefined),
   );
 
   return (
     <div className="absolute left-6 top-24 bottom-32 z-50 w-[168px] flex flex-col font-mono pointer-events-auto">
       <div className="bg-black/70 backdrop-blur-sm rounded-xl border border-white/20 flex flex-col min-h-0">
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
+        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/10">
           <button
             onClick={() => setCollapsed((c) => !c)}
-            className="flex items-center gap-2 flex-1 text-left text-white/80 hover:text-white transition-colors"
+            className="text-white/60 hover:text-white transition-colors shrink-0"
             title={collapsed ? 'Show parameters' : 'Hide parameters'}
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-bold tracking-wider">SHAPE</span>
           </button>
+
+          <div className="flex gap-1 flex-1 min-w-0">
+            {available.map((section) => {
+              const dirty = section.entry.groups.some((g) =>
+                g.params.some((p) => section.values[p.path] !== undefined),
+              );
+              return (
+                <button
+                  key={section.key}
+                  onClick={() => {
+                    setActiveKey(section.key);
+                    setCollapsed(false);
+                  }}
+                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider transition-all ${
+                    section.key === active.key
+                      ? 'bg-white/20 text-white'
+                      : 'text-white/40 hover:text-white/70'
+                  }`}
+                >
+                  {section.label}
+                  {dirty && <span className="ml-1 text-cyan-300">•</span>}
+                </button>
+              );
+            })}
+          </div>
+
           {touched && (
             <button
-              onClick={() => onReset()}
-              title="Reset every parameter for this visual"
-              className="text-white/40 hover:text-white transition-colors"
+              onClick={() => active.onReset()}
+              title={`Reset every ${active.label} parameter`}
+              className="text-white/40 hover:text-white transition-colors shrink-0"
             >
               <RotateCcw className="w-3 h-3" />
             </button>
@@ -103,23 +132,23 @@ export function ParamPanel({ pattern, values, onChange, onReset }: ParamPanelPro
 
         {!collapsed && (
           <div className="overflow-y-auto px-3 py-2 min-h-0">
-            {entry.groups.map((group) => (
+            {active.entry.groups.map((group) => (
               <div key={group.name} className="mb-3 last:mb-1">
                 <div className="text-[8px] text-white/35 tracking-widest uppercase mb-1.5">
                   {group.name}
                 </div>
                 {group.params.map((spec) => {
-                  const fallback = getByPath(entry.config, spec.path);
+                  const fallback = getByPath(active.entry.config, spec.path);
                   if (fallback === undefined) return null;
-                  const value = values[spec.path] ?? fallback;
+                  const value = active.values[spec.path] ?? fallback;
                   return (
                     <Slider
                       key={spec.path}
                       spec={spec}
                       value={value}
-                      isDefault={values[spec.path] === undefined}
-                      onChange={(v) => onChange(spec.path, v)}
-                      onReset={() => onReset(spec.path)}
+                      isDefault={active.values[spec.path] === undefined}
+                      onChange={(v) => active.onChange(spec.path, v)}
+                      onReset={() => active.onReset(spec.path)}
                     />
                   );
                 })}

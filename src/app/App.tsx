@@ -6,10 +6,11 @@ import { PermissionRequest } from './components/PermissionRequest';
 import { VJCanvas } from './components/VJCanvas';
 import { AudioAnalyzer } from './components/AudioAnalyzer';
 import { getPatternCategory, getRenderersByCategory } from './config/RendererCategories';
-import { ParamPanel } from './components/ParamPanel';
-import { AllParamValues, sanitizeAllParams } from './params/types';
+import { ParamPanel, ParamSection } from './components/ParamPanel';
+import { PIPELINE_PARAMS, RENDERER_PARAMS } from './params/registry';
+import { AllParamValues, ParamValues, sanitizeAllParams } from './params/types';
 
-export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'rose' | 'smokehand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks';
+export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks';
 
 export interface AudioData {
   bass: number; // 0-1, controls scale/blooming
@@ -104,6 +105,23 @@ export default function App() {
   const [paramValues, setParamValues] = useState<AllParamValues>(() =>
     sanitizeAllParams(loadSetting<unknown>('vj-params', {}, () => true)),
   );
+
+  const [fxParams, setFxParams] = useState<ParamValues>(() => {
+    const stored = sanitizeAllParams(loadSetting<unknown>('vj-fx', {}, () => true));
+    return stored.fx ?? {};
+  });
+
+  const setFxParam = useCallback((path: string, value: number) => {
+    setFxParams((prev) => ({ ...prev, [path]: value }));
+  }, []);
+
+  const resetFxParam = useCallback((path?: string) => {
+    setFxParams((prev) => {
+      if (path === undefined) return {};
+      const { [path]: _removed, ...keep } = prev;
+      return keep;
+    });
+  }, []);
 
   const setParam = useCallback((path: string, value: number) => {
     setParamValues((prev) => ({
@@ -213,6 +231,10 @@ export default function App() {
     saveSetting('vj-params', paramValues);
   }, [paramValues]);
 
+  useEffect(() => {
+    saveSetting('vj-fx', { fx: fxParams });
+  }, [fxParams]);
+
   // Cycle patterns helper
   const cyclePattern = useCallback((direction: 'next' | 'prev') => {
     const renderers = getRenderersByCategory(rendererFilter);
@@ -302,7 +324,6 @@ export default function App() {
           case '3': /* Unassigned in list, kept generic? */ break; // Morphing moved to =
           case '4': setCurrentPattern('cubewall'); break;
           case '5': setCurrentPattern('facecloud'); break;
-          case '6': setCurrentPattern('rose'); break;
           case '7': /* Unassigned, Face moved to - */ break;
           case '8': setCurrentPattern('smokehand'); break;
           case '9': setCurrentPattern('network-cube'); break;
@@ -408,6 +429,7 @@ export default function App() {
         audioData={rendererAudioData}
         colorMode={colorMode}
         params={paramValues[currentPattern]}
+        fxParams={fxParams}
       />
 
       {/* Camera Feed - Always running for hand tracking, but only visible when showCamera is true */}
@@ -427,13 +449,29 @@ export default function App() {
         onAudioData={setAudioData}
       />
 
-      {/* Per-renderer shape controls */}
+      {/* Shape (this renderer) and FX (the post chain) */}
       {showUI && (
         <ParamPanel
-          pattern={currentPattern}
-          values={paramValues[currentPattern] ?? {}}
-          onChange={setParam}
-          onReset={resetParam}
+          sections={[
+            ...(RENDERER_PARAMS[currentPattern]
+              ? [{
+                  key: 'shape',
+                  label: 'SHAPE',
+                  entry: RENDERER_PARAMS[currentPattern]!,
+                  values: paramValues[currentPattern] ?? {},
+                  onChange: setParam,
+                  onReset: resetParam,
+                } satisfies ParamSection]
+              : []),
+            {
+              key: 'fx',
+              label: 'FX',
+              entry: PIPELINE_PARAMS,
+              values: fxParams,
+              onChange: setFxParam,
+              onReset: resetFxParam,
+            },
+          ]}
         />
       )}
 

@@ -166,13 +166,6 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '5',
     description: 'Op-art grid with perspective'
   },
-  rose: {
-    pattern: 'rose',
-    name: '3D Plants',
-    category: '3D',
-    key: '6',
-    description: '3D plant model with gesture controls'
-  },
   face: {
     pattern: 'face',
     name: 'Face Mesh',
