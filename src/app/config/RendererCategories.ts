@@ -23,6 +23,12 @@ export type RendererCategory = '2D' | '3D' | 'TD';
 export interface RendererInfo {
   pattern: VisualPattern;
   name: string;
+  /**
+   * The label under the key on the VJ page. A number alone is nothing to
+   * recognise mid-set, and the full name does not fit ten across, so every
+   * renderer carries a word short enough to read at a glance.
+   */
+  short: string;
   category: RendererCategory;
   key: string;
   description: string;
@@ -38,6 +44,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   geometric: {
     pattern: 'geometric',
     name: 'Geometric',
+    short: 'Geometric',
     category: '2D',
     key: '1',
     description: 'Rotating polygons with trails'
@@ -45,6 +52,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   particles: {
     pattern: 'particles',
     name: 'Particles',
+    short: 'Particles',
     category: '2D',
     key: '2',
     description: 'Dynamic particle system'
@@ -52,6 +60,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   waves: {
     pattern: 'waves',
     name: 'Waves',
+    short: 'Waves',
     category: '2D',
     key: '3',
     description: 'Flowing wave patterns'
@@ -59,6 +68,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   technical: {
     pattern: 'technical',
     name: 'Technical Hand Tracker',
+    short: 'Tracker',
     category: '2D',
     key: '4', // Corrected from 5
     description: 'Hand tracking visualization'
@@ -66,6 +76,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   lottie: {
     pattern: 'lottie',
     name: 'Lottie Inspired',
+    short: 'Lottie',
     category: '2D',
     key: '5', // Corrected from 6
     description: 'Animated circular patterns'
@@ -73,6 +84,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   'lottie-classic': {
     pattern: 'lottie-classic',
     name: 'Classic Lottie',
+    short: 'Lottie 2',
     category: '2D',
     key: 'Q',
     description: 'Classic Lottie animation'
@@ -80,6 +92,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   linefield: {
     pattern: 'linefield',
     name: 'Line Field',
+    short: 'Lines',
     category: '2D',
     key: '6', // Corrected from 7
     description: 'Dynamic line fields'
@@ -87,6 +100,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   chromatic: {
     pattern: 'chromatic',
     name: 'Chromatic Glow',
+    short: 'Chroma',
     category: '2D',
     key: '7', // Corrected from 8
     description: 'RGB chromatic aberration'
@@ -94,6 +108,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   halftone: {
     pattern: 'halftone',
     name: 'Halftone Matrix',
+    short: 'Halftone',
     category: '2D',
     key: '8', // Corrected from 9
     description: 'Halftone dot patterns'
@@ -101,6 +116,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   matrix: {
     pattern: 'matrix',
     name: 'Digital Grid',
+    short: 'Grid',
     category: '2D',
     key: '9',
     description: 'Matrix-style grid'
@@ -108,6 +124,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   distortedcamera: {
     pattern: 'distortedcamera',
     name: 'Distorted Camera',
+    short: 'Camera',
     category: '2D',
     key: 'W',
     description: 'Gesture-controlled camera distortion with chromatic effects'
@@ -115,6 +132,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   thicklines: {
     pattern: 'thicklines',
     name: 'Thick Lines',
+    short: 'Blocks',
     category: '2D',
     key: '=',
     description: 'Rotating blocks with thickness response'
@@ -122,6 +140,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   flowfield: {
     pattern: 'flowfield',
     name: 'Flow Field',
+    short: 'Flow',
     category: '2D',
     key: 'D',
     description: 'Flowing vector field'
@@ -129,6 +148,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   liquidchrome: {
     pattern: 'liquidchrome',
     name: 'Liquid Chrome',
+    short: 'Chrome',
     category: '2D', // Moved from 3D
     key: '-',
     description: 'Iridescent liquid metal simulation'
@@ -140,6 +160,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   glitch: {
     pattern: 'glitch',
     name: 'Glitch Network',
+    short: 'Glitch',
     category: '3D',
     key: '1',
     description: 'Network glitch with perspective effects'
@@ -147,6 +168,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   cyberstream: {
     pattern: 'cyberstream',
     name: 'Cyber Stream',
+    short: 'Cyber',
     category: '3D',
     key: '2',
     description: 'Cyberpunk stream with depth perspective'
@@ -154,6 +176,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   morphing: {
     pattern: 'morphing',
     name: 'Morphing Sphere',
+    short: 'Sphere',
     category: '3D',
     key: '=',
     description: 'Three.js morphing icosphere'
@@ -161,6 +184,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   cubewall: {
     pattern: 'cubewall',
     name: 'Cube Wall',
+    short: 'Cubes',
     category: '3D',
     key: '4',
     description: 'Three.js cube grid waves'
@@ -168,6 +192,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   facecloud: {
     pattern: 'facecloud',
     name: 'Op-Art Grid',
+    short: 'Op-Art',
     category: '3D',
     key: '5',
     description: 'Op-art grid with perspective'
@@ -175,6 +200,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   face: {
     pattern: 'face',
     name: 'Face Mesh',
+    short: 'Face',
     category: '3D',
     key: '-',
     description: 'MediaPipe face tracking with glowing mesh'
@@ -182,6 +208,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   'smokehand-torus': {
     pattern: 'smokehand-torus',
     name: 'Smoke Torus',
+    short: 'Torus',
     category: '3D',
     key: '8',
     description: 'Particle smoke shaped around a torus'
@@ -189,6 +216,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   'smokehand-hand': {
     pattern: 'smokehand-hand',
     name: 'Smoke Hand',
+    short: 'Smoke',
     category: '3D',
     key: '7',
     description: 'Particle smoke shaped around a hand model'
@@ -196,6 +224,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   'network-cube': {
     pattern: 'network-cube',
     name: 'Network Cube',
+    short: 'Network',
     category: '3D',
     key: '9',
     description: 'Sparse cubic constellation'
@@ -203,6 +232,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   'elastic-net': {
     pattern: 'elastic-net',
     name: 'Elastic Net',
+    short: 'Elastic',
     category: '3D',
     key: '0',
     description: 'Elastic neural network simulation'
@@ -213,6 +243,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   ripple: {
     pattern: 'ripple',
     name: 'Water Ripple',
+    short: 'Ripple',
     category: 'TD',
     key: '1',
     description: 'Camera refracted through a height field your hands leave behind'
@@ -221,6 +252,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   digitalblocks: {
     pattern: 'digitalblocks',
     name: 'Digital Horizon',
+    short: 'Horizon',
     category: '2D',
     key: '0',
     description: 'Glitchy digital data sorting'

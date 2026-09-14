@@ -7,12 +7,23 @@
  */
 
 import { VisualPattern } from '../App';
+import { ColorMode } from './palette';
 
-/** One position in the stack. */
+/**
+ * One position in the stack.
+ *
+ * Everything that makes a layer look the way it does lives here, so two layers
+ * can run the same kind of settings at different values — the fader and the
+ * palette included. Only the shape sliders are still keyed by pattern, since
+ * those belong to the renderer rather than to the slot it is playing in.
+ */
 export interface Layer {
   pattern: VisualPattern;
   /** 0-1, the layer's own fader. */
   opacity: number;
+  hue: number;
+  saturation: number;
+  colorMode: ColorMode;
 }
 
 /**

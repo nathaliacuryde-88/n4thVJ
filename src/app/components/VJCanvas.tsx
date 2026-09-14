@@ -47,12 +47,12 @@ function fadeProgress(deck: FadingDeck, now: number): number {
 
 interface VJCanvasProps {
   handData: HandData;
-  dominantColors: string[];
+  /** Each layer's palette, index-matched to `layers`. */
+  layerColors: string[][];
   /** The stack, bottom first. A single entry is the ordinary one-visual case. */
   layers: Layer[];
   videoElement?: HTMLVideoElement | null; // Camera video element for holographic renderer
   audioData?: AudioData;
-  colorMode?: 'black' | 'contrast' | 'grayscale';
   /** Slider overrides per layer, index-matched to `layers`. */
   layerParams?: (ParamValues | undefined)[];
   /** Slider overrides for the post pipeline (the FX tab). */
@@ -61,11 +61,10 @@ interface VJCanvasProps {
 
 export function VJCanvas({
   handData,
-  dominantColors,
+  layerColors,
   layers,
   videoElement,
   audioData,
-  colorMode,
   layerParams,
   fxParams
 }: VJCanvasProps) {
@@ -94,24 +93,22 @@ export function VJCanvas({
 
   // Store latest handData and dominantColors in refs so animate loop can access them
   const handDataRef = useRef<HandData>(handData);
-  const dominantColorsRef = useRef<string[]>(dominantColors);
+  const layerColorsRef = useRef<string[][]>(layerColors);
   const videoElementRef = useRef<HTMLVideoElement | null>(videoElement ?? null);
   const audioDataRef = useRef<AudioData | undefined>(audioData);
-  const colorModeRef = useRef<'black' | 'contrast' | 'grayscale' | undefined>(colorMode);
   const layerParamsRef = useRef<(ParamValues | undefined)[] | undefined>(layerParams);
   const fxParamsRef = useRef<ParamValues | undefined>(fxParams);
 
   // Update refs whenever props change
   useEffect(() => {
     handDataRef.current = handData;
-    dominantColorsRef.current = dominantColors;
+    layerColorsRef.current = layerColors;
     videoElementRef.current = videoElement ?? null;
     audioDataRef.current = audioData;
-    colorModeRef.current = colorMode;
     layerParamsRef.current = layerParams;
     layersRef.current = layers;
     fxParamsRef.current = fxParams;
-  }, [handData, dominantColors, videoElement, audioData, colorMode, layerParams, layers, fxParams]);
+  }, [handData, layerColors, videoElement, audioData, layerParams, layers, fxParams]);
 
   // Slider moves must not rebuild the renderer - that would reset its particles,
   // its trails and, for the three.js ones, its whole scene.
@@ -205,16 +202,17 @@ export function VJCanvas({
      * once, and the loop carries on. The pattern can still be switched away
      * from, which is the thing that actually recovers it.
      */
-    const drawDeck = (deck: Deck) => {
+    const drawDeck = (deck: Deck, index: number) => {
       try {
         if (videoElementRef.current) {
           deck.renderer.setVideoElement?.(videoElementRef.current);
         }
+        const layer = layersRef.current[index];
         deck.renderer.render(
           handDataRef.current,
-          dominantColorsRef.current,
+          layerColorsRef.current[index] ?? layerColorsRef.current[0] ?? [],
           audioDataRef.current,
-          colorModeRef.current,
+          layer?.colorMode,
         );
       } catch (error) {
         if (!deck.reportedError) {
@@ -267,18 +265,18 @@ export function VJCanvas({
       const now = performance.now();
       const ctx = compositeCtxRef.current;
 
-      for (const slot of slotsRef.current) {
-        if (!slot) continue;
-        drawDeck(slot.current);
+      slotsRef.current.forEach((slot, index) => {
+        if (!slot) return;
+        drawDeck(slot.current, index);
         if (slot.outgoing) {
           if (fadeProgress(slot.outgoing, now) >= 1) {
             slot.outgoing.renderer.destroy?.();
             slot.outgoing = null;
           } else {
-            drawDeck(slot.outgoing);
+            drawDeck(slot.outgoing, index);
           }
         }
-      }
+      });
 
       if (ctx && slotsRef.current.length > 0) {
         compose(ctx, now);

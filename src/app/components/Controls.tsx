@@ -5,6 +5,7 @@ import { Video, VideoOff, Mic, MicOff, Orbit, Sparkles } from 'lucide-react';
 import { ColorController } from './ColorController';
 import { RENDERER_CATEGORIES } from '../config/RendererCategories';
 import { slotKey } from '../config/setlist';
+import { ColorMode } from '../config/palette';
 
 /**
  * The one-word gesture readout for a hand, or null when there is nothing to
@@ -42,13 +43,13 @@ interface ControlsProps {
   onCameraToggle: () => void;
   handData: HandData;
   selectedColors: string[];
-  onColorsChange: (colors: string[]) => void;
+  /** The selected layer's colour, since colour belongs to a layer. */
   hue: number;
   saturation: number;
-  colorMode: 'black' | 'contrast' | 'grayscale';
+  colorMode: ColorMode;
   onHueChange: (hue: number) => void;
   onSaturationChange: (saturation: number) => void;
-  onColorModeChange: (mode: 'black' | 'contrast' | 'grayscale') => void;
+  onColorModeChange: (mode: ColorMode) => void;
   autoHueEnabled: boolean;
   onAutoHueToggle: () => void;
   /** Tonight's visuals in key order, as chosen in the library. */
@@ -121,7 +122,6 @@ export function Controls({
   onCameraToggle,
   handData,
   selectedColors,
-  onColorsChange,
   hue,
   saturation,
   colorMode,
@@ -210,23 +210,35 @@ export function Controls({
                     onPointerDown={() => startHold(pattern)}
                     onPointerUp={() => endHold(pattern)}
                     onPointerLeave={cancelHold}
-                    className={`relative w-7 h-7 rounded-full transition-all flex items-center justify-center ${
-                      isSelected
-                        ? 'bg-white text-black shadow-lg shadow-white/50'
-                        : isStacked
-                          ? 'bg-white/25 text-white ring-1 ring-emerald-400/70'
-                          : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white/90'
-                    }`}
+                    className="relative flex w-[46px] shrink-0 flex-col items-center gap-0.5 group/set"
                     title={`${RENDERER_CATEGORIES[pattern].name} (${slotKey(index)})${
                       layerIndex !== -1 ? ` — layer ${layerIndex + 1}` : ''
                     } · hold to stack`}
                   >
-                    <span className="text-xs">{slotKey(index)}</span>
-                    {layerIndex !== -1 && layers.length > 1 && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 text-black text-[7px] leading-3 text-center">
-                        {layerIndex + 1}
-                      </span>
-                    )}
+                    <span
+                      className={`relative flex h-7 w-7 items-center justify-center rounded-full text-xs transition-all ${
+                        isSelected
+                          ? 'bg-white text-black shadow-lg shadow-white/50'
+                          : isStacked
+                            ? 'bg-white/25 text-white ring-1 ring-emerald-400/70'
+                            : 'bg-white/10 text-white/60 group-hover/set:bg-white/20 group-hover/set:text-white/90'
+                      }`}
+                    >
+                      {slotKey(index)}
+                      {layerIndex !== -1 && layers.length > 1 && (
+                        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-emerald-400 text-center text-[7px] leading-3 text-black">
+                          {layerIndex + 1}
+                        </span>
+                      )}
+                    </span>
+                    {/* A number alone is nothing to recognise mid-set. */}
+                    <span
+                      className={`w-full truncate text-center text-[8px] leading-none transition-colors ${
+                        isSelected ? 'text-white/85' : 'text-white/35 group-hover/set:text-white/65'
+                      }`}
+                    >
+                      {RENDERER_CATEGORIES[pattern].short}
+                    </span>
                   </button>
                 );
               })}
@@ -315,7 +327,6 @@ export function Controls({
           <div className="bg-black/70 backdrop-blur-sm rounded-full py-2 px-6 border border-white/20 max-w-4xl w-full pointer-events-auto">
           <ColorController 
             selectedColors={selectedColors} 
-            onColorsChange={onColorsChange}
             hue={hue}
             saturation={saturation}
             mode={colorMode}

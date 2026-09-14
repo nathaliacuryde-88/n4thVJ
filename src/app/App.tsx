@@ -8,11 +8,13 @@ import { AudioAnalyzer } from './components/AudioAnalyzer';
 import { Library } from './components/Library';
 import { keySlot, loadSetList, saveSetList } from './config/setlist';
 import { ParamPanel, ParamSection } from './components/ParamPanel';
+import { LayerStrip } from './components/LayerStrip';
 import { PIPELINE_PARAMS, RENDERER_PARAMS } from './params/registry';
 import { AllParamValues, ParamValues, sanitizeAllParams } from './params/types';
 import { HOLD_MS, Layer, MAX_LAYERS, STACKED_OPACITY } from './config/LayerConfig';
 import { fxActive } from './pipeline/PostPipeline';
 import { idleHands } from './hands/idle';
+import { ColorMode, generateColors } from './config/palette';
 
 export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple';
 
@@ -52,8 +54,6 @@ export interface HandData {
   gestureTrail?: { x: number; y: number; hand: 'left' | 'right' }[];
 }
 
-type ColorMode = 'black' | 'contrast' | 'grayscale';
-
 /**
  * localStorage throws outright in some privacy modes, so every access is
  * guarded and a bad stored value falls back to the default rather than
@@ -81,6 +81,16 @@ function saveSetting(key: string, value: unknown) {
 const isNumberIn = (min: number, max: number) => (v: unknown) =>
   typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
 
+/** The look a new layer starts from: whatever was last set on screen. */
+function loadLook() {
+  return {
+    hue: loadSetting('vj-hue', 245, isNumberIn(0, 360)),
+    saturation: loadSetting('vj-saturation', 100, isNumberIn(0, 100)),
+    colorMode: loadSetting<ColorMode>('vj-color-mode', 'contrast', (v) =>
+      v === 'black' || v === 'contrast' || v === 'grayscale'),
+  };
+}
+
 export default function App() {
   /**
    * The stack, bottom first. One entry is the ordinary case and behaves exactly
@@ -88,7 +98,9 @@ export default function App() {
    * holding one adds or removes a layer; L moves the selection through them, and
    * the selection is what the sliders and the colour controls act on.
    */
-  const [layers, setLayers] = useState<Layer[]>([{ pattern: 'geometric', opacity: 1 }]);
+  const [layers, setLayers] = useState<Layer[]>(() => [
+    { pattern: 'geometric', opacity: 1, ...loadLook() },
+  ]);
   const [selectedLayer, setSelectedLayer] = useState(0);
   const currentPattern = (layers[selectedLayer] ?? layers[0]).pattern;
 
@@ -112,11 +124,26 @@ export default function App() {
       return;
     }
     if (layers.length >= MAX_LAYERS) return;
-    setLayers([...layers, { pattern, opacity: STACKED_OPACITY }]); // selection stays put
-  }, [layers]);
+    // A new layer starts from the look you last set, then diverges from there.
+    const from = layers[selectedLayer] ?? layers[0];
+    setLayers([...layers, {
+      pattern, opacity: STACKED_OPACITY,
+      hue: from.hue, saturation: from.saturation, colorMode: from.colorMode,
+    }]);
+  }, [layers, selectedLayer]);
 
   const cycleLayer = useCallback(() => {
     setSelectedLayer((s) => (s + 1) % layers.length);
+  }, [layers.length]);
+
+  const setLayerOpacity = useCallback((index: number, opacity: number) => {
+    setLayers((prev) => prev.map((l, i) => (i === index ? { ...l, opacity } : l)));
+  }, []);
+
+  /** Take a layer off by position, rather than by which pattern it holds. */
+  const removeLayer = useCallback((index: number) => {
+    setLayers((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
+    setSelectedLayer((sel) => (sel > index ? sel - 1 : Math.min(sel, layers.length - 2)));
   }, [layers.length]);
 
   /** The selected layer's fader, on [ and ]. */
@@ -132,22 +159,44 @@ export default function App() {
   const [showCamera, setShowCamera] = useState(false); // Camera off by default
   const [showUI, setShowUI] = useState(true); // UI visibility toggle
   
-  // Derived from hue/saturation/colorMode by ColorController on every change,
-  // so it is that triple - not this palette - that gets persisted below.
-  const [dominantColors, setDominantColors] = useState<string[]>([
-    '#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#f43f5e',
-  ]);
-  
-  // Color controller state (hue, saturation, mode)
-  const [hue, setHue] = useState(() => loadSetting('vj-hue', 245, isNumberIn(0, 360)));
-  const [saturation, setSaturation] = useState(() =>
-    loadSetting('vj-saturation', 100, isNumberIn(0, 100)),
+  /*
+   * Colour belongs to a layer, not to the screen.
+   *
+   * The controls read and write whichever layer is selected, so two visuals can
+   * run in different palettes at once — which is most of the point of stacking
+   * them. Each setter takes a value or an updater, because the arrow keys and
+   * the auto-hue loop both nudge relative to what is already there.
+   */
+  const selected = layers[selectedLayer] ?? layers[0];
+  const { hue, saturation, colorMode } = selected;
+
+  const editSelected = useCallback((patch: Partial<Layer>) => {
+    setLayers((prev) => prev.map((l, i) => (i === selectedLayer ? { ...l, ...patch } : l)));
+  }, [selectedLayer]);
+
+  type Setter<T> = T | ((previous: T) => T);
+  const resolve = <T,>(next: Setter<T>, previous: T): T =>
+    typeof next === 'function' ? (next as (p: T) => T)(previous) : next;
+
+  const setHue = useCallback((v: Setter<number>) => {
+    setLayers((prev) => prev.map((l, i) => (i === selectedLayer ? { ...l, hue: resolve(v, l.hue) } : l)));
+  }, [selectedLayer]);
+  const setSaturation = useCallback((v: Setter<number>) => {
+    setLayers((prev) => prev.map((l, i) => (
+      i === selectedLayer ? { ...l, saturation: resolve(v, l.saturation) } : l)));
+  }, [selectedLayer]);
+  const setColorMode = useCallback((v: Setter<ColorMode>) => {
+    setLayers((prev) => prev.map((l, i) => (
+      i === selectedLayer ? { ...l, colorMode: resolve(v, l.colorMode) } : l)));
+  }, [selectedLayer]);
+
+  /** Every layer's palette, derived rather than stored. */
+  const layerColors = useMemo(
+    () => layers.map((l) => generateColors(l.hue, l.saturation, l.colorMode)),
+    [layers],
   );
-  const [colorMode, setColorMode] = useState<ColorMode>(() =>
-    loadSetting<ColorMode>('vj-color-mode', 'contrast', (v) =>
-      v === 'black' || v === 'contrast' || v === 'grayscale',
-    ),
-  );
+  const dominantColors = layerColors[selectedLayer] ?? layerColors[0];
+
   const [autoHueEnabled, setAutoHueEnabled] = useState(false);
 
   // Several renderers only draw where a hand is, so with no camera — or in a
@@ -322,7 +371,7 @@ export default function App() {
    */
   const startSet = useCallback(() => {
     if (set.length === 0) return;
-    setLayers([{ pattern: set[0], opacity: 1 }]);
+    setLayers([{ pattern: set[0], opacity: 1, ...loadLook() }]);
     setSelectedLayer(0);
     setView('vj');
   }, [set]);
@@ -510,11 +559,10 @@ export default function App() {
       {/* Main VJ Canvas */}
       <VJCanvas
         handData={effectiveHandData}
-        dominantColors={dominantColors}
+        layerColors={layerColors}
         layers={layers}
         videoElement={videoElement}
         audioData={rendererAudioData}
-        colorMode={colorMode}
         layerParams={layerParams}
         fxParams={fxParams}
       />
@@ -539,6 +587,16 @@ export default function App() {
       {/* Shape (this renderer) and FX (the post chain) */}
       {showUI && (
         <ParamPanel
+          header={
+            <LayerStrip
+              layers={layers}
+              selectedLayer={selectedLayer}
+              set={set}
+              onSelect={setSelectedLayer}
+              onOpacityChange={setLayerOpacity}
+              onRemove={removeLayer}
+            />
+          }
           sections={[
             ...(RENDERER_PARAMS[currentPattern]
               ? [{
@@ -575,11 +633,10 @@ export default function App() {
           onCameraToggle={() => setShowCamera(!showCamera)}
           handData={handData}
           selectedColors={dominantColors}
-          onColorsChange={setDominantColors}
+          colorMode={colorMode}
           hue={hue}
           saturation={saturation}
-          colorMode={colorMode}
-          onHueChange={setHue}
+            onHueChange={setHue}
           onSaturationChange={setSaturation}
           onColorModeChange={setColorMode}
           autoHueEnabled={autoHueEnabled}

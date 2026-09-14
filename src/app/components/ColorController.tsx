@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 
 interface ColorControllerProps {
   selectedColors: string[];
-  onColorsChange: (colors: string[]) => void;
   hue: number;
   saturation: number;
   mode: 'black' | 'contrast' | 'grayscale';
@@ -14,7 +13,6 @@ interface ColorControllerProps {
 
 export function ColorController({ 
   selectedColors, 
-  onColorsChange,
   hue,
   saturation,
   mode,
@@ -82,12 +80,6 @@ export function ColorController({
     
     return [baseColor, secondColor, baseColor, secondColor];
   };
-
-  // Update colors when hue, saturation, or mode changes
-  useEffect(() => {
-    const newColors = generateColors(hue, saturation, mode);
-    onColorsChange(newColors);
-  }, [hue, saturation, mode]);
 
   return (
     <div className="w-full flex items-center gap-4 px-6 font-mono">

@@ -70,7 +70,14 @@ function Slider({
  * nothing about any specific visual or effect — exposing something new is a
  * registry entry rather than a change here.
  */
-export function ParamPanel({ sections }: { sections: ParamSection[] }) {
+export function ParamPanel({
+  sections,
+  header,
+}: {
+  sections: ParamSection[];
+  /** Rendered above the tabs — the layer strip, which scopes everything below it. */
+  header?: React.ReactNode;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const [activeKey, setActiveKey] = useState(sections[0]?.key);
 
@@ -85,6 +92,7 @@ export function ParamPanel({ sections }: { sections: ParamSection[] }) {
   return (
     <div className="absolute left-6 top-24 bottom-32 z-50 w-[168px] flex flex-col font-mono pointer-events-auto">
       <div className="bg-black/70 backdrop-blur-sm rounded-xl border border-white/20 flex flex-col min-h-0">
+        {header && <div className="border-b border-white/10">{header}</div>}
         <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/10">
           <button
             onClick={() => setCollapsed((c) => !c)}
