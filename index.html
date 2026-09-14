@@ -17,6 +17,38 @@
         height: 100%;
       }
     </style>
+    <script>
+      /*
+       * Recover from a stale cached page.
+       *
+       * Every build gives the bundle a new hashed name and a deploy replaces the
+       * old one, so a browser holding this file from a previous deploy asks for
+       * a script that is no longer there. Nothing then runs: the page is blank,
+       * with no error on screen and nothing to click, and only a manual hard
+       * refresh brings it back — which is not something to discover mid-set.
+       *
+       * A failed script or stylesheet fires an error that does not bubble, hence
+       * the capture. Reloading re-requests this document rather than serving the
+       * cached copy, which is the whole fix. The flag makes it a one-shot, so a
+       * genuinely missing file cannot turn into a reload loop; the app clears it
+       * once it is running, leaving the recovery armed for the next deploy.
+       */
+      window.addEventListener(
+        'error',
+        function (event) {
+          var el = event.target;
+          if (!el || (el.tagName !== 'SCRIPT' && el.tagName !== 'LINK')) return;
+          try {
+            if (sessionStorage.getItem('vj-stale-bundle-reload')) return;
+            sessionStorage.setItem('vj-stale-bundle-reload', '1');
+          } catch (_) {
+            return; // no storage means no loop guard, so do not risk the loop
+          }
+          location.reload();
+        },
+        true,
+      );
+    </script>
   </head>
   <body>
     <div id="root"></div>
