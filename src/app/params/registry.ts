@@ -24,6 +24,8 @@ import { ParticleConfig } from '../config/ParticleRendererConfig';
 import { WaveConfig } from '../config/WaveRendererConfig';
 import { PipelineConfig } from '../config/PipelineConfig';
 import { RippleConfig } from '../config/RippleRendererConfig';
+import { TextConfig } from '../config/TextRendererConfig';
+import { VideoConfig } from '../config/VideoRendererConfig';
 import { ParamGroup } from './types';
 
 export interface RendererParams {
@@ -156,6 +158,82 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'highlight.amount', label: 'Amount', min: 0, max: 3, step: 0.05 },
           { path: 'highlight.sharpness', label: 'Sharpness', min: 0.5, max: 20, step: 0.5 },
           { path: 'highlight.tint', label: 'Tint', min: 0, max: 1, step: 0.05, hint: 'palette into the gloss' },
+        ],
+      },
+    ],
+  },
+
+  text: {
+    config: TextConfig,
+    groups: [
+      {
+        name: 'Type',
+        params: [
+          { path: 'type.size', label: 'Size', min: 0.03, max: 0.6, step: 0.005 },
+          { path: 'type.weight', label: 'Weight', min: 100, max: 900, step: 100 },
+          { path: 'type.tracking', label: 'Tracking', min: -0.1, max: 0.5, step: 0.01 },
+          { path: 'type.outline', label: 'Outline', min: 0, max: 1, step: 1, hint: 'filled or hollow' },
+          { path: 'type.strokeWidth', label: 'Stroke', min: 0.5, max: 12, step: 0.5 },
+        ],
+      },
+      {
+        name: 'Echo',
+        params: [
+          { path: 'echo.count', label: 'Copies', min: 1, max: 40, step: 1 },
+          { path: 'echo.offset', label: 'Step', min: 0, max: 0.08, step: 0.001 },
+          { path: 'echo.scaleStep', label: 'Grow', min: 0.96, max: 1.06, step: 0.002 },
+          { path: 'echo.twist', label: 'Twist', min: -0.1, max: 0.1, step: 0.002 },
+          { path: 'echo.opacity', label: 'Opacity', min: 0, max: 1, step: 0.01 },
+          { path: 'echo.fade', label: 'Fade', min: 0, max: 0.3, step: 0.005 },
+        ],
+      },
+      {
+        name: 'Motion',
+        params: [
+          { path: 'motion.handInfluence', label: 'Hands', min: 0, max: 3, step: 0.05 },
+          { path: 'motion.spreadScale', label: 'Spread', min: 0, max: 3, step: 0.05 },
+          { path: 'motion.driftSpeed', label: 'Drift', min: 0, max: 3, step: 0.05, hint: 'with no hands' },
+          { path: 'motion.driftAmount', label: 'Drift reach', min: 0, max: 2, step: 0.05 },
+          { path: 'trail.fadeAlpha', label: 'Trail', min: 0.02, max: 1, step: 0.01, hint: 'lower = longer' },
+        ],
+      },
+      {
+        name: 'Audio',
+        params: [
+          { path: 'audio.bassScale', label: 'Bass swell', min: 0, max: 2, step: 0.05 },
+          { path: 'audio.beatPush', label: 'Beat push', min: 0, max: 3, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  video: {
+    config: VideoConfig,
+    groups: [
+      {
+        name: 'Frame',
+        params: [
+          { path: 'frame.zoom', label: 'Zoom', min: 0.2, max: 4, step: 0.05 },
+          { path: 'frame.spreadZoom', label: 'Spread zoom', min: 0, max: 3, step: 0.05 },
+          { path: 'frame.handDrift', label: 'Hand drift', min: 0, max: 0.6, step: 0.01 },
+          { path: 'frame.mirror', label: 'Mirror', min: 0, max: 1, step: 1 },
+        ],
+      },
+      {
+        name: 'Slice',
+        params: [
+          { path: 'slice.count', label: 'Bands', min: 1, max: 60, step: 1, hint: '1 = whole frame' },
+          { path: 'slice.offset', label: 'Shear', min: 0, max: 0.4, step: 0.005 },
+          { path: 'slice.speed', label: 'Speed', min: 0, max: 5, step: 0.05 },
+          { path: 'slice.beatKick', label: 'Beat kick', min: 1, max: 6, step: 0.1 },
+        ],
+      },
+      {
+        name: 'Look',
+        params: [
+          { path: 'look.tint', label: 'Tint', min: 0, max: 1, step: 0.02, hint: 'palette over the clip' },
+          { path: 'look.gain', label: 'Gain', min: 1, max: 3, step: 0.05 },
+          { path: 'trail.fadeAlpha', label: 'Trail', min: 0.02, max: 1, step: 0.01, hint: 'lower = longer' },
         ],
       },
     ],

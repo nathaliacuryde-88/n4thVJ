@@ -8,6 +8,7 @@ import {
 import { MAX_SET, slotKey, keySlot } from '../config/setlist';
 import { createRenderer, VJRenderer } from './renderers/create';
 import { idleHands } from '../hands/idle';
+import { DEFAULT_TEXT } from '../config/content';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -70,9 +71,25 @@ interface LibraryProps {
   set: VisualPattern[];
   onSetChange: (set: VisualPattern[]) => void;
   onStart: () => void;
+  /** Kinetic Type's words, edited on its own card. */
+  text: string;
+  onTextChange: (text: string) => void;
+  /** Clip's footage: the stored file's name, and a picker for a new one. */
+  clipName: string | null;
+  clipUrl: string | null;
+  onClipChange: (file: File | null) => void;
 }
 
-export function Library({ set, onSetChange, onStart }: LibraryProps) {
+export function Library({
+  set,
+  onSetChange,
+  onStart,
+  text,
+  onTextChange,
+  clipName,
+  clipUrl,
+  onClipChange,
+}: LibraryProps) {
   const [filter, setFilter] = useState<RendererCategory | 'ALL'>('ALL');
   const [hovered, setHovered] = useState<VisualPattern | null>(null);
 
@@ -81,6 +98,8 @@ export function Library({ set, onSetChange, onStart }: LibraryProps) {
   const observer = useRef<IntersectionObserver | null>(null);
   const setRef = useRef(set);
   setRef.current = set;
+  const contentRef = useRef({ text, clipUrl });
+  contentRef.current = { text, clipUrl };
 
   const shown = filter === 'ALL' ? ALL : ALL.filter((r) => r.category === filter);
 
@@ -189,6 +208,9 @@ export function Library({ set, onSetChange, onStart }: LibraryProps) {
             }
           }
           try {
+            // Cheap, and it means retyping shows in the preview as you type.
+            tile.renderer.setText?.(contentRef.current.text);
+            tile.renderer.setClipUrl?.(contentRef.current.clipUrl);
             tile.renderer.render(hands, PREVIEW_COLORS, undefined, 'contrast');
           } catch {
             tile.failed = true;
@@ -304,60 +326,116 @@ export function Library({ set, onSetChange, onStart }: LibraryProps) {
             const slot = set.indexOf(info.pattern);
             const chosen = slot !== -1;
             const full = set.length >= MAX_SET && !chosen;
+            // Two visuals take their content from here, so their cards carry a
+            // control. That is why a card is a div with a button inside rather
+            // than one big button — an input cannot live inside a button.
+            const supply =
+              info.pattern === 'text' ? 'text' : info.pattern === 'video' ? 'video' : null;
+
             return (
-              <button
+              <div
                 key={info.pattern}
-                onClick={() => toggle(info.pattern)}
                 onMouseEnter={() => setHovered(info.pattern)}
                 onMouseLeave={() => setHovered((h) => (h === info.pattern ? null : h))}
-                disabled={full}
-                title={
-                  full
-                    ? `The set is full — take one off first`
-                    : `${info.description}${chosen ? '' : ' · click to add'}`
-                }
                 className={`group relative overflow-hidden rounded-2xl border text-left transition-all duration-200 ${
                   chosen
                     ? 'border-white/70 bg-white/[0.06] shadow-[0_0_0_1px_rgba(255,255,255,0.35),0_18px_50px_-20px_rgba(255,255,255,0.35)]'
                     : full
-                      ? 'cursor-not-allowed border-white/5 opacity-35'
+                      ? 'border-white/5 opacity-35'
                       : 'border-white/10 bg-white/[0.02] hover:-translate-y-1 hover:border-white/25 hover:bg-white/[0.05]'
                 }`}
               >
-                <div className="relative aspect-[16/10] w-full overflow-hidden bg-black">
-                  <canvas
-                    data-pattern={info.pattern}
-                    ref={tileRef(info.pattern)}
-                    className="h-full w-full object-cover"
-                  />
-                  {/* Keeps the name legible over a bright frame. */}
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/85 to-transparent" />
+                <button
+                  onClick={() => toggle(info.pattern)}
+                  disabled={full}
+                  title={
+                    full
+                      ? 'The set is full — take one off first'
+                      : `${info.description}${chosen ? '' : ' · click to add'}`
+                  }
+                  className={`block w-full text-left ${full ? 'cursor-not-allowed' : ''}`}
+                >
+                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-black">
+                    <canvas
+                      data-pattern={info.pattern}
+                      ref={tileRef(info.pattern)}
+                      className="h-full w-full object-cover"
+                    />
+                    {/* Keeps the name legible over a bright frame. */}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/85 to-transparent" />
 
-                  {chosen && (
-                    <div className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-base font-semibold text-black shadow-lg">
-                      {slotKey(slot)}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between gap-3 px-4 pb-4 pt-3">
-                  <div className="min-w-0">
-                    <div className="truncate text-[13px] tracking-wide text-white/90">
-                      {info.name}
-                    </div>
-                    <div className="mt-0.5 truncate text-[10px] text-white/35">
-                      {info.description}
-                    </div>
+                    {chosen && (
+                      <div className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-base font-semibold text-black shadow-lg">
+                        {slotKey(slot)}
+                      </div>
+                    )}
                   </div>
-                  <span
-                    className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px] tracking-widest ${
-                      CATEGORY_STYLE[info.category]
-                    }`}
-                  >
-                    {info.category}
-                  </span>
-                </div>
-              </button>
+
+                  <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-[13px] tracking-wide text-white/90">
+                        {info.name}
+                      </div>
+                      <div className="mt-0.5 truncate text-[10px] text-white/35">
+                        {info.description}
+                      </div>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px] tracking-widest ${
+                        CATEGORY_STYLE[info.category]
+                      }`}
+                    >
+                      {info.category}
+                    </span>
+                  </div>
+                </button>
+
+                {supply === 'text' && (
+                  <div className="px-4 pb-4">
+                    <input
+                      value={text}
+                      onChange={(e) => onTextChange(e.target.value)}
+                      // The number keys assign slots while a card is hovered,
+                      // which would otherwise eat every digit typed here.
+                      onKeyDown={(e) => e.stopPropagation()}
+                      placeholder={DEFAULT_TEXT}
+                      maxLength={48}
+                      aria-label="Words for Kinetic Type"
+                      className="w-full rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-[12px] tracking-wide text-white placeholder:text-white/25 focus:border-white/45 focus:outline-none"
+                    />
+                  </div>
+                )}
+
+                {supply === 'video' && (
+                  <div className="flex items-center gap-2 px-4 pb-4">
+                    <label className="cursor-pointer rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-[11px] tracking-wider text-white/75 transition-colors hover:border-white/45 hover:text-white">
+                      {clipName ? 'REPLACE' : 'UPLOAD'}
+                      <input
+                        type="file"
+                        accept="video/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) onClipChange(file);
+                          e.target.value = ''; // so the same file can be picked again
+                        }}
+                      />
+                    </label>
+                    <span className="min-w-0 flex-1 truncate text-[10px] text-white/35">
+                      {clipName ?? 'no clip yet'}
+                    </span>
+                    {clipName && (
+                      <button
+                        onClick={() => onClipChange(null)}
+                        title="Remove the clip"
+                        className="shrink-0 px-1 text-white/25 transition-colors hover:text-white/80"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

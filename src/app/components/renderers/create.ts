@@ -30,6 +30,8 @@ import { NetworkCubeRenderer } from './NetworkCubeRenderer';
 import { ElasticNetRenderer } from './ElasticNetRenderer';
 import { DigitalBlockRenderer } from './DigitalBlockRenderer';
 import { RippleRenderer } from './RippleRenderer';
+import { TextRenderer } from './TextRenderer';
+import { VideoRenderer } from './VideoRenderer';
 import { AudioData, HandData, VisualPattern } from '../../App';
 import { ParamValues } from '../../params/types';
 
@@ -52,6 +54,10 @@ export interface VJRenderer {
   setParams?(values: ParamValues): void;
   setVideoElement?(video: HTMLVideoElement): void;
   setSmokeHandModel?(model: 'torus' | 'hand'): void;
+  /** The words, for Kinetic Type. */
+  setText?(text: string): void;
+  /** The uploaded footage, for Clip. */
+  setClipUrl?(url: string | null): void;
 }
 
 /** Build the renderer for a pattern. Unknown patterns fall back to Geometric. */
@@ -142,6 +148,12 @@ export function createRenderer(
       break;
     case 'elastic-net':
       renderer = new ElasticNetRenderer(canvas, ctx);
+      break;
+    case 'text':
+      renderer = new TextRenderer(canvas, ctx);
+      break;
+    case 'video':
+      renderer = new VideoRenderer(canvas, ctx);
       break;
     case 'ripple':
       renderer = new RippleRenderer(canvas, ctx);

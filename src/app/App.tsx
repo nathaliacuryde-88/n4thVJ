@@ -15,8 +15,9 @@ import { HOLD_MS, Layer, MAX_LAYERS, STACKED_OPACITY } from './config/LayerConfi
 import { fxActive } from './pipeline/PostPipeline';
 import { idleHands } from './hands/idle';
 import { ColorMode, generateColors } from './config/palette';
+import { clearClip, loadClip, loadText, saveClip, saveText } from './config/content';
 
-export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple';
+export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple' | 'text' | 'video';
 
 export interface AudioData {
   bass: number; // 0-1, controls scale/blooming
@@ -198,6 +199,47 @@ export default function App() {
   const dominantColors = layerColors[selectedLayer] ?? layerColors[0];
 
   const [autoHueEnabled, setAutoHueEnabled] = useState(false);
+
+  /*
+   * What the content-driven visuals show. The words live in localStorage; the
+   * clip is a Blob in IndexedDB, turned into an object URL here and revoked
+   * when it is replaced, so a session does not leak one URL per upload.
+   */
+  const [text, setText] = useState(loadText);
+  const [clipUrl, setClipUrl] = useState<string | null>(null);
+  const [clipName, setClipName] = useState<string | null>(null);
+
+  useEffect(() => { saveText(text); }, [text]);
+
+  useEffect(() => {
+    let url: string | null = null;
+    let cancelled = false;
+    loadClip().then((stored) => {
+      if (cancelled || !stored) return;
+      url = URL.createObjectURL(stored.file);
+      setClipUrl(url);
+      setClipName(stored.name);
+    });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, []);
+
+  /** A file picked in the library: store it, then play it. */
+  const acceptClip = useCallback((file: File | null) => {
+    setClipUrl((previous) => {
+      if (previous) URL.revokeObjectURL(previous);
+      return file ? URL.createObjectURL(file) : null;
+    });
+    setClipName(file ? file.name : null);
+    // Storing is what makes it survive a reload; failing to store still leaves
+    // the clip playing for this session, which is the part that matters now.
+    if (file) saveClip(file, file.name).catch(() => {});
+    else clearClip().catch(() => {});
+  }, []);
+
+  const content = useMemo(() => ({ text, clipUrl }), [text, clipUrl]);
 
   // Several renderers only draw where a hand is, so with no camera — or in a
   // dark room where tracking drops — they show nothing at all and every slider
@@ -543,7 +585,18 @@ export default function App() {
   };
 
   if (view === 'library') {
-    return <Library set={set} onSetChange={setSet} onStart={startSet} />;
+    return (
+      <Library
+        set={set}
+        onSetChange={setSet}
+        onStart={startSet}
+        text={text}
+        onTextChange={setText}
+        clipName={clipName}
+        clipUrl={clipUrl}
+        onClipChange={acceptClip}
+      />
+    );
   }
 
   return (
@@ -564,6 +617,7 @@ export default function App() {
         videoElement={videoElement}
         audioData={rendererAudioData}
         layerParams={layerParams}
+        content={content}
         fxParams={fxParams}
       />
 

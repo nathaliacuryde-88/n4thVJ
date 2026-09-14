@@ -57,6 +57,8 @@ interface VJCanvasProps {
   layerParams?: (ParamValues | undefined)[];
   /** Slider overrides for the post pipeline (the FX tab). */
   fxParams?: ParamValues;
+  /** What the content-driven visuals show: the words, and the uploaded clip. */
+  content: { text: string; clipUrl: string | null };
 }
 
 export function VJCanvas({
@@ -66,7 +68,8 @@ export function VJCanvas({
   videoElement,
   audioData,
   layerParams,
-  fxParams
+  fxParams,
+  content
 }: VJCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -98,6 +101,7 @@ export function VJCanvas({
   const audioDataRef = useRef<AudioData | undefined>(audioData);
   const layerParamsRef = useRef<(ParamValues | undefined)[] | undefined>(layerParams);
   const fxParamsRef = useRef<ParamValues | undefined>(fxParams);
+  const contentRef = useRef(content);
 
   // Update refs whenever props change
   useEffect(() => {
@@ -108,7 +112,16 @@ export function VJCanvas({
     layerParamsRef.current = layerParams;
     layersRef.current = layers;
     fxParamsRef.current = fxParams;
-  }, [handData, layerColors, videoElement, audioData, layerParams, layers, fxParams]);
+    contentRef.current = content;
+  }, [handData, layerColors, videoElement, audioData, layerParams, layers, fxParams, content]);
+
+  // Retyping the words must not rebuild the renderer, any more than a slider does.
+  useEffect(() => {
+    for (const slot of slotsRef.current) {
+      slot?.current.renderer.setText?.(content.text);
+      slot?.current.renderer.setClipUrl?.(content.clipUrl);
+    }
+  }, [content]);
 
   // Slider moves must not rebuild the renderer - that would reset its particles,
   // its trails and, for the three.js ones, its whole scene.
@@ -336,6 +349,8 @@ export function VJCanvas({
         return null;
       }
       renderer.setParams?.(layerParamsRef.current?.[index] ?? {});
+      renderer.setText?.(contentRef.current.text);
+      renderer.setClipUrl?.(contentRef.current.clipUrl);
       return { renderer, canvas, pattern };
     };
 

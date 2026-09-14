@@ -249,6 +249,23 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     description: 'Camera refracted through a height field your hands leave behind'
   },
 
+  text: {
+    pattern: 'text',
+    name: 'Kinetic Type',
+    short: 'Type',
+    category: 'TD',
+    key: '2',
+    description: 'Your words, extruded and pushed around by your hands'
+  },
+  video: {
+    pattern: 'video',
+    name: 'Clip',
+    short: 'Clip',
+    category: 'TD',
+    key: '3',
+    description: 'Your own footage, sheared into sliding bands'
+  },
+
   digitalblocks: {
     pattern: 'digitalblocks',
     name: 'Digital Horizon',
