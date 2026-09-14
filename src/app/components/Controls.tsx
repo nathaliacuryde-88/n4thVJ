@@ -3,7 +3,8 @@ import { Hand, HandData, VisualPattern } from '../App';
 import { HOLD_MS, Layer } from '../config/LayerConfig';
 import { Video, VideoOff, Mic, MicOff, Orbit, Sparkles } from 'lucide-react';
 import { ColorController } from './ColorController';
-import { getRenderersByCategory, RendererCategory } from '../config/RendererCategories';
+import { RENDERER_CATEGORIES } from '../config/RendererCategories';
+import { slotKey } from '../config/setlist';
 
 /**
  * The one-word gesture readout for a hand, or null when there is nothing to
@@ -50,8 +51,9 @@ interface ControlsProps {
   onColorModeChange: (mode: 'black' | 'contrast' | 'grayscale') => void;
   autoHueEnabled: boolean;
   onAutoHueToggle: () => void;
-  rendererFilter: RendererCategory;
-  onRendererFilterChange: (filter: RendererCategory) => void;
+  /** Tonight's visuals in key order, as chosen in the library. */
+  set: VisualPattern[];
+  onOpenLibrary: () => void;
   audioEnabled: boolean;
   onAudioToggle: () => void;
   audioSensitivity: number;
@@ -67,8 +69,6 @@ interface ControlsProps {
   fxEnabled: boolean;
   fxActive: boolean;
   onFxToggle: () => void;
-  smokeHandModel?: 'torus' | 'hand';
-  onSmokeHandModelChange?: (model: 'torus' | 'hand') => void;
 }
 
 function ControlButton({
@@ -130,8 +130,8 @@ export function Controls({
   onColorModeChange,
   autoHueEnabled,
   onAutoHueToggle,
-  rendererFilter,
-  onRendererFilterChange,
+  set,
+  onOpenLibrary,
   audioEnabled,
   onAudioToggle,
   audioSensitivity,
@@ -147,29 +147,8 @@ export function Controls({
   fxEnabled,
   fxActive,
   onFxToggle,
-  smokeHandModel,
-  onSmokeHandModelChange
 }: ControlsProps) {
   
-  // Use the canonical list from RENDERER_CATEGORIES to ensure correct key mappings
-  const allRenderers = getRenderersByCategory(rendererFilter);
-  
-  // Sort patterns: Number keys first (1-9, 0), then others
-  // This is purely for display order
-  const sortedPatterns = allRenderers.sort((a, b) => {
-    const isNumA = !isNaN(parseInt(a.key));
-    const isNumB = !isNaN(parseInt(b.key));
-    if (isNumA && isNumB) {
-        // Special case for 0 to be last of numbers
-        if (a.key === '0') return 1;
-        if (b.key === '0') return -1;
-        return parseInt(a.key) - parseInt(b.key);
-    }
-    if (isNumA) return -1;
-    if (isNumB) return 1;
-    return a.key.localeCompare(b.key);
-  });
-
   // Tap switches the selected layer, hold stacks — the same split, and the same
   // hold length, as the number keys.
   const holdRef = useRef<{ pattern: VisualPattern; timer: number; fired: boolean } | null>(null);
@@ -203,78 +182,33 @@ export function Controls({
   return (
     <>
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* TOP LEFT - SMOKE HAND MODEL SELECTOR (Only visible for Smoke Hand pattern) */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {currentPattern === 'smokehand' && onSmokeHandModelChange && (
-        <div className="absolute top-4 left-4 z-50">
-          <div className="bg-black/80 backdrop-blur-sm rounded-lg p-2 border border-cyan-500/30 font-mono">
-            <div className="flex gap-2">
-              <button
-                onClick={() => onSmokeHandModelChange('torus')}
-                className={`px-4 py-2 rounded text-xs transition-all ${ 
-                  smokeHandModel === 'torus'
-                    ? 'bg-cyan-500 text-black'
-                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                }`}
-              >
-                Torus
-              </button>
-              <button
-                onClick={() => onSmokeHandModelChange('hand')}
-                className={`px-4 py-2 rounded text-xs transition-all ${ 
-                  smokeHandModel === 'hand'
-                    ? 'bg-cyan-500 text-black'
-                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                }`}
-              >
-                Hand
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* TOP - VISUAL PATTERN SELECTOR (Similar to Color Bar) */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
         <div className="bg-black/70 backdrop-blur-sm rounded-full py-2 px-6 border border-white/20 font-mono">
           <div className="flex items-center gap-4">
-            {/* Renderer family */}
-            <div className="flex items-center gap-2">
-              {([
-                { key: '2D', on: 'bg-cyan-500/30 text-cyan-300' },
-                { key: '3D', on: 'bg-purple-500/30 text-purple-300' },
-                { key: 'TD', on: 'bg-emerald-500/30 text-emerald-300' },
-              ] as const).map(({ key, on }) => (
-                <button
-                  key={key}
-                  onClick={() => onRendererFilterChange(key)}
-                  className={`px-3 py-1 rounded text-[10px] transition-all ${
-                    rendererFilter === key
-                      ? on
-                      : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'
-                  }`}
-                >
-                  {key}
-                </button>
-              ))}
-            </div>
+            {/* Back to the library */}
+            <button
+              onClick={onOpenLibrary}
+              title="Back to the library to change the set (Esc)"
+              className="px-3 py-1 rounded text-[10px] tracking-wider text-white/40 transition-all hover:bg-white/10 hover:text-white/80"
+            >
+              SET
+            </button>
 
-            {/* Separator */}
             <div className="w-px h-6 bg-white/20" />
 
-            {/* Pattern Buttons */}
+            {/* The set, on the keys the library gave it */}
             <div className="flex items-center gap-1.5">
-              {sortedPatterns.map((p) => {
-                const layerIndex = layers.findIndex((l) => l.pattern === p.pattern);
+              {set.map((pattern, index) => {
+                const layerIndex = layers.findIndex((l) => l.pattern === pattern);
                 const isSelected = layerIndex === selectedLayer;
                 const isStacked = layerIndex !== -1 && !isSelected;
                 return (
                   <button
-                    key={p.pattern}
-                    onPointerDown={() => startHold(p.pattern)}
-                    onPointerUp={() => endHold(p.pattern)}
+                    key={pattern}
+                    onPointerDown={() => startHold(pattern)}
+                    onPointerUp={() => endHold(pattern)}
                     onPointerLeave={cancelHold}
                     className={`relative w-7 h-7 rounded-full transition-all flex items-center justify-center ${
                       isSelected
@@ -283,11 +217,11 @@ export function Controls({
                           ? 'bg-white/25 text-white ring-1 ring-emerald-400/70'
                           : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white/90'
                     }`}
-                    title={`${p.name} (${p.key})${
+                    title={`${RENDERER_CATEGORIES[pattern].name} (${slotKey(index)})${
                       layerIndex !== -1 ? ` — layer ${layerIndex + 1}` : ''
                     } · hold to stack`}
                   >
-                    <span className="text-xs">{p.key}</span>
+                    <span className="text-xs">{slotKey(index)}</span>
                     {layerIndex !== -1 && layers.length > 1 && (
                       <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 text-black text-[7px] leading-3 text-center">
                         {layerIndex + 1}

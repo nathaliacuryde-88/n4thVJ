@@ -5,14 +5,16 @@ import { HandTracker } from './components/HandTracker';
 import { PermissionRequest } from './components/PermissionRequest';
 import { VJCanvas } from './components/VJCanvas';
 import { AudioAnalyzer } from './components/AudioAnalyzer';
-import { getPatternCategory, getRenderersByCategory, RendererCategory } from './config/RendererCategories';
+import { Library } from './components/Library';
+import { keySlot, loadSetList, saveSetList } from './config/setlist';
 import { ParamPanel, ParamSection } from './components/ParamPanel';
 import { PIPELINE_PARAMS, RENDERER_PARAMS } from './params/registry';
 import { AllParamValues, ParamValues, sanitizeAllParams } from './params/types';
 import { HOLD_MS, Layer, MAX_LAYERS, STACKED_OPACITY } from './config/LayerConfig';
 import { fxActive } from './pipeline/PostPipeline';
+import { idleHands } from './hands/idle';
 
-export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple';
+export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple';
 
 export interface AudioData {
   bass: number; // 0-1, controls scale/blooming
@@ -78,68 +80,6 @@ function saveSetting(key: string, value: unknown) {
 
 const isNumberIn = (min: number, max: number) => (v: unknown) =>
   typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
-
-/**
- * A synthetic 21-point hand in MediaPipe's layout: wrist, then four joints each
- * for thumb, index, middle, ring and pinky. Renderers that read landmarks
- * rather than just a position (Chromatic Glow, Technical Hand) need the real
- * shape, not a point.
- */
-function idleLandmarks(x: number, y: number, t: number, phase: number) {
-  const scale = 0.16;
-  const wrist = { x, y: y + scale * 0.55 };
-  const points = [{ ...wrist, z: 0 }];
-
-  const fingers = [
-    { angle: -1.05, length: 0.62 }, // thumb, off to the side
-    { angle: -0.34, length: 0.95 }, // index
-    { angle: -0.10, length: 1.0 },  // middle
-    { angle: 0.14, length: 0.92 },  // ring
-    { angle: 0.38, length: 0.76 },  // pinky
-  ];
-
-  fingers.forEach((finger, i) => {
-    const curl = 0.25 + Math.sin(t * 0.6 + phase + i) * 0.2;
-    for (let joint = 1; joint <= 4; joint++) {
-      const reach = joint / 4;
-      const angle = finger.angle + curl * reach * 0.5;
-      const radius = scale * finger.length * reach;
-      points.push({
-        x: wrist.x + Math.sin(angle) * radius,
-        y: wrist.y - Math.cos(angle) * radius,
-        z: 0,
-      });
-    }
-  });
-
-  return points;
-}
-
-/**
- * Two slow hands tracing offset Lissajous figures. Deliberately unhurried: this
- * is a bed for the visual to sit on when nobody is playing it, not a performance.
- */
-function idleHands(t: number): HandData {
-  const hand = (phase: number, xBias: number): Hand => {
-    const position = {
-      x: xBias + Math.sin(t * 0.23 + phase) * 0.18,
-      y: 0.5 + Math.sin(t * 0.31 + phase * 1.7) * 0.22,
-    };
-    return {
-      position,
-      gesture: 'open',
-      fingerCount: 3 + Math.round(1.5 + Math.sin(t * 0.11 + phase) * 1.5),
-      velocity: 0.25 + Math.sin(t * 0.37 + phase) * 0.15,
-      holdDuration: 1,
-      landmarks: idleLandmarks(position.x, position.y, t, phase),
-    };
-  };
-  return {
-    left: hand(0, 0.32),
-    right: hand(Math.PI, 0.68),
-    distanceBetweenHands: 0.36,
-  };
-}
 
 export default function App() {
   /**
@@ -272,8 +212,12 @@ export default function App() {
     [layers, paramValues],
   );
   
-  // Renderer filter state (2D/3D)
-  const [rendererFilter, setRendererFilter] = useState<RendererCategory>('2D');
+  /**
+   * Tonight's visuals, in key order, as chosen in the library. Slot 0 answers to
+   * 1 and the tenth to 0, so the row on screen is the row under your fingers.
+   */
+  const [set, setSet] = useState<VisualPattern[]>(loadSetList);
+  const [view, setView] = useState<'library' | 'vj'>('library');
   
   const [handData, setHandData] = useState<HandData>({ left: null, right: null });
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
@@ -295,11 +239,10 @@ export default function App() {
   const [audioTriggerBeats, setAudioTriggerBeats] = useState(true);
   const [audioTime, setAudioTime] = useState(0); // For smooth audio-driven animation
 
-  // Smoke Hand renderer specific state
-  const [smokeHandModel, setSmokeHandModel] = useState<'torus' | 'hand'>('torus');
-
   const handsPresent = handData.left !== null || handData.right !== null;
-  const clockRunning = audioEnabled || (idleDrive && !handsPresent);
+  // Not in the library: this ticks state every frame, and the library re-renders
+  // with it — which is enough to stop its previews building anything.
+  const clockRunning = view === 'vj' && (audioEnabled || (idleDrive && !handsPresent));
 
   // Drives both the audio-to-hand mapping and the idle drive.
   useEffect(() => {
@@ -368,31 +311,33 @@ export default function App() {
     saveSetting('vj-fx', { fx: fxParams });
   }, [fxParams]);
 
-  // Cycle patterns helper
+  useEffect(() => {
+    saveSetList(set);
+  }, [set]);
+
+  /**
+   * Into the set. The stack starts on whatever is on key 1, and a stack left
+   * over from a previous set is dropped rather than carried into a row that may
+   * no longer contain it.
+   */
+  const startSet = useCallback(() => {
+    if (set.length === 0) return;
+    setLayers([{ pattern: set[0], opacity: 1 }]);
+    setSelectedLayer(0);
+    setView('vj');
+  }, [set]);
+
+  /** Arrow keys walk the set, in the order it was built. */
   const cyclePattern = useCallback((direction: 'next' | 'prev') => {
-    const renderers = getRenderersByCategory(rendererFilter);
-    // Sort logic to match UI (Keys: 1-9, 0, then chars)
-    // We reuse the sort logic from Controls or just use index.
-    // For simplicity, let's just use the array returned by getRenderersByCategory 
-    // but we need a consistent order. The generic list order is fine.
-    // Ideally we'd share the exact sort order, but let's just cycle through the raw filtered list.
-    
-    const currentIndex = renderers.findIndex(r => r.pattern === currentPattern);
-    if (currentIndex === -1) {
-      // If current pattern is not in current filter, jump to first
-      if (renderers.length > 0) setCurrentPattern(renderers[0].pattern);
-      return;
-    }
-    
-    let newIndex;
-    if (direction === 'next') {
-      newIndex = (currentIndex + 1) % renderers.length;
-    } else {
-      newIndex = (currentIndex - 1 + renderers.length) % renderers.length;
-    }
-    
-    setCurrentPattern(renderers[newIndex].pattern);
-  }, [currentPattern, rendererFilter]);
+    if (set.length === 0) return;
+    const at = set.indexOf(currentPattern);
+    const step = direction === 'next' ? 1 : -1;
+    // Not on the set at all (it was edited under us): start at one end.
+    const next = at === -1
+      ? (direction === 'next' ? 0 : set.length - 1)
+      : (at + step + set.length) % set.length;
+    setCurrentPattern(set[next]);
+  }, [currentPattern, set, setCurrentPattern]);
 
   /** The number currently held down, if any, while we wait to see if it is a hold. */
   const holdRef = useRef<{ key: string; timer: number; fired: boolean } | null>(null);
@@ -440,6 +385,12 @@ export default function App() {
         return;
       }
 
+      // Back to the library (Escape)
+      if (e.key === 'Escape') {
+        setView('library');
+        return;
+      }
+
       // Move the selection through the stack (L), and fade it ([ and ])
       if (e.key.toLowerCase() === 'l') {
         cycleLayer();
@@ -448,17 +399,12 @@ export default function App() {
       if (e.key === '[') { nudgeLayerOpacity(-0.1); return; }
       if (e.key === ']') { nudgeLayerOpacity(0.1); return; }
 
-      // Jump straight to a renderer by its key, within the open family.
-      // Derived from RENDERER_CATEGORIES rather than restated, so the keyboard
-      // and the button row can never drift apart — the old hand-written switches
-      // had already gone stale, with two dead cases in 3D.
-      const match = getRenderersByCategory(rendererFilter)
-        .find(r => r.key.toLowerCase() === e.key.toLowerCase());
-      if (match) {
+      // The number row is the set, in the order the library put it in.
+      const pattern = set[keySlot(e.key)];
+      if (pattern) {
         // Tap switches, hold stacks. Which one it was is only known on release,
         // so the switch happens in keyup and this side just starts the clock.
         if (e.repeat || holdRef.current) return;
-        const { pattern } = match;
         holdRef.current = {
           key: e.key.toLowerCase(),
           fired: false,
@@ -497,9 +443,8 @@ export default function App() {
       clearTimeout(hold.timer);
       holdRef.current = null;
       if (hold.fired) return; // already stacked on the way down
-      const match = getRenderersByCategory(rendererFilter)
-        .find(r => r.key.toLowerCase() === e.key.toLowerCase());
-      if (match) setCurrentPattern(match.pattern);
+      const pattern = set[keySlot(e.key)];
+      if (pattern) setCurrentPattern(pattern);
     };
 
     window.addEventListener('keydown', handleKeyPress);
@@ -508,7 +453,7 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyPress);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [rendererFilter, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity]);
+  }, [set, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity]);
 
   // Right-click to toggle UI visibility
   useEffect(() => {
@@ -523,7 +468,7 @@ export default function App() {
 
   // Auto-enable camera ONLY for Face Mesh pattern
   useEffect(() => {
-    if (currentPattern === 'face' || currentPattern === 'smokehand') {
+    if (currentPattern === 'face' || currentPattern.startsWith('smokehand')) {
       setShowCamera(true);
     } else {
       // Optionally, you can auto-disable camera when switching away
@@ -539,17 +484,6 @@ export default function App() {
     setShowPermissionRequest(false);
   };
 
-  const handleRendererFilterChange = (filter: RendererCategory) => {
-    setRendererFilter(filter);
-    // Only jump if the pattern on screen does not belong to the tab being
-    // opened. Switching to 2D used to leave a 3D pattern running with no
-    // button lit, and switching to 3D always slammed back to Glitch.
-    if (getPatternCategory(currentPattern) !== filter) {
-      const first = getRenderersByCategory(filter)[0];
-      if (first) setCurrentPattern(first.pattern);
-    }
-  };
-
   // Filter audio data for renderers based on control flags
   const rendererAudioData: AudioData = {
     ...audioData,
@@ -558,6 +492,10 @@ export default function App() {
     beat: audioTriggerBeats ? audioData.beat : false,
     beatIntensity: audioTriggerBeats ? audioData.beatIntensity : 0,
   };
+
+  if (view === 'library') {
+    return <Library set={set} onSetChange={setSet} onStart={startSet} />;
+  }
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black">
@@ -575,7 +513,6 @@ export default function App() {
         dominantColors={dominantColors}
         layers={layers}
         videoElement={videoElement}
-        smokeHandModel={smokeHandModel}
         audioData={rendererAudioData}
         colorMode={colorMode}
         layerParams={layerParams}
@@ -647,8 +584,8 @@ export default function App() {
           onColorModeChange={setColorMode}
           autoHueEnabled={autoHueEnabled}
           onAutoHueToggle={() => setAutoHueEnabled(prev => !prev)}
-          rendererFilter={rendererFilter}
-          onRendererFilterChange={handleRendererFilterChange}
+          set={set}
+          onOpenLibrary={() => setView('library')}
           audioEnabled={audioEnabled}
           onAudioToggle={() => setAudioEnabled(!audioEnabled)}
           audioSensitivity={audioSensitivity}
@@ -664,8 +601,6 @@ export default function App() {
           fxEnabled={fxEnabled}
           fxActive={fxActive(fxParams)}
           onFxToggle={toggleFx}
-          smokeHandModel={smokeHandModel}
-          onSmokeHandModelChange={setSmokeHandModel}
         />
       )}
     </div>

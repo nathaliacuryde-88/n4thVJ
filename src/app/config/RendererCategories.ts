@@ -179,12 +179,19 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '-',
     description: 'MediaPipe face tracking with glowing mesh'
   },
-  smokehand: {
-    pattern: 'smokehand',
-    name: 'Smoke Hand',
+  'smokehand-torus': {
+    pattern: 'smokehand-torus',
+    name: 'Smoke Torus',
     category: '3D',
     key: '8',
-    description: 'Three.js particle smoke with hand control'
+    description: 'Particle smoke shaped around a torus'
+  },
+  'smokehand-hand': {
+    pattern: 'smokehand-hand',
+    name: 'Smoke Hand',
+    category: '3D',
+    key: '7',
+    description: 'Particle smoke shaped around a hand model'
   },
   'network-cube': {
     pattern: 'network-cube',
