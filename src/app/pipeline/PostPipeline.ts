@@ -116,6 +116,20 @@ export class PostPipeline {
       bloomComposite: createProgram(gl, BLOOM_COMPOSITE),
     };
 
+    /*
+     * Upload canvases the right way up.
+     *
+     * A canvas hands over its top row first, and WebGL puts that first row at
+     * v=0 — which the fullscreen triangle draws at the BOTTOM of the screen. So
+     * without this every frame through the chain was mirrored vertically, and
+     * since the chain presents every frame, that was every visual.
+     *
+     * Only affects texImage2D with real pixels. The render targets allocate with
+     * null and are written by the GPU already in this orientation, so they are
+     * untouched by it.
+     */
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
     this.sourceTexture = gl.createTexture()!;
     this.previousTexture = gl.createTexture()!;
     for (const texture of [this.sourceTexture, this.previousTexture]) {

@@ -244,6 +244,10 @@ export class RippleRenderer {
     const ready = this.video && this.video.readyState >= 2 && this.video.videoWidth > 0;
     if (ready) {
       gl.bindTexture(gl.TEXTURE_2D, this.videoTexture);
+      // Top row first out of the video, but v=0 is the bottom of the frame, so
+      // without the flip the camera refracts through the ripple upside down.
+      // The stamps already arrive flipped (1 - y) to match this space.
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.video!);
     }
 
