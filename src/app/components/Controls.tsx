@@ -1,5 +1,6 @@
 import { useRef } from 'react';
-import { Hand, HandData, HOLD_MS, Layer, VisualPattern } from '../App';
+import { Hand, HandData, VisualPattern } from '../App';
+import { HOLD_MS, Layer } from '../config/LayerConfig';
 import { Video, VideoOff, Mic, MicOff, Orbit, Sparkles } from 'lucide-react';
 import { ColorController } from './ColorController';
 import { getRenderersByCategory, RendererCategory } from '../config/RendererCategories';

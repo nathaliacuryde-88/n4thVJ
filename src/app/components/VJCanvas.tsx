@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
-import { HandData, Layer, VisualPattern } from '../App';
+import { HandData, VisualPattern } from '../App';
+import { Layer } from '../config/LayerConfig';
 import { ParticleRenderer } from './renderers/ParticleRenderer';
 import { GeometricRenderer } from './renderers/GeometricRenderer';
 import { WaveRenderer } from './renderers/WaveRenderer';

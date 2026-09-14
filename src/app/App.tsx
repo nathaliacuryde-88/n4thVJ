@@ -9,6 +9,7 @@ import { getPatternCategory, getRenderersByCategory, RendererCategory } from './
 import { ParamPanel, ParamSection } from './components/ParamPanel';
 import { PIPELINE_PARAMS, RENDERER_PARAMS } from './params/registry';
 import { AllParamValues, ParamValues, sanitizeAllParams } from './params/types';
+import { HOLD_MS, Layer, MAX_LAYERS, STACKED_OPACITY } from './config/LayerConfig';
 import { fxActive } from './pipeline/PostPipeline';
 
 export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple';
@@ -138,32 +139,6 @@ function idleHands(t: number): HandData {
     right: hand(Math.PI, 0.68),
     distanceBetweenHands: 0.36,
   };
-}
-
-/**
- * Visuals that can be stacked at once. Three is enough to build a look and
- * still tell the parts apart; past that the additive blend just reads as white.
- */
-const MAX_LAYERS = 3;
-
-/** How long a number has to be held before it stacks rather than switches. */
-export const HOLD_MS = 400;
-
-/**
- * What a layer comes in at when you stack it.
- *
- * Not 1: a dense visual like Halftone covers the whole frame, and screened over
- * the base at full strength it erases everything under it rather than mixing
- * with it. Three quarters leaves the base readable, and ] pushes it up from
- * there when the layer is sparse enough to take it.
- */
-const STACKED_OPACITY = 0.75;
-
-/** One position in the stack. */
-export interface Layer {
-  pattern: VisualPattern;
-  /** 0-1, the layer's own fader. */
-  opacity: number;
 }
 
 export default function App() {
