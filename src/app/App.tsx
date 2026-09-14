@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CameraFeed } from './components/CameraFeed';
 import { Controls } from './components/Controls';
 import { HandTracker } from './components/HandTracker';
@@ -140,9 +140,80 @@ function idleHands(t: number): HandData {
   };
 }
 
+/**
+ * Visuals that can be stacked at once. Three is enough to build a look and
+ * still tell the parts apart; past that the additive blend just reads as white.
+ */
+const MAX_LAYERS = 3;
+
+/** How long a number has to be held before it stacks rather than switches. */
+export const HOLD_MS = 400;
+
+/**
+ * What a layer comes in at when you stack it.
+ *
+ * Not 1: a dense visual like Halftone covers the whole frame, and screened over
+ * the base at full strength it erases everything under it rather than mixing
+ * with it. Three quarters leaves the base readable, and ] pushes it up from
+ * there when the layer is sparse enough to take it.
+ */
+const STACKED_OPACITY = 0.75;
+
+/** One position in the stack. */
+export interface Layer {
+  pattern: VisualPattern;
+  /** 0-1, the layer's own fader. */
+  opacity: number;
+}
+
 export default function App() {
-  const [currentPattern, setCurrentPattern] = useState<VisualPattern>('geometric'); // Always start with Geometric (2D option 1)
-  
+  /**
+   * The stack, bottom first. One entry is the ordinary case and behaves exactly
+   * as a single pattern did. Tapping a number replaces the selected layer;
+   * holding one adds or removes a layer; L moves the selection through them, and
+   * the selection is what the sliders and the colour controls act on.
+   */
+  const [layers, setLayers] = useState<Layer[]>([{ pattern: 'geometric', opacity: 1 }]);
+  const [selectedLayer, setSelectedLayer] = useState(0);
+  const currentPattern = (layers[selectedLayer] ?? layers[0]).pattern;
+
+  /** Tap: swap the selected layer. A pattern already on the stack is selected, not duplicated. */
+  const setCurrentPattern = useCallback((pattern: VisualPattern) => {
+    const existing = layers.findIndex((l) => l.pattern === pattern);
+    if (existing !== -1) {
+      setSelectedLayer(existing);
+      return;
+    }
+    setLayers((prev) => prev.map((l, i) => (i === selectedLayer ? { ...l, pattern } : l)));
+  }, [layers, selectedLayer]);
+
+  /** Hold: add the pattern as a new layer, or take it off if it is already up. */
+  const toggleLayer = useCallback((pattern: VisualPattern) => {
+    const existing = layers.findIndex((l) => l.pattern === pattern);
+    if (existing !== -1) {
+      if (layers.length === 1) return; // never leave the stack empty
+      setLayers(layers.filter((_, i) => i !== existing));
+      setSelectedLayer((s) => (s > existing ? s - 1 : Math.min(s, layers.length - 2)));
+      return;
+    }
+    if (layers.length >= MAX_LAYERS) return;
+    setLayers([...layers, { pattern, opacity: STACKED_OPACITY }]); // selection stays put
+  }, [layers]);
+
+  const cycleLayer = useCallback(() => {
+    setSelectedLayer((s) => (s + 1) % layers.length);
+  }, [layers.length]);
+
+  /** The selected layer's fader, on [ and ]. */
+  const nudgeLayerOpacity = useCallback((delta: number) => {
+    setLayers((prev) => prev.map((l, i) => (
+      i === selectedLayer
+        ? { ...l, opacity: Math.min(1, Math.max(0, Math.round((l.opacity + delta) * 100) / 100)) }
+        : l
+    )));
+  }, [selectedLayer]);
+
+
   const [showCamera, setShowCamera] = useState(false); // Camera off by default
   const [showUI, setShowUI] = useState(true); // UI visibility toggle
   
@@ -217,6 +288,14 @@ export default function App() {
       return { ...prev, [currentPattern]: keep };
     });
   }, [currentPattern]);
+
+  // The idle clock re-renders this component every frame, so the per-layer
+  // slider values have to keep their identity — otherwise VJCanvas would push
+  // params into every renderer sixty times a second.
+  const layerParams = useMemo(
+    () => layers.map((l) => paramValues[l.pattern]),
+    [layers, paramValues],
+  );
   
   // Renderer filter state (2D/3D)
   const [rendererFilter, setRendererFilter] = useState<RendererCategory>('2D');
@@ -340,6 +419,9 @@ export default function App() {
     setCurrentPattern(renderers[newIndex].pattern);
   }, [currentPattern, rendererFilter]);
 
+  /** The number currently held down, if any, while we wait to see if it is a hold. */
+  const holdRef = useRef<{ key: string; timer: number; fired: boolean } | null>(null);
+
   // Keyboard shortcuts for pattern switching
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -383,6 +465,14 @@ export default function App() {
         return;
       }
 
+      // Move the selection through the stack (L), and fade it ([ and ])
+      if (e.key.toLowerCase() === 'l') {
+        cycleLayer();
+        return;
+      }
+      if (e.key === '[') { nudgeLayerOpacity(-0.1); return; }
+      if (e.key === ']') { nudgeLayerOpacity(0.1); return; }
+
       // Jump straight to a renderer by its key, within the open family.
       // Derived from RENDERER_CATEGORIES rather than restated, so the keyboard
       // and the button row can never drift apart — the old hand-written switches
@@ -390,7 +480,18 @@ export default function App() {
       const match = getRenderersByCategory(rendererFilter)
         .find(r => r.key.toLowerCase() === e.key.toLowerCase());
       if (match) {
-        setCurrentPattern(match.pattern);
+        // Tap switches, hold stacks. Which one it was is only known on release,
+        // so the switch happens in keyup and this side just starts the clock.
+        if (e.repeat || holdRef.current) return;
+        const { pattern } = match;
+        holdRef.current = {
+          key: e.key.toLowerCase(),
+          fired: false,
+          timer: window.setTimeout(() => {
+            if (holdRef.current) holdRef.current.fired = true;
+            toggleLayer(pattern);
+          }, HOLD_MS),
+        };
         return;
       }
 
@@ -415,9 +516,24 @@ export default function App() {
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const hold = holdRef.current;
+      if (!hold || hold.key !== e.key.toLowerCase()) return;
+      clearTimeout(hold.timer);
+      holdRef.current = null;
+      if (hold.fired) return; // already stacked on the way down
+      const match = getRenderersByCategory(rendererFilter)
+        .find(r => r.key.toLowerCase() === e.key.toLowerCase());
+      if (match) setCurrentPattern(match.pattern);
+    };
+
     window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [rendererFilter, cyclePattern, toggleFx]);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [rendererFilter, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity]);
 
   // Right-click to toggle UI visibility
   useEffect(() => {
@@ -482,12 +598,12 @@ export default function App() {
       <VJCanvas
         handData={effectiveHandData}
         dominantColors={dominantColors}
-        pattern={currentPattern}
+        layers={layers}
         videoElement={videoElement}
         smokeHandModel={smokeHandModel}
         audioData={rendererAudioData}
         colorMode={colorMode}
-        params={paramValues[currentPattern]}
+        layerParams={layerParams}
         fxParams={fxParams}
       />
 
@@ -539,6 +655,10 @@ export default function App() {
         <Controls
           currentPattern={currentPattern}
           onPatternChange={setCurrentPattern}
+          layers={layers}
+          selectedLayer={selectedLayer}
+          onPatternHold={toggleLayer}
+          onLayerCycle={cycleLayer}
           showCamera={showCamera}
           onCameraToggle={() => setShowCamera(!showCamera)}
           handData={handData}

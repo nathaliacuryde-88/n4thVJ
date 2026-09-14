@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { HandData, VisualPattern } from '../App';
+import { HandData, Layer, VisualPattern } from '../App';
 import { ParticleRenderer } from './renderers/ParticleRenderer';
 import { GeometricRenderer } from './renderers/GeometricRenderer';
 import { WaveRenderer } from './renderers/WaveRenderer';
@@ -164,16 +164,41 @@ interface FadingDeck extends Deck {
   duration: number;
 }
 
+/** One position in the stack: what is playing there, and what it is fading from. */
+interface Slot {
+  current: Deck;
+  outgoing: FadingDeck | null;
+}
+
+/**
+ * Stacked layers are screened onto the frame rather than painted over it.
+ *
+ * Renderers fade their trails by drawing translucent black across the whole
+ * canvas instead of clearing it, so every layer canvas is fully opaque — laid
+ * down with 'source-over' the top one would simply hide everything under it.
+ * Screening leaves black untouched and lights only where the strokes are, and
+ * unlike plain addition it cannot run past white, so a dense visual softens
+ * into the stack instead of clipping it flat.
+ */
+const LAYER_BLEND: GlobalCompositeOperation = 'screen';
+
+/** How far through its crossfade an outgoing deck is: 0 = just started, 1 = done. */
+function fadeProgress(deck: FadingDeck, now: number): number {
+  if (deck.duration <= 0) return 1;
+  return Math.min(1, (now - deck.fadeStart) / 1000 / deck.duration);
+}
+
 interface VJCanvasProps {
   handData: HandData;
   dominantColors: string[];
-  pattern: VisualPattern;
+  /** The stack, bottom first. A single entry is the ordinary one-visual case. */
+  layers: Layer[];
   videoElement?: HTMLVideoElement | null; // Camera video element for holographic renderer
   smokeHandModel?: 'torus' | 'hand';
   audioData?: AudioData;
   colorMode?: 'black' | 'contrast' | 'grayscale';
-  /** Slider overrides for the current pattern. */
-  params?: ParamValues;
+  /** Slider overrides per layer, index-matched to `layers`. */
+  layerParams?: (ParamValues | undefined)[];
   /** Slider overrides for the post pipeline (the FX tab). */
   fxParams?: ParamValues;
 }
@@ -181,17 +206,16 @@ interface VJCanvasProps {
 export function VJCanvas({
   handData,
   dominantColors,
-  pattern,
+  layers,
   videoElement,
   smokeHandModel,
   audioData,
   colorMode,
-  params,
+  layerParams,
   fxParams
 }: VJCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const rendererRef = useRef<VJRenderer | null>(null);
   const pipelineRef = useRef<PostPipeline | null>(null);
   const fallbackCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   /**
@@ -202,9 +226,17 @@ export function VJCanvas({
    * element so the 2D fallback actually has somewhere to draw.
    */
   const [pipelineFailed, setPipelineFailed] = useState(false);
-  const deckRef = useRef<Deck | null>(null);
-  const outgoingRef = useRef<FadingDeck | null>(null);
-  
+  /** The stack, bottom first. Index-matched to the `layers` prop. */
+  const slotsRef = useRef<Slot[]>([]);
+  /** Read by the compose step for each layer's fader, without rebuilding anything. */
+  const layersRef = useRef<Layer[]>(layers);
+  /**
+   * Where the stack is flattened before it reaches the pipeline. Feedback and
+   * the rest of the chain then treat the layers as the single image they read
+   * as, rather than running once per layer.
+   */
+  const compositeCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+
   // Store latest handData and dominantColors in refs so animate loop can access them
   const handDataRef = useRef<HandData>(handData);
   const dominantColorsRef = useRef<string[]>(dominantColors);
@@ -212,7 +244,7 @@ export function VJCanvas({
   const smokeHandModelRef = useRef<'torus' | 'hand' | undefined>(smokeHandModel);
   const audioDataRef = useRef<AudioData | undefined>(audioData);
   const colorModeRef = useRef<'black' | 'contrast' | 'grayscale' | undefined>(colorMode);
-  const paramsRef = useRef<ParamValues | undefined>(params);
+  const layerParamsRef = useRef<(ParamValues | undefined)[] | undefined>(layerParams);
   const fxParamsRef = useRef<ParamValues | undefined>(fxParams);
 
   // Update refs whenever props change
@@ -223,15 +255,18 @@ export function VJCanvas({
     smokeHandModelRef.current = smokeHandModel;
     audioDataRef.current = audioData;
     colorModeRef.current = colorMode;
-    paramsRef.current = params;
+    layerParamsRef.current = layerParams;
+    layersRef.current = layers;
     fxParamsRef.current = fxParams;
-  }, [handData, dominantColors, videoElement, smokeHandModel, audioData, colorMode, params, fxParams]);
+  }, [handData, dominantColors, videoElement, smokeHandModel, audioData, colorMode, layerParams, layers, fxParams]);
 
   // Slider moves must not rebuild the renderer - that would reset its particles,
   // its trails and, for the three.js ones, its whole scene.
   useEffect(() => {
-    rendererRef.current?.setParams?.(params ?? {});
-  }, [params]);
+    slotsRef.current.forEach((slot, index) => {
+      slot?.current.renderer.setParams?.(layerParams?.[index] ?? {});
+    });
+  }, [layerParams]);
 
   useEffect(() => {
     pipelineRef.current?.setParams(fxParams ?? {});
@@ -269,21 +304,33 @@ export function VJCanvas({
   // ═══════════════════════════════════════════════════════════════════════
   // DECKS
   // ═══════════════════════════════════════════════════════════════════════
-  // A pattern change does not tear the old renderer down. It becomes the
-  // outgoing deck and keeps drawing into its own canvas for the length of the
-  // crossfade, so the transition is between two live visuals rather than a cut
-  // or a fade from a frozen frame. Both decks run at once for that window.
+  // Every layer owns a slot, and every slot owns its canvas and its renderer.
+  // A pattern change does not tear the old renderer down. It becomes that
+  // slot's outgoing deck and keeps drawing for the length of the crossfade, so
+  // the transition is between two live visuals rather than a cut or a fade from
+  // a frozen frame. Both decks run at once for that window.
+  //
+  // The slots are flattened into one composite canvas each frame, and it is the
+  // composite that the pipeline sees — so feedback, bloom and the rest run once
+  // over the finished stack rather than once per layer.
 
   // One rAF loop for the lifetime of the component, driving whichever decks
   // exist. Rebuilding it per pattern is what forced the hard cut before.
   useEffect(() => {
+    const composite = document.createElement('canvas');
+    compositeCtxRef.current = composite.getContext('2d');
+
     const resize = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      for (const deck of [deckRef.current, outgoingRef.current]) {
-        if (deck) {
-          deck.canvas.width = width;
-          deck.canvas.height = height;
+      composite.width = width;
+      composite.height = height;
+      for (const slot of slotsRef.current) {
+        for (const deck of [slot?.current, slot?.outgoing]) {
+          if (deck) {
+            deck.canvas.width = width;
+            deck.canvas.height = height;
+          }
         }
       }
       const visible = canvasRef.current;
@@ -329,34 +376,67 @@ export function VJCanvas({
 
     let pipelineThrew = false;
 
+    /**
+     * Flatten the stack into one frame.
+     *
+     * The base goes down opaque and the layers above it screen on top, each at
+     * its own fader. A slot mid-crossfade dissolves between its two decks: under
+     * 'source-over' the outgoing frame is laid down whole and the incoming one
+     * fades over it, while a screened layer splits its share between the two so
+     * the pair never contributes more than one layer's worth of light.
+     */
+    const compose = (ctx: CanvasRenderingContext2D, now: number) => {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      // Black rather than clear: renderers assume an opaque frame, and the
+      // no-pipeline path below blits this straight out without clearing.
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+      slotsRef.current.forEach((slot, index) => {
+        if (!slot) return;
+        const isBase = index === 0;
+        const opacity = layersRef.current[index]?.opacity ?? 1;
+        if (opacity <= 0) return;
+        ctx.globalCompositeOperation = isBase ? 'source-over' : LAYER_BLEND;
+
+        const fade = slot.outgoing ? fadeProgress(slot.outgoing, now) : 1;
+        if (slot.outgoing) {
+          ctx.globalAlpha = opacity * (isBase ? 1 : 1 - fade);
+          ctx.drawImage(slot.outgoing.canvas, 0, 0);
+        }
+        ctx.globalAlpha = opacity * fade;
+        ctx.drawImage(slot.current.canvas, 0, 0);
+      });
+
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    };
+
     const animate = () => {
-      const deck = deckRef.current;
-      const outgoing = outgoingRef.current;
+      const now = performance.now();
+      const ctx = compositeCtxRef.current;
 
-      if (deck) {
-        drawDeck(deck);
-
-        let fade = 1;
-        if (outgoing) {
-          const elapsed = (performance.now() - outgoing.fadeStart) / 1000;
-          fade = outgoing.duration > 0 ? Math.min(1, elapsed / outgoing.duration) : 1;
-          if (fade >= 1) {
-            outgoing.renderer.destroy?.();
-            outgoingRef.current = null;
+      for (const slot of slotsRef.current) {
+        if (!slot) continue;
+        drawDeck(slot.current);
+        if (slot.outgoing) {
+          if (fadeProgress(slot.outgoing, now) >= 1) {
+            slot.outgoing.renderer.destroy?.();
+            slot.outgoing = null;
           } else {
-            drawDeck(outgoing);
+            drawDeck(slot.outgoing);
           }
         }
+      }
+
+      if (ctx && slotsRef.current.length > 0) {
+        compose(ctx, now);
 
         const pipeline = pipelineRef.current;
         if (pipeline) {
           try {
-            pipeline.render(
-              deck.canvas,
-              performance.now() / 1000,
-              fade < 1 && outgoingRef.current ? outgoingRef.current.canvas : null,
-              fade,
-            );
+            pipeline.render(ctx.canvas, now / 1000);
           } catch (error) {
             if (!pipelineThrew) {
               pipelineThrew = true;
@@ -364,8 +444,7 @@ export function VJCanvas({
             }
           }
         } else if (fallbackCtxRef.current) {
-          // No pipeline — no crossfade either, just the current deck.
-          fallbackCtxRef.current.drawImage(deck.canvas, 0, 0);
+          fallbackCtxRef.current.drawImage(ctx.canvas, 0, 0);
         }
       }
 
@@ -377,53 +456,72 @@ export function VJCanvas({
     return () => {
       window.removeEventListener('resize', resize);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      outgoingRef.current?.renderer.destroy?.();
-      outgoingRef.current = null;
-      deckRef.current?.renderer.destroy?.();
-      deckRef.current = null;
-      rendererRef.current = null;
+      for (const slot of slotsRef.current) {
+        slot?.outgoing?.renderer.destroy?.();
+        slot?.current.renderer.destroy?.();
+      }
+      slotsRef.current = [];
+      compositeCtxRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Swap decks when the pattern changes.
+  // Bring the slots in line with the layers prop: build the ones that are new,
+  // crossfade the ones whose pattern changed, retire the ones taken off.
   useEffect(() => {
-    const previous = deckRef.current;
-    if (previous?.pattern === pattern) return;
+    const slots = slotsRef.current;
+    const cfg = withOverrides(PipelineConfig, fxParamsRef.current ?? {}).transition;
+    const duration = cfg.enabled >= 0.5 ? cfg.duration : 0;
 
-    const canvas = document.createElement('canvas');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const build = (pattern: VisualPattern, index: number): Deck | null => {
+      const canvas = document.createElement('canvas');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
 
-    let renderer: VJRenderer;
-    try {
-      renderer = createRenderer(pattern, canvas, ctx, videoElementRef.current);
-    } catch (error) {
-      console.error('Failed to create renderer for pattern:', pattern, error);
-      return;
-    }
-    renderer.setParams?.(paramsRef.current ?? {});
-
-    deckRef.current = { renderer, canvas, pattern };
-    rendererRef.current = renderer;
-
-    if (previous) {
-      // Only one deck can be fading at a time; a switch during a fade drops
-      // whatever was already on its way out rather than stacking renderers.
-      outgoingRef.current?.renderer.destroy?.();
-
-      const cfg = withOverrides(PipelineConfig, fxParamsRef.current ?? {}).transition;
-      const duration = cfg.enabled >= 0.5 ? cfg.duration : 0;
-      if (duration > 0) {
-        outgoingRef.current = { ...previous, fadeStart: performance.now(), duration };
-      } else {
-        previous.renderer.destroy?.();
-        outgoingRef.current = null;
+      let renderer: VJRenderer;
+      try {
+        renderer = createRenderer(pattern, canvas, ctx, videoElementRef.current);
+      } catch (error) {
+        console.error('Failed to create renderer for pattern:', pattern, error);
+        return null;
       }
+      renderer.setParams?.(layerParamsRef.current?.[index] ?? {});
+      return { renderer, canvas, pattern };
+    };
+
+    layers.forEach(({ pattern }, index) => {
+      const slot = slots[index];
+      if (slot?.current.pattern === pattern) return;
+
+      const deck = build(pattern, index);
+      if (!deck) return;
+
+      if (!slot) {
+        slots[index] = { current: deck, outgoing: null };
+        return;
+      }
+
+      // Only one deck can be fading per slot; a switch during a fade drops
+      // whatever was already on its way out rather than stacking renderers.
+      slot.outgoing?.renderer.destroy?.();
+      if (duration > 0) {
+        slot.outgoing = { ...slot.current, fadeStart: performance.now(), duration };
+      } else {
+        slot.current.renderer.destroy?.();
+        slot.outgoing = null;
+      }
+      slot.current = deck;
+    });
+
+    for (const gone of slots.splice(layers.length)) {
+      gone?.outgoing?.renderer.destroy?.();
+      gone?.current.renderer.destroy?.();
     }
-  }, [pattern]);
+    // Only the patterns rebuild decks; a fader move must not tear a renderer down.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layers.map((l) => l.pattern).join('|')]);
 
   return (
     <canvas

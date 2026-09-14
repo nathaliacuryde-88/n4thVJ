@@ -1,4 +1,5 @@
-import { Hand, HandData, VisualPattern } from '../App';
+import { useRef } from 'react';
+import { Hand, HandData, HOLD_MS, Layer, VisualPattern } from '../App';
 import { Video, VideoOff, Mic, MicOff, Orbit, Sparkles } from 'lucide-react';
 import { ColorController } from './ColorController';
 import { getRenderersByCategory, RendererCategory } from '../config/RendererCategories';
@@ -28,6 +29,13 @@ function HandStatus({ label, hand }: { label: string; hand: Hand }) {
 interface ControlsProps {
   currentPattern: VisualPattern;
   onPatternChange: (pattern: VisualPattern) => void;
+  /** The stack, bottom first. One entry is the ordinary single-visual case. */
+  layers: Layer[];
+  /** Index into `layers` of the one the sliders and colour controls act on. */
+  selectedLayer: number;
+  /** Hold: stack this pattern as another layer, or take it back off. */
+  onPatternHold: (pattern: VisualPattern) => void;
+  onLayerCycle: () => void;
   showCamera: boolean;
   onCameraToggle: () => void;
   handData: HandData;
@@ -104,6 +112,10 @@ function ControlButton({
 export function Controls({
   currentPattern,
   onPatternChange,
+  layers,
+  selectedLayer,
+  onPatternHold,
+  onLayerCycle,
   showCamera,
   onCameraToggle,
   handData,
@@ -156,6 +168,36 @@ export function Controls({
     if (isNumB) return 1;
     return a.key.localeCompare(b.key);
   });
+
+  // Tap switches the selected layer, hold stacks — the same split, and the same
+  // hold length, as the number keys.
+  const holdRef = useRef<{ pattern: VisualPattern; timer: number; fired: boolean } | null>(null);
+
+  const cancelHold = () => {
+    if (!holdRef.current) return;
+    clearTimeout(holdRef.current.timer);
+    holdRef.current = null;
+  };
+
+  const startHold = (pattern: VisualPattern) => {
+    cancelHold();
+    holdRef.current = {
+      pattern,
+      fired: false,
+      timer: window.setTimeout(() => {
+        if (holdRef.current) holdRef.current.fired = true;
+        onPatternHold(pattern);
+      }, HOLD_MS),
+    };
+  };
+
+  const endHold = (pattern: VisualPattern) => {
+    const hold = holdRef.current;
+    if (!hold || hold.pattern !== pattern) return;
+    clearTimeout(hold.timer);
+    holdRef.current = null;
+    if (!hold.fired) onPatternChange(pattern);
+  };
 
   return (
     <>
@@ -224,22 +266,54 @@ export function Controls({
             {/* Pattern Buttons */}
             <div className="flex items-center gap-1.5">
               {sortedPatterns.map((p) => {
+                const layerIndex = layers.findIndex((l) => l.pattern === p.pattern);
+                const isSelected = layerIndex === selectedLayer;
+                const isStacked = layerIndex !== -1 && !isSelected;
                 return (
                   <button
                     key={p.pattern}
-                    onClick={() => onPatternChange(p.pattern)}
-                    className={`w-7 h-7 rounded-full transition-all flex items-center justify-center ${
-                      currentPattern === p.pattern
+                    onPointerDown={() => startHold(p.pattern)}
+                    onPointerUp={() => endHold(p.pattern)}
+                    onPointerLeave={cancelHold}
+                    className={`relative w-7 h-7 rounded-full transition-all flex items-center justify-center ${
+                      isSelected
                         ? 'bg-white text-black shadow-lg shadow-white/50'
-                        : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white/90'
+                        : isStacked
+                          ? 'bg-white/25 text-white ring-1 ring-emerald-400/70'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white/90'
                     }`}
-                    title={`${p.name} (${p.key})`}
+                    title={`${p.name} (${p.key})${
+                      layerIndex !== -1 ? ` — layer ${layerIndex + 1}` : ''
+                    } · hold to stack`}
                   >
                     <span className="text-xs">{p.key}</span>
+                    {layerIndex !== -1 && layers.length > 1 && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 text-black text-[7px] leading-3 text-center">
+                        {layerIndex + 1}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
+
+            {/* Which layer the sliders are pointed at. Only worth the space once
+                there is more than one. */}
+            {layers.length > 1 && (
+              <>
+                <div className="w-px h-6 bg-white/20" />
+                <button
+                  onClick={onLayerCycle}
+                  title="The layer the sliders and colours act on (L) — fade it with [ and ]"
+                  className="px-2 py-1 rounded text-[10px] whitespace-nowrap bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-all"
+                >
+                  L{selectedLayer + 1}/{layers.length}
+                  <span className="text-emerald-300/60">
+                    {' '}{Math.round((layers[selectedLayer]?.opacity ?? 1) * 100)}%
+                  </span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
