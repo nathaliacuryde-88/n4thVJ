@@ -167,41 +167,94 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     config: TextConfig,
     groups: [
       {
+        name: 'Movement',
+        params: [
+          { path: 'mode', label: 'Mode', min: 0, max: 4, step: 1, hint: '0 mask 1 radial 2 wave 3 depth 4 scatter' },
+          { path: 'motion.handInfluence', label: 'Hands', min: 0, max: 3, step: 0.05 },
+          { path: 'trail.fadeAlpha', label: 'Trail', min: 0.02, max: 1, step: 0.01, hint: 'lower = longer' },
+        ],
+      },
+      {
         name: 'Type',
         params: [
-          { path: 'type.size', label: 'Size', min: 0.03, max: 0.6, step: 0.005 },
+          { path: 'type.fit', label: 'Fit', min: 0.2, max: 1.6, step: 0.02, hint: 'word width in its cell' },
           { path: 'type.weight', label: 'Weight', min: 100, max: 900, step: 100 },
-          { path: 'type.tracking', label: 'Tracking', min: -0.1, max: 0.5, step: 0.01 },
+          { path: 'type.tracking', label: 'Tracking', min: -0.1, max: 1.2, step: 0.01 },
           { path: 'type.outline', label: 'Outline', min: 0, max: 1, step: 1, hint: 'filled or hollow' },
-          { path: 'type.strokeWidth', label: 'Stroke', min: 0.5, max: 12, step: 0.5 },
+          { path: 'type.strokeWidth', label: 'Stroke', min: 0.5, max: 8, step: 0.5 },
         ],
       },
       {
-        name: 'Echo',
+        name: 'Grid',
         params: [
-          { path: 'echo.count', label: 'Copies', min: 1, max: 40, step: 1 },
-          { path: 'echo.offset', label: 'Step', min: 0, max: 0.08, step: 0.001 },
-          { path: 'echo.scaleStep', label: 'Grow', min: 0.96, max: 1.06, step: 0.002 },
-          { path: 'echo.twist', label: 'Twist', min: -0.1, max: 0.1, step: 0.002 },
-          { path: 'echo.opacity', label: 'Opacity', min: 0, max: 1, step: 0.01 },
-          { path: 'echo.fade', label: 'Fade', min: 0, max: 0.3, step: 0.005 },
+          { path: 'grid.columns', label: 'Columns', min: 1, max: 40, step: 1 },
+          { path: 'grid.rows', label: 'Rows', min: 1, max: 60, step: 1 },
+          { path: 'grid.spread', label: 'Spread', min: 0.2, max: 3, step: 0.02 },
+          { path: 'grid.breathe', label: 'Breathe', min: 0, max: 1, step: 0.02 },
+          { path: 'grid.breatheSpeed', label: 'Breath speed', min: 0, max: 3, step: 0.05 },
         ],
       },
       {
-        name: 'Motion',
+        name: 'Mask — mode 0',
         params: [
-          { path: 'motion.handInfluence', label: 'Hands', min: 0, max: 3, step: 0.05 },
-          { path: 'motion.spreadScale', label: 'Spread', min: 0, max: 3, step: 0.05 },
-          { path: 'motion.driftSpeed', label: 'Drift', min: 0, max: 3, step: 0.05, hint: 'with no hands' },
-          { path: 'motion.driftAmount', label: 'Drift reach', min: 0, max: 2, step: 0.05 },
-          { path: 'trail.fadeAlpha', label: 'Trail', min: 0.02, max: 1, step: 0.01, hint: 'lower = longer' },
+          { path: 'mask.reach', label: 'Reach', min: 0.02, max: 0.8, step: 0.01, hint: 'hand size' },
+          { path: 'mask.threshold', label: 'Threshold', min: 0.02, max: 2, step: 0.02, hint: 'lower fills more' },
+          { path: 'mask.softness', label: 'Softness', min: 0, max: 1, step: 0.02, hint: '0 = hard cut' },
+          { path: 'mask.invert', label: 'Invert', min: 0, max: 1, step: 1 },
+        ],
+      },
+      {
+        name: 'Radial — mode 1',
+        params: [
+          { path: 'radial.strength', label: 'Warp', min: -2, max: 3, step: 0.05, hint: 'negative pinches' },
+          { path: 'radial.power', label: 'Bite', min: 0.4, max: 5, step: 0.1 },
+          { path: 'radial.pulse', label: 'Pulse', min: 0, max: 2, step: 0.05 },
+          { path: 'radial.pulseSpeed', label: 'Pulse speed', min: 0, max: 3, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Wave — mode 2',
+        params: [
+          { path: 'wave.amplitude', label: 'Amount', min: 0, max: 0.6, step: 0.01 },
+          { path: 'wave.frequency', label: 'Waves', min: 0.2, max: 8, step: 0.1 },
+          { path: 'wave.speed', label: 'Speed', min: -4, max: 4, step: 0.05 },
+          { path: 'wave.scaleWave', label: 'Swell', min: 0, max: 1, step: 0.02 },
+        ],
+      },
+      {
+        name: 'Depth — mode 3',
+        params: [
+          { path: 'depth.speed', label: 'Fly', min: -2, max: 2, step: 0.02 },
+          { path: 'depth.spread', label: 'Open', min: 0, max: 4, step: 0.05, hint: 'tracking with distance' },
+          { path: 'depth.curve', label: 'Curve', min: 0.5, max: 4, step: 0.05 },
+          { path: 'depth.steps', label: 'Rows', min: 2, max: 40, step: 1 },
+          { path: 'depth.size', label: 'Size', min: 0.02, max: 0.5, step: 0.005 },
+          { path: 'depth.horizon', label: 'Horizon', min: -0.2, max: 0.8, step: 0.01 },
+        ],
+      },
+      {
+        name: 'Scatter — mode 4',
+        params: [
+          { path: 'scatter.amount', label: 'Spread', min: 0, max: 1.5, step: 0.02, hint: '0 = readable' },
+          { path: 'scatter.spiral', label: 'Spiral', min: 0, max: 1, step: 1 },
+          { path: 'scatter.stagger', label: 'Stagger', min: 0, max: 2, step: 0.05 },
+          { path: 'scatter.drift', label: 'Drift', min: 0, max: 3, step: 0.05 },
+          { path: 'scatter.size', label: 'Letter size', min: 0.02, max: 0.5, step: 0.005 },
+        ],
+      },
+      {
+        name: 'Colour',
+        params: [
+          { path: 'color.rainbow', label: 'Rainbow', min: 0, max: 1, step: 1, hint: 'ignores the palette' },
+          { path: 'color.step', label: 'Hue step', min: 0, max: 120, step: 1 },
+          { path: 'color.cycleSpeed', label: 'Cycle', min: 0, max: 3, step: 0.05 },
         ],
       },
       {
         name: 'Audio',
         params: [
           { path: 'audio.bassScale', label: 'Bass swell', min: 0, max: 2, step: 0.05 },
-          { path: 'audio.beatPush', label: 'Beat push', min: 0, max: 3, step: 0.05 },
+          { path: 'audio.beatKick', label: 'Beat kick', min: 0, max: 3, step: 0.05 },
         ],
       },
     ],

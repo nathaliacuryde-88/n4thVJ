@@ -46,8 +46,12 @@ const WARMUP_FRAMES = 45;
 const PREVIEW_W = 480;
 const PREVIEW_H = 300;
 
-/** The palette previews draw in, independent of whatever the VJ page is set to. */
-const PREVIEW_COLORS = ['#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#f43f5e'];
+/**
+ * Previews run in black and white, whatever the VJ page is set to. Colour is
+ * something you choose per layer during a set; here it would only get in the
+ * way of comparing one visual's shape and motion against another's.
+ */
+const PREVIEW_COLORS = ['#ffffff', '#d4d4d4', '#ffffff', '#a3a3a3'];
 
 const CATEGORY_STYLE: Record<RendererCategory, string> = {
   '2D': 'text-cyan-300 border-cyan-400/30 bg-cyan-400/10',
@@ -293,8 +297,8 @@ export function Library({
         <header className="mb-10">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
-              <h1 className="text-5xl font-semibold tracking-[-0.04em] sm:text-7xl">
-                n4th<span className="text-white/35">VJ</span>
+              <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-3xl">
+                &lt;N4TH&gt;
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/45">
                 Every visual, running. Pick up to {MAX_SET} and they become your keyboard —
