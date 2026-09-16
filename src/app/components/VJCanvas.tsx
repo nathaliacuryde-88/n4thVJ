@@ -59,7 +59,7 @@ interface VJCanvasProps {
   /** Slider overrides for the post pipeline (the FX tab). */
   fxParams?: ParamValues;
   /** What the content-driven visuals show: the words, and the uploaded clip. */
-  content: { text: string; clipUrl: string | null };
+  content: { text: string; clipUrl: string | null; clipKind: 'video' | 'image' };
   /** Tempo for the whole set. Scales every renderer's clock. */
   motion: number;
 }
@@ -125,7 +125,7 @@ export function VJCanvas({
   useEffect(() => {
     for (const slot of slotsRef.current) {
       slot?.current.renderer.setText?.(content.text);
-      slot?.current.renderer.setClipUrl?.(content.clipUrl);
+      slot?.current.renderer.setClipUrl?.(content.clipUrl, content.clipKind);
     }
   }, [content]);
 
@@ -363,7 +363,7 @@ export function VJCanvas({
       }
       renderer.setParams?.(layerParamsRef.current?.[index] ?? {});
       renderer.setText?.(contentRef.current.text);
-      renderer.setClipUrl?.(contentRef.current.clipUrl);
+      renderer.setClipUrl?.(contentRef.current.clipUrl, contentRef.current.clipKind);
       return { renderer, canvas, pattern };
     };
 

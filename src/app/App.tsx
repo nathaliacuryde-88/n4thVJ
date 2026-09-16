@@ -16,9 +16,9 @@ import { fxActive } from './pipeline/PostPipeline';
 import { idleHands } from './hands/idle';
 import { MOTION_DEFAULT, MOTION_MAX, MOTION_MIN, shapeHands } from './hands/motion';
 import { ColorMode, generateColors } from './config/palette';
-import { clearClip, loadClip, loadText, saveClip, saveText } from './config/content';
+import { ClipKind, clearClip, clipKindOf, loadClip, loadText, saveClip, saveText } from './config/content';
 
-export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple' | 'text' | 'video';
+export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple' | 'text' | 'video' | 'mosaic';
 
 export interface AudioData {
   bass: number; // 0-1, controls scale/blooming
@@ -222,6 +222,7 @@ export default function App() {
   const [text, setText] = useState(loadText);
   const [clipUrl, setClipUrl] = useState<string | null>(null);
   const [clipName, setClipName] = useState<string | null>(null);
+  const [clipKind, setClipKind] = useState<ClipKind>('video');
 
   useEffect(() => { saveText(text); }, [text]);
 
@@ -233,6 +234,7 @@ export default function App() {
       url = URL.createObjectURL(stored.file);
       setClipUrl(url);
       setClipName(stored.name);
+      setClipKind(clipKindOf(stored.file));
     });
     return () => {
       cancelled = true;
@@ -247,13 +249,17 @@ export default function App() {
       return file ? URL.createObjectURL(file) : null;
     });
     setClipName(file ? file.name : null);
+    setClipKind(file ? clipKindOf(file) : 'video');
     // Storing is what makes it survive a reload; failing to store still leaves
     // the clip playing for this session, which is the part that matters now.
     if (file) saveClip(file, file.name).catch(() => {});
     else clearClip().catch(() => {});
   }, []);
 
-  const content = useMemo(() => ({ text, clipUrl }), [text, clipUrl]);
+  const content = useMemo(
+    () => ({ text, clipUrl, clipKind }),
+    [text, clipUrl, clipKind],
+  );
 
   // Several renderers only draw where a hand is, so with no camera — or in a
   // dark room where tracking drops — they show nothing at all and every slider
@@ -619,6 +625,7 @@ export default function App() {
         onTextChange={setText}
         clipName={clipName}
         clipUrl={clipUrl}
+        clipKind={clipKind}
         onClipChange={acceptClip}
       />
     );

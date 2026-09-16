@@ -1,6 +1,6 @@
 /**
- * The two visuals whose content you supply: the words for Kinetic Type and the
- * file for Clip.
+ * The visuals whose content you supply: the words for Kinetic Type and the
+ * file that Clip and Mosaic both read.
  *
  * Words go in localStorage, which is made for short strings. A video does not:
  * it is megabytes of binary, so it goes in IndexedDB as a Blob. Keeping it
@@ -56,6 +56,14 @@ export async function saveClip(file: Blob, name: string): Promise<void> {
     tx.onerror = () => reject(tx.error);
   });
   db.close();
+}
+
+/** Whether a stored file is footage or a still. */
+export type ClipKind = 'video' | 'image';
+
+/** What a Blob's own MIME type says it is. Anything unknown is treated as footage. */
+export function clipKindOf(blob: Blob): ClipKind {
+  return blob.type.startsWith('image/') ? 'image' : 'video';
 }
 
 /** The stored clip, or null when there is none or storage is unavailable. */

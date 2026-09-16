@@ -81,6 +81,7 @@ interface LibraryProps {
   /** Clip's footage: the stored file's name, and a picker for a new one. */
   clipName: string | null;
   clipUrl: string | null;
+  clipKind: 'video' | 'image';
   onClipChange: (file: File | null) => void;
 }
 
@@ -92,6 +93,7 @@ export function Library({
   onTextChange,
   clipName,
   clipUrl,
+  clipKind,
   onClipChange,
 }: LibraryProps) {
   const [filter, setFilter] = useState<RendererCategory | 'ALL'>('ALL');
@@ -102,8 +104,8 @@ export function Library({
   const observer = useRef<IntersectionObserver | null>(null);
   const setRef = useRef(set);
   setRef.current = set;
-  const contentRef = useRef({ text, clipUrl });
-  contentRef.current = { text, clipUrl };
+  const contentRef = useRef({ text, clipUrl, clipKind });
+  contentRef.current = { text, clipUrl, clipKind };
 
   const shown = filter === 'ALL' ? ALL : ALL.filter((r) => r.category === filter);
 
@@ -214,7 +216,10 @@ export function Library({
           try {
             // Cheap, and it means retyping shows in the preview as you type.
             tile.renderer.setText?.(contentRef.current.text);
-            tile.renderer.setClipUrl?.(contentRef.current.clipUrl);
+            tile.renderer.setClipUrl?.(
+              contentRef.current.clipUrl,
+              contentRef.current.clipKind,
+            );
             tile.renderer.render(hands, PREVIEW_COLORS, undefined, 'contrast');
           } catch {
             tile.failed = true;
@@ -334,7 +339,11 @@ export function Library({
             // control. That is why a card is a div with a button inside rather
             // than one big button — an input cannot live inside a button.
             const supply =
-              info.pattern === 'text' ? 'text' : info.pattern === 'video' ? 'video' : null;
+              info.pattern === 'text'
+                ? 'text'
+                : info.pattern === 'video' || info.pattern === 'mosaic'
+                  ? 'file'
+                  : null;
 
             return (
               <div
@@ -410,13 +419,13 @@ export function Library({
                   </div>
                 )}
 
-                {supply === 'video' && (
+                {supply === 'file' && (
                   <div className="flex items-center gap-2 px-4 pb-4">
                     <label className="cursor-pointer rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-[11px] tracking-wider text-white/75 transition-colors hover:border-white/45 hover:text-white">
                       {clipName ? 'REPLACE' : 'UPLOAD'}
                       <input
                         type="file"
-                        accept="video/*"
+                        accept="video/*,image/*"
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
@@ -426,12 +435,12 @@ export function Library({
                       />
                     </label>
                     <span className="min-w-0 flex-1 truncate text-[10px] text-white/35">
-                      {clipName ?? 'no clip yet'}
+                      {clipName ?? 'no file yet'}
                     </span>
                     {clipName && (
                       <button
                         onClick={() => onClipChange(null)}
-                        title="Remove the clip"
+                        title="Remove the file"
                         className="shrink-0 px-1 text-white/25 transition-colors hover:text-white/80"
                       >
                         ×

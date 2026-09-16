@@ -265,6 +265,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '3',
     description: 'Your own footage, sheared into sliding bands'
   },
+  mosaic: {
+    pattern: 'mosaic',
+    name: 'Mosaic',
+    short: 'Mosaic',
+    category: 'TD',
+    key: '4',
+    description: 'The same file rebuilt out of letters, dots, blocks or bars'
+  },
 
   digitalblocks: {
     pattern: 'digitalblocks',

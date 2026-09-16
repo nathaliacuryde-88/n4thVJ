@@ -27,6 +27,7 @@ import { RippleConfig } from '../config/RippleRendererConfig';
 import { HorizonConfig } from '../config/HorizonRendererConfig';
 import { TextConfig } from '../config/TextRendererConfig';
 import { VideoConfig } from '../config/VideoRendererConfig';
+import { MosaicConfig } from '../config/MosaicRendererConfig';
 import { ParamGroup } from './types';
 
 export interface RendererParams {
@@ -297,6 +298,73 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         params: [
           { path: 'look.tint', label: 'Tint', min: 0, max: 1, step: 0.02, hint: 'palette over the clip' },
           { path: 'look.gain', label: 'Gain', min: 1, max: 3, step: 0.05 },
+          { path: 'trail.fadeAlpha', label: 'Trail', min: 0.02, max: 1, step: 0.01, hint: 'lower = longer' },
+        ],
+      },
+    ],
+  },
+
+  mosaic: {
+    config: MosaicConfig,
+    groups: [
+      {
+        name: 'Mark',
+        params: [
+          {
+            path: 'mode', label: 'Mode', min: 0, max: 3, step: 1,
+            labels: ['Letters', 'Dots', 'Blocks', 'Bars'],
+          },
+          { path: 'grid.columns', label: 'Detail', min: 8, max: 140, step: 1, hint: 'cells across' },
+          { path: 'grid.fill', label: 'Weight', min: 0.2, max: 1.8, step: 0.05 },
+          { path: 'grid.cellAspect', label: 'Cell shape', min: 0.4, max: 2.5, step: 0.05, hint: 'above 1 = taller' },
+          { path: 'grid.spreadDensity', label: 'Spread coarsens', min: 0, max: 1.5, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Image',
+        params: [
+          { path: 'tone.contrast', label: 'Contrast', min: 0.2, max: 4, step: 0.05 },
+          { path: 'tone.brightness', label: 'Brightness', min: -0.5, max: 0.5, step: 0.02 },
+          { path: 'tone.floor', label: 'Cut', min: 0, max: 0.9, step: 0.01, hint: 'darker cells draw nothing' },
+          { path: 'tone.invert', label: 'Invert', min: 0, max: 1, step: 1 },
+        ],
+      },
+      {
+        name: 'Letters',
+        visibleWhen: { path: 'mode', equals: [0] },
+        params: [
+          {
+            path: 'letters.ramp', label: 'Glyphs', min: 0, max: 1, step: 1,
+            labels: ['Density ramp', 'Your word'],
+          },
+          { path: 'letters.weight', label: 'Weight', min: 100, max: 900, step: 100 },
+          { path: 'letters.outline', label: 'Hollow', min: 0, max: 1, step: 1 },
+        ],
+      },
+      {
+        name: 'Shape',
+        visibleWhen: { path: 'mode', equals: [1, 2, 3] },
+        params: [
+          { path: 'shape.minimum', label: 'Floor', min: 0, max: 0.6, step: 0.01, hint: 'size of the faintest mark' },
+          { path: 'shape.rotate', label: 'Turn', min: 0, max: 1, step: 0.02, hint: 'blocks towards diamonds' },
+          { path: 'shape.anchor', label: 'From the floor', min: 0, max: 1, step: 1, hint: 'bars only' },
+        ],
+      },
+      {
+        name: 'Warp',
+        params: [
+          { path: 'warp.handPush', label: 'Hand push', min: 0, max: 0.3, step: 0.005 },
+          { path: 'warp.ripple', label: 'Ripple', min: 0, max: 2, step: 0.05 },
+          { path: 'warp.rippleSpeed', label: 'Ripple speed', min: 0, max: 4, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Colour',
+        params: [
+          { path: 'colour.fromSource', label: 'Own colour', min: 0, max: 1, step: 0.02, hint: '0 = your palette' },
+          { path: 'colour.spread', label: 'Palette run', min: 1, max: 40, step: 1 },
+          { path: 'audio.bassScale', label: 'Bass swell', min: 0, max: 2, step: 0.05 },
+          { path: 'audio.beatKick', label: 'Beat kick', min: 0, max: 1.5, step: 0.05 },
           { path: 'trail.fadeAlpha', label: 'Trail', min: 0.02, max: 1, step: 0.01, hint: 'lower = longer' },
         ],
       },

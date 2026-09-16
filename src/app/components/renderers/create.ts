@@ -32,6 +32,7 @@ import { DigitalBlockRenderer } from './DigitalBlockRenderer';
 import { RippleRenderer } from './RippleRenderer';
 import { TextRenderer } from './TextRenderer';
 import { VideoRenderer } from './VideoRenderer';
+import { MosaicRenderer } from './MosaicRenderer';
 import { AudioData, HandData, VisualPattern } from '../../App';
 import { ParamValues } from '../../params/types';
 
@@ -56,8 +57,8 @@ export interface VJRenderer {
   setSmokeHandModel?(model: 'torus' | 'hand'): void;
   /** The words, for Kinetic Type. */
   setText?(text: string): void;
-  /** The uploaded footage, for Clip. */
-  setClipUrl?(url: string | null): void;
+  /** The uploaded file, for Clip and Mosaic. Mosaic also takes stills. */
+  setClipUrl?(url: string | null, kind?: 'video' | 'image'): void;
 }
 
 /** Build the renderer for a pattern. Unknown patterns fall back to Geometric. */
@@ -154,6 +155,9 @@ export function createRenderer(
       break;
     case 'video':
       renderer = new VideoRenderer(canvas, ctx);
+      break;
+    case 'mosaic':
+      renderer = new MosaicRenderer(canvas, ctx);
       break;
     case 'ripple':
       renderer = new RippleRenderer(canvas, ctx);
