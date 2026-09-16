@@ -6,7 +6,7 @@
   "description": "Interactive VJ experiment page \u2014 gesture- and audio-reactive canvas visuals.",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/write-boot.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json"
   },

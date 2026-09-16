@@ -1,5 +1,8 @@
 node_modules/
-dist/
+# dist/ is committed on purpose: GitHub Pages is currently serving this
+# repository's own files rather than the built site, and index.html falls back
+# to dist/boot.js so the page works either way. Once Pages is switched to the
+# GitHub Actions source, this can be ignored again.
 dist-ssr/
 *.local
 .DS_Store
