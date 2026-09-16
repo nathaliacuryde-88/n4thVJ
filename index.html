@@ -34,8 +34,30 @@
       }
       #vj-stuck b { font-size: 22px; letter-spacing: -0.02em; }
       #vj-stuck p { margin: 0; max-width: 34em; color: rgba(255, 255, 255, 0.55); }
-      #vj-stuck button {
+      #vj-why {
+        display: none;
+        max-width: 44em;
+        max-height: 34vh;
+        overflow: auto;
+        margin: 0;
+        padding: 12px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #ff9f9f;
+        font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-align: left;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      #vj-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
         margin-top: 4px;
+      }
+      #vj-stuck button {
         padding: 10px 22px;
         border: 0;
         border-radius: 999px;
@@ -45,6 +67,13 @@
         font-weight: 600;
         letter-spacing: 0.14em;
         cursor: pointer;
+      }
+      #vj-copy { display: none; }
+      #vj-stuck button.ghost {
+        background: transparent;
+        color: rgba(255, 255, 255, 0.6);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+        font-weight: 400;
       }
     </style>
     <script>
@@ -73,6 +102,28 @@
         var KEY = 'vj-stale-bundle-reload';
         var COOLDOWN = 15000;
 
+        /*
+         * Keep the first thing that went wrong, so the notice can show it.
+         *
+         * A blank page that only reproduces on someone else's machine is
+         * unfixable without the message, and asking a person mid-soundcheck to
+         * open DevTools is not a plan. This listener is registered before the
+         * module script, so nothing thrown on the way up is missed.
+         */
+        var firstError = null;
+        function keep(what, err) {
+          if (firstError) return;
+          var text = '';
+          try {
+            if (err && err.stack) text = String(err.stack);
+            else if (err && err.message) text = err.name + ': ' + err.message;
+            else text = String(err);
+          } catch (_) {
+            text = '(unreadable)';
+          }
+          firstError = what + '\n' + text;
+        }
+
         function lastTry() {
           try {
             return parseInt(sessionStorage.getItem(KEY) || '0', 10) || 0;
@@ -85,17 +136,35 @@
           'error',
           function (event) {
             var el = event.target;
-            if (!el || (el.tagName !== 'SCRIPT' && el.tagName !== 'LINK')) return;
-            if (Date.now() - lastTry() < COOLDOWN) return;
-            try {
-              sessionStorage.setItem(KEY, String(Date.now()));
-            } catch (_) {
-              return; // no storage means no loop guard, so do not risk the loop
+
+            // A file that never arrived: note it, then try the reload above.
+            if (el && (el.tagName === 'SCRIPT' || el.tagName === 'LINK')) {
+              keep('Failed to load', (el.src || el.href || el.tagName) + '');
+              if (Date.now() - lastTry() < COOLDOWN) return;
+              try {
+                sessionStorage.setItem(KEY, String(Date.now()));
+              } catch (_) {
+                return; // no storage means no loop guard, so do not risk the loop
+              }
+              location.replace(location.pathname + '?v=' + Date.now());
+              return;
             }
-            location.replace(location.pathname + '?v=' + Date.now());
+
+            // A file that arrived and threw: only worth reporting.
+            keep(
+              'Error' +
+                (event.filename
+                  ? ' at ' + event.filename + ':' + event.lineno
+                  : ''),
+              event.error || event.message,
+            );
           },
           true,
         );
+
+        window.addEventListener('unhandledrejection', function (event) {
+          keep('Unhandled rejection', event.reason);
+        });
 
         /*
          * Whatever else happens, never just sit there black.
@@ -111,8 +180,84 @@
             if (root && root.childElementCount > 0) return;
             var stuck = document.getElementById('vj-stuck');
             if (stuck) stuck.style.display = 'grid';
+
+            /*
+             * Six seconds is a guess, and a slow machine parsing a megabyte of
+             * three.js can beat it. If React turns up late, get out of its way
+             * rather than leaving her reading a failure notice over a working
+             * app.
+             */
+            if (root && !firstError) {
+              new MutationObserver(function (_, self) {
+                if (root.childElementCount === 0) return;
+                if (stuck) stuck.style.display = 'none';
+                self.disconnect();
+              }).observe(root, { childList: true });
+            }
+
+            if (!firstError) return;
+
+            var why = document.getElementById('vj-why');
+            if (why) {
+              why.textContent = firstError;
+              why.style.display = 'block';
+            }
+            var copy = document.getElementById('vj-copy');
+            if (copy) copy.style.display = 'inline-block';
+
+            /*
+             * Knowing the error changes the advice. Blaming the cache is only
+             * a fair guess while nothing else is known.
+             */
+            var blurb = document.getElementById('vj-blurb');
+            if (blurb) {
+              blurb.textContent =
+                'It tripped over this on the way up. RESET EVERYTHING throws away ' +
+                'the saved set, settings and clips, which is usually what fixes it.';
+            }
           }, 6000);
         });
+
+        /*
+         * The last resort's last resort: throw away everything the app has
+         * saved. A crash that only happens on one machine is usually something
+         * in storage that the code cannot read back, and this is the one fix
+         * for it that does not need a console.
+         */
+        window.vjCopy = function (button) {
+          try {
+            navigator.clipboard.writeText(firstError || '');
+            button.textContent = 'COPIED';
+          } catch (_) {
+            var range = document.createRange();
+            range.selectNodeContents(document.getElementById('vj-why'));
+            var sel = getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            button.textContent = 'SELECTED — PRESS COPY';
+          }
+        };
+
+        window.vjWipe = function () {
+          try { localStorage.clear(); } catch (_) {}
+          try { sessionStorage.clear(); } catch (_) {}
+          try {
+            if (indexedDB.databases) {
+              indexedDB.databases().then(function (dbs) {
+                dbs.forEach(function (db) {
+                  if (db.name) indexedDB.deleteDatabase(db.name);
+                });
+                setTimeout(go, 400);
+              });
+              return;
+            }
+            indexedDB.deleteDatabase('n4thvj');
+          } catch (_) {}
+          go();
+          function go() {
+            location.replace(location.pathname + '?v=' + Date.now());
+          }
+        };
       })();
     </script>
   </head>
@@ -121,13 +266,20 @@
 
     <div id="vj-stuck">
       <b>&lt;N4TH&gt;</b>
-      <p>
+      <p id="vj-blurb">
         This did not start. Usually that is an old copy of the page held in the
         browser cache after an update — reloading past it fixes it.
       </p>
-      <button onclick="location.replace(location.pathname + '?v=' + Date.now())">
-        RELOAD
-      </button>
+      <pre id="vj-why"></pre>
+      <div id="vj-actions">
+        <button id="vj-copy" class="ghost" onclick="vjCopy(this)">
+          COPY THE ERROR
+        </button>
+        <button onclick="location.replace(location.pathname + '?v=' + Date.now())">
+          RELOAD
+        </button>
+        <button class="ghost" onclick="vjWipe()">RESET EVERYTHING</button>
+      </div>
     </div>
 
     <script type="module" src="/src/main.tsx"></script>
