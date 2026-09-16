@@ -140,8 +140,8 @@ export const PipelineConfig = {
     spin: 0,
   },
 
-  /** QUANTIZE — throw away spatial then colour resolution. */
-  quantize: {
+  /** PIXELATE — throw away spatial then colour resolution. */
+  pixelate: {
     /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
     enabled: 1,
 
@@ -154,17 +154,55 @@ export const PipelineConfig = {
     levels: 0,
   },
 
-  /** BLOOM — bleed the highlights. */
-  bloom: {
+  /** NOISE TILE — dither the frame into a grid of tones that are not there. */
+  noiseTile: {
     /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
     enabled: 1,
 
     /** Stage opacity: blends between this stage's input and its output. */
     mix: 1,
 
-    /** 0 = off. */
-    amount: 0,
-    /** Luminance above which a pixel glows. */
-    threshold: 0.6,
+    /** Tile size in pixels. 1 or below = off. */
+    size: 0,
+    /** How much random noise rides on the dither pattern. 0 is a clean grid. */
+    grain: 0.35,
+    /** How fast the grain crawls. 0 holds it still. */
+    drift: 0.4,
+  },
+
+  /** INWARD ECHO — copies of the frame falling towards the centre. */
+  echo: {
+    /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
+    enabled: 1,
+
+    /** Stage opacity: blends between this stage's input and its output. */
+    mix: 1,
+
+    /** Copies behind the frame. 0 = off. */
+    count: 0,
+    /** How far apart they sit. Bigger is a deeper tunnel. */
+    depth: 0.18,
+    /** How much each copy keeps. Lower is a shorter trail. */
+    fade: 0.68,
+    /** How fast the tunnel travels. Loops seamlessly at any speed. */
+    speed: 0.25,
+  },
+
+  /** FLUTED GLASS — the frame through ribbed architectural glass. */
+  fluted: {
+    /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
+    enabled: 1,
+
+    /** Stage opacity: blends between this stage's input and its output. */
+    mix: 1,
+
+    /** Ribs across the frame. 0 = off. */
+    ribs: 0,
+    /** How hard each rib bends what is behind it. */
+    bend: 0.5,
+    /** Highlight and shadow along the rib edges. */
+    shine: 0.35,
+    /** 1 for vertical ribs, 0 for horizontal. */
+    vertical: 1,
   },
 };

@@ -19,7 +19,7 @@ function format(value: number, step: number): string {
   return value.toFixed(Math.min(decimals, 4));
 }
 
-function Slider({
+export function Slider({
   spec,
   value,
   isDefault,

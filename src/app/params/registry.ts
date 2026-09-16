@@ -519,81 +519,120 @@ export function paramSpecsFor(pattern: VisualPattern) {
  * The post pipeline's own sliders. Not keyed by pattern: these apply to the
  * finished frame whatever produced it, and every one defaults to off.
  */
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE EFFECTS
+ * ═══════════════════════════════════════════════════════════════════════════
+ * At most three controls each, and no more.
+ *
+ * Every stage used to carry a Mix slider on top of its own parameters, which
+ * meant two ways to say "less of this" and thirty-odd sliders on screen at
+ * once. Mix is gone: each effect's first control IS its amount, and turning it
+ * to zero is how it goes away. What is left is the shape of the effect rather
+ * than its plumbing.
+ *
+ * Where a choice had to go, the more expressive one stayed. Feedback lost its
+ * drift pair and kept the tunnel and the spiral; Fluted Glass lost its
+ * orientation and stayed vertical, which is what the reference is.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
 export const PIPELINE_PARAMS: RendererParams = {
   config: PipelineConfig,
   groups: [
     {
-      name: 'Transition',
-      togglePath: 'transition.enabled',
+      name: 'Feedback',
+      stage: 'feedback',
+      togglePath: 'feedback.enabled',
       params: [
-        { path: 'transition.duration', label: 'Crossfade', min: 0.05, max: 5, step: 0.05, hint: 'seconds between visuals' },
+        { path: 'feedback.amount', label: 'Trail', min: 0, max: 0.99, step: 0.01, hint: 'how long the image hangs on' },
+        { needs: 'feedback.amount', path: 'feedback.zoom', label: 'Tunnel', min: 0.9, max: 1.1, step: 0.001, hint: 'above the middle pushes outward' },
+        { needs: 'feedback.amount', path: 'feedback.rotate', label: 'Spiral', min: -0.05, max: 0.05, step: 0.0005 },
       ],
     },
     {
       name: 'Colour',
+      stage: 'colour',
       togglePath: 'colour.enabled',
       params: [
-        { path: 'colour.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
         { path: 'colour.hue', label: 'Hue', min: -3.14, max: 3.14, step: 0.01, hint: 'turns the whole frame' },
         { path: 'colour.saturation', label: 'Saturation', min: 0, max: 2, step: 0.01, hint: '1 = untouched' },
       ],
     },
     {
-      name: 'Feedback',
-      togglePath: 'feedback.enabled',
-      params: [
-        { path: 'feedback.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
-        { path: 'feedback.amount', label: 'Amount', min: 0, max: 0.99, step: 0.01, hint: '0 = off' },
-        { needs: 'feedback.amount', path: 'feedback.zoom', label: 'Zoom', min: 0.9, max: 1.1, step: 0.001, hint: '>1 tunnels out' },
-        { needs: 'feedback.amount', path: 'feedback.rotate', label: 'Rotate', min: -0.05, max: 0.05, step: 0.0005 },
-        { needs: 'feedback.amount', path: 'feedback.offsetX', label: 'Drift X', min: -0.02, max: 0.02, step: 0.0005 },
-        { needs: 'feedback.amount', path: 'feedback.offsetY', label: 'Drift Y', min: -0.02, max: 0.02, step: 0.0005 },
-        { path: 'feedback.hueShift', label: 'Trail hue', min: -0.2, max: 0.2, step: 0.002, hint: 'ages the trail — needs Amount' },
-      ],
-    },
-    {
       name: 'Displace',
+      stage: 'displace',
       togglePath: 'displace.enabled',
       params: [
-        { path: 'displace.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
-        { path: 'displace.amount', label: 'Amount', min: 0, max: 0.3, step: 0.002 },
+        { path: 'displace.amount', label: 'Warp', min: 0, max: 0.3, step: 0.002 },
         { path: 'displace.scale', label: 'Scale', min: 0.5, max: 40, step: 0.5 },
         { path: 'displace.speed', label: 'Speed', min: 0, max: 3, step: 0.02 },
       ],
     },
     {
       name: 'Chromatic',
+      stage: 'rgbSplit',
       togglePath: 'rgbSplit.enabled',
       params: [
-        { path: 'rgbSplit.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
-        { path: 'rgbSplit.amount', label: 'RGB split', min: 0, max: 0.1, step: 0.001 },
+        { path: 'rgbSplit.amount', label: 'Split', min: 0, max: 0.1, step: 0.001 },
       ],
     },
     {
-      name: 'Kaleidoscope',
+      name: 'Kaleido',
+      stage: 'kaleido',
       togglePath: 'kaleido.enabled',
       params: [
-        { path: 'kaleido.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
-        { path: 'kaleido.segments', label: 'Segments', min: 0, max: 24, step: 1, hint: '<2 = off' },
-        { path: 'kaleido.spin', label: 'Spin', min: -3.14, max: 3.14, step: 0.01 },
+        {
+          path: 'kaleido.segments', label: 'Mirrors', min: 0, max: 4, step: 1,
+          labels: ['Off', 'Off', '2', '3', '4'],
+        },
+        { needs: 'kaleido.segments', path: 'kaleido.spin', label: 'Angle', min: -3.14, max: 3.14, step: 0.01 },
       ],
     },
     {
-      name: 'Quantize',
-      togglePath: 'quantize.enabled',
+      name: 'Pixelate',
+      stage: 'pixelate',
+      togglePath: 'pixelate.enabled',
       params: [
-        { path: 'quantize.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
-        { path: 'quantize.pixel', label: 'Pixel size', min: 0, max: 64, step: 1, hint: '<=1 = off' },
-        { path: 'quantize.levels', label: 'Colour steps', min: 0, max: 16, step: 1, hint: '<2 = off' },
+        { path: 'pixelate.pixel', label: 'Block', min: 0, max: 64, step: 1, hint: '0 = off' },
+        { path: 'pixelate.levels', label: 'Colours', min: 0, max: 16, step: 1, hint: 'steps per channel' },
       ],
     },
     {
-      name: 'Bloom',
-      togglePath: 'bloom.enabled',
+      name: 'Noise',
+      stage: 'noiseTile',
+      togglePath: 'noiseTile.enabled',
       params: [
-        { path: 'bloom.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
-        { path: 'bloom.amount', label: 'Amount', min: 0, max: 3, step: 0.05 },
-        { path: 'bloom.threshold', label: 'Threshold', min: 0, max: 1, step: 0.01 },
+        { path: 'noiseTile.size', label: 'Tile', min: 0, max: 24, step: 1, hint: '0 = off' },
+        { needs: 'noiseTile.size', path: 'noiseTile.grain', label: 'Grain', min: 0, max: 1, step: 0.02, hint: '0 is a clean grid' },
+        { needs: 'noiseTile.size', path: 'noiseTile.drift', label: 'Crawl', min: 0, max: 2, step: 0.02 },
+      ],
+    },
+    {
+      name: 'Echo',
+      stage: 'echo',
+      togglePath: 'echo.enabled',
+      params: [
+        { path: 'echo.count', label: 'Echoes', min: 0, max: 6, step: 1, hint: '0 = off' },
+        { needs: 'echo.count', path: 'echo.depth', label: 'Depth', min: 0.02, max: 0.6, step: 0.01 },
+        { needs: 'echo.count', path: 'echo.speed', label: 'Travel', min: 0, max: 1.5, step: 0.01, hint: 'loops seamlessly' },
+      ],
+    },
+    {
+      name: 'Fluted',
+      stage: 'fluted',
+      togglePath: 'fluted.enabled',
+      params: [
+        { path: 'fluted.ribs', label: 'Ribs', min: 0, max: 80, step: 1, hint: '0 = off' },
+        { needs: 'fluted.ribs', path: 'fluted.bend', label: 'Bend', min: 0, max: 2, step: 0.02 },
+        { needs: 'fluted.ribs', path: 'fluted.shine', label: 'Shine', min: 0, max: 1, step: 0.02 },
+      ],
+    },
+    {
+      name: 'Crossfade',
+      stage: 'transition',
+      togglePath: 'transition.enabled',
+      params: [
+        { path: 'transition.duration', label: 'Crossfade', min: 0.05, max: 5, step: 0.05, hint: 'seconds between visuals' },
       ],
     },
   ],

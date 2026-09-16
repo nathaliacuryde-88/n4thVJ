@@ -53,6 +53,13 @@ export interface ParamGroup {
    * where most are inert, and there is no way to tell which from looking.
    */
   visibleWhen?: { path: string; equals: number[] };
+  /**
+   * The pipeline stage this group drives, for the panel's running/idle dot.
+   *
+   * Whether an effect is doing something is a rule the pipeline already owns;
+   * naming the stage here lets the panel ask rather than guess.
+   */
+  stage?: string;
   params: ParamSpec[];
 }
 

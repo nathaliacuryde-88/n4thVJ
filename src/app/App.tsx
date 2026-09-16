@@ -8,6 +8,8 @@ import { AudioAnalyzer } from './components/AudioAnalyzer';
 import { Library } from './components/Library';
 import { keySlot, loadSetList, saveSetList } from './config/setlist';
 import { ParamPanel, ParamSection } from './components/ParamPanel';
+import { FxPanel } from './components/FxPanel';
+import { RENDERER_CATEGORIES } from './config/RendererCategories';
 import { LayerStrip } from './components/LayerStrip';
 import { PIPELINE_PARAMS, RENDERER_PARAMS } from './params/registry';
 import { AllParamValues, ParamValues, sanitizeAllParams } from './params/types';
@@ -157,6 +159,15 @@ export default function App() {
       pattern, opacity: STACKED_OPACITY,
       hue: from.hue, saturation: from.saturation, colorMode: from.colorMode,
     }]);
+    /*
+     * And it becomes the selected one.
+     *
+     * Colour, the sliders and now the effects all act on the selection, so
+     * stacking a layer and leaving the controls pointed at the previous one
+     * means the next thing you reach for quietly changes the wrong visual.
+     * The layer you just brought up is the one you are working on.
+     */
+    setSelectedLayer(layers.length);
   }, [layers, selectedLayer]);
 
   const cycleLayer = useCallback(() => {
@@ -444,29 +455,66 @@ export default function App() {
     sanitizeAllParams(loadSetting<unknown>('vj-params', {}, () => true)),
   );
 
-  const [fxParams, setFxParams] = useState<ParamValues>(() => {
+  /*
+   * Effects belong to a layer, not to the screen.
+   *
+   * There used to be one chain over the flattened stack, so kaleidoscoping the
+   * type kaleidoscoped the footage underneath it as well — which is not what
+   * anyone means by putting an effect on a layer. Each layer carries its own
+   * settings and its own chain now, and the controls act on whichever layer is
+   * selected, exactly as the colour and the sliders already do.
+   */
+  /** Which effect's controls are open. Held here so hiding the UI keeps it. */
+  const [openFx, setOpenFx] = useState<string | null>(null);
+
+  const [fxByLayer, setFxByLayer] = useState<AllParamValues>(() => {
     const stored = sanitizeAllParams(loadSetting<unknown>('vj-fx', {}, () => true));
-    return stored.fx ?? {};
+    // Anything saved before this change was one set of effects for everything.
+    // It becomes the first layer's, rather than being dropped on the floor.
+    if (stored.fx && Object.keys(stored.fx).length > 0 && !stored['0']) {
+      return { 0: stored.fx };
+    }
+    return stored;
   });
 
+  /** The selected layer's effects, which is what the panel edits. */
+  const fxParams = fxByLayer[String(selectedLayer)] ?? {};
+
   const setFxParam = useCallback((path: string, value: number) => {
-    setFxParams((prev) => ({ ...prev, [path]: value }));
-  }, []);
+    setFxByLayer((prev) => {
+      const key = String(selectedLayer);
+      return { ...prev, [key]: { ...(prev[key] ?? {}), [path]: value } };
+    });
+  }, [selectedLayer]);
+
+  /** Every layer's effects, in layer order, for the canvas. */
+  const layerFx = useMemo(
+    () => layers.map((_, index) => fxByLayer[String(index)] ?? {}),
+    [layers, fxByLayer],
+  );
 
   // One switch over the whole chain, so a heavy look left over from an earlier
   // session is one click away from gone rather than a hunt through the panel.
   const fxEnabled = (fxParams['master.enabled'] ?? 1) >= 0.5;
   const toggleFx = useCallback(() => {
-    setFxParams((prev) => ({ ...prev, 'master.enabled': (prev['master.enabled'] ?? 1) >= 0.5 ? 0 : 1 }));
-  }, []);
+    setFxByLayer((prev) => {
+      const key = String(selectedLayer);
+      const mine = prev[key] ?? {};
+      return {
+        ...prev,
+        [key]: { ...mine, 'master.enabled': (mine['master.enabled'] ?? 1) >= 0.5 ? 0 : 1 },
+      };
+    });
+  }, [selectedLayer]);
 
   const resetFxParam = useCallback((path?: string) => {
-    setFxParams((prev) => {
-      if (path === undefined) return {};
-      const { [path]: _removed, ...keep } = prev;
-      return keep;
+    setFxByLayer((prev) => {
+      const key = String(selectedLayer);
+      if (path === undefined) return { ...prev, [key]: {} };
+      const { [path]: _removed, ...keep } = prev[key] ?? {};
+      return { ...prev, [key]: keep };
     });
-  }, []);
+  }, [selectedLayer]);
 
   const setParam = useCallback((path: string, value: number) => {
     setParamValues((prev) => ({
@@ -642,8 +690,8 @@ export default function App() {
   }, [paramValues]);
 
   useEffect(() => {
-    saveSetting('vj-fx', { fx: fxParams });
-  }, [fxParams]);
+    saveSetting('vj-fx', fxByLayer);
+  }, [fxByLayer]);
 
   useEffect(() => {
     saveSetList(set);
@@ -884,7 +932,7 @@ export default function App() {
         layerParams={layerParams}
         content={content}
         motion={motion}
-        fxParams={fxParams}
+        layerFx={layerFx}
         onCanvasReady={(canvas) => {
           canvasRef.current = canvas;
           // The canvas is replaced rather than reused when the pipeline falls
@@ -911,7 +959,7 @@ export default function App() {
         onStream={(stream) => { micStreamRef.current = stream; }}
       />
 
-      {/* Shape (this renderer) and FX (the post chain) */}
+      {/* What this visual is — its own controls. Effects live opposite. */}
       {showUI && (
         <ParamPanel
           header={
@@ -924,8 +972,8 @@ export default function App() {
               onRemove={removeLayer}
             />
           }
-          sections={[
-            ...(RENDERER_PARAMS[currentPattern]
+          sections={
+            RENDERER_PARAMS[currentPattern]
               ? [{
                   key: 'shape',
                   label: 'SHAPE',
@@ -934,16 +982,25 @@ export default function App() {
                   onChange: setParam,
                   onReset: resetParam,
                 } satisfies ParamSection]
-              : []),
-            {
-              key: 'fx',
-              label: 'FX',
-              entry: PIPELINE_PARAMS,
-              values: fxParams,
-              onChange: setFxParam,
-              onReset: resetFxParam,
-            },
-          ]}
+              : []
+          }
+        />
+      )}
+
+      {/* What is being done to it — the selected layer's own chain. */}
+      {showUI && (
+        <FxPanel
+          entry={PIPELINE_PARAMS}
+          values={fxParams}
+          onChange={setFxParam}
+          onReset={resetFxParam}
+          openName={openFx}
+          onOpen={setOpenFx}
+          layerLabel={
+            layers.length > 1
+              ? `L${selectedLayer + 1} ${RENDERER_CATEGORIES[currentPattern].short}`
+              : RENDERER_CATEGORIES[currentPattern].short
+          }
         />
       )}
 

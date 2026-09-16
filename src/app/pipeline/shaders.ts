@@ -139,7 +139,7 @@ void main() {
  * The cheapest way to make something read as digital rather than drawn: throw
  * away spatial resolution, then throw away colour resolution.
  */
-export const QUANTIZE = `
+export const PIXELATE = `
 uniform float uPixel;
 uniform float uLevels;
 uniform float uMix;
@@ -158,43 +158,6 @@ void main() {
 }`;
 
 /** BLOOM 1/3 — keep only what is brighter than the threshold. */
-export const BLOOM_BRIGHT = `
-uniform float uThreshold;
-
-void main() {
-  vec3 c = texture(uTex, vUv).rgb;
-  float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-  float keep = smoothstep(uThreshold, uThreshold + 0.25, luma);
-  fragColor = vec4(c * keep, 1.0);
-}`;
-
-/** BLOOM 2/3 — 9-tap gaussian along uDirection, run once per axis. */
-export const BLOOM_BLUR = `
-uniform vec2 uDirection;
-
-void main() {
-  vec2 texel = uDirection / uResolution;
-  vec3 sum = texture(uTex, vUv).rgb * 0.2270270270;
-  sum += texture(uTex, clamp(vUv + texel * 1.3846153846, 0.0, 1.0)).rgb * 0.3162162162;
-  sum += texture(uTex, clamp(vUv - texel * 1.3846153846, 0.0, 1.0)).rgb * 0.3162162162;
-  sum += texture(uTex, clamp(vUv + texel * 3.2307692308, 0.0, 1.0)).rgb * 0.0702702703;
-  sum += texture(uTex, clamp(vUv - texel * 3.2307692308, 0.0, 1.0)).rgb * 0.0702702703;
-  fragColor = vec4(sum, 1.0);
-}`;
-
-/** BLOOM 3/3 — add the blurred highlights back over the original. */
-export const BLOOM_COMPOSITE = `
-uniform sampler2D uBloom;
-uniform float uAmount;
-uniform float uMix;
-
-void main() {
-  vec3 base = texture(uTex, vUv).rgb;
-  vec3 glow = texture(uBloom, vUv).rgb * uAmount;
-  fragColor = vec4(mix(base, base + glow, uMix), 1.0);
-}`;
-
-/** Crossfade between the outgoing visual (uTex) and the incoming one (uNext). */
 export const BLEND = `
 uniform sampler2D uNext;
 uniform float uMix;
@@ -229,4 +192,150 @@ void main() {
   float grey = dot(wet, vec3(0.299, 0.587, 0.114));
   wet = mix(vec3(grey), wet, uSaturation);
   fragColor = vec4(mix(src, clamp(wet, 0.0, 1.0), uMix), 1.0);
+}`;
+
+/**
+ * NOISE TILE — dithering, the way a bad screen does it.
+ *
+ * The frame is snapped to a grid and each cell is pushed to one of a few
+ * levels, with an ordered threshold matrix deciding which way each cell goes.
+ * That matrix is the whole trick: thresholding every cell at the same value
+ * gives flat banding, while varying it in a repeating 4x4 pattern makes the
+ * error alternate cell to cell, and the eye reads the mixture as a tone that
+ * is not there. It is what gives old screens and newsprint their texture.
+ *
+ * A little animated noise rides on the threshold so the pattern crawls, which
+ * is the difference between a still texture and something that feels alive.
+ */
+export const NOISE_TILE = `${COMMON}
+uniform float uSize;
+uniform float uGrain;
+uniform float uDrift;
+uniform float uMix;
+
+/** Ordered 4x4 threshold matrix, normalised to 0..1. */
+float bayer(vec2 cell) {
+  vec2 c = mod(floor(cell), 4.0);
+  int index = int(c.x) + int(c.y) * 4;
+  float m[16] = float[16](
+     0.0,  8.0,  2.0, 10.0,
+    12.0,  4.0, 14.0,  6.0,
+     3.0, 11.0,  1.0,  9.0,
+    15.0,  7.0, 13.0,  5.0);
+  return (m[index] + 0.5) / 16.0;
+}
+
+void main() {
+  vec2 px = max(vec2(1.0), vec2(uSize));
+  vec2 cell = floor(vUv * uResolution / px);
+  // Sample the middle of the cell, so every pixel in it agrees.
+  vec2 uv = (cell + 0.5) * px / uResolution;
+  vec4 src = texture(uTex, uv);
+
+  // The threshold, plus noise that moves if drift is up.
+  float threshold = bayer(cell);
+  float wander = valueNoise(cell * 0.7 + vec2(uTime * uDrift * 3.0, 0.0));
+  threshold = mix(threshold, wander, clamp(uGrain, 0.0, 1.0));
+
+  // Three levels per channel: enough to keep the picture, few enough that the
+  // dither has to do the work of the missing tones.
+  vec3 scaled = src.rgb * 3.0;
+  vec3 low = floor(scaled);
+  vec3 frac = scaled - low;
+  vec3 stepped = (low + step(vec3(threshold), frac)) / 3.0;
+
+  fragColor = vec4(mix(src.rgb, clamp(stepped, 0.0, 1.0), uMix), src.a);
+}`;
+
+/**
+ * INWARD ECHO — copies of the frame falling towards the centre.
+ *
+ * Each echo is the same image scaled up around the middle and faded, so the
+ * stack reads as a tunnel receding inwards. The scales are spaced on a
+ * logarithm rather than evenly, and the whole ladder is driven by the
+ * fractional part of time — which is what makes it loop seamlessly: by the
+ * moment each echo has travelled one full step, the next has arrived exactly
+ * where it started, so there is no seam to see.
+ */
+export const INWARD_ECHO = `
+uniform float uCount;
+uniform float uDepth;
+uniform float uFade;
+uniform float uSpeed;
+uniform float uMix;
+
+void main() {
+  vec4 src = texture(uTex, vUv);
+  vec3 sum = src.rgb;
+  float weight = 1.0;
+
+  // The ladder slides by one whole step per cycle, so what leaves the front
+  // is replaced by what arrives at the back and the loop has no seam.
+  float phase = fract(uTime * uSpeed);
+  int count = int(clamp(uCount, 0.0, 6.0));
+
+  for (int i = 1; i <= 6; i++) {
+    if (i > count) break;
+    float rung = float(i) - phase;
+    float scale = pow(1.0 + uDepth, rung);
+    vec2 uv = (vUv - 0.5) * scale + 0.5;
+    // An echo that has left the frame contributes nothing; without this the
+    // edge pixels smear outward and the tunnel gains a border.
+    float inside = step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
+    float fade = pow(uFade, rung) * inside;
+    sum += texture(uTex, uv).rgb * fade;
+    weight += fade;
+  }
+
+  vec3 echoed = sum / max(0.001, weight);
+  fragColor = vec4(mix(src.rgb, echoed, uMix), src.a);
+}`;
+
+/**
+ * FLUTED GLASS — the frame seen through ribbed architectural glass.
+ *
+ * Each rib is a little cylindrical lens. Across its width the surface normal
+ * sweeps from one edge to the other, so what you see through it is displaced
+ * by an amount that depends on where in the rib you are looking — which is
+ * why fluted glass repeats and offsets a scene into bands rather than
+ * blurring it. The displacement therefore follows a triangle wave across each
+ * rib, not a sine of the screen position: the discontinuity at every rib edge
+ * is the effect.
+ *
+ * The highlight and shadow along those edges are what make it read as a
+ * physical sheet rather than a pattern: glass catches light where it turns.
+ */
+export const FLUTED_GLASS = `
+uniform float uRibs;
+uniform float uBend;
+uniform float uShine;
+uniform float uVertical;
+uniform float uMix;
+
+void main() {
+  vec2 uv = vUv;
+  float aspect = uResolution.x / uResolution.y;
+
+  // Which rib we are in, and where across it, in -1..1.
+  float along = uVertical >= 0.5 ? uv.x * aspect : uv.y;
+  float ribs = max(1.0, uRibs);
+  float cell = along * ribs;
+  float across = fract(cell) * 2.0 - 1.0;
+
+  // A cylinder's surface turns fastest at its edges, so the displacement is
+  // strongest there and zero at the crown.
+  float bend = across * uBend * 0.1;
+  vec2 shifted = uVertical >= 0.5
+    ? vec2(uv.x + bend / aspect, uv.y)
+    : vec2(uv.x, uv.y + bend);
+
+  vec4 refracted = texture(uTex, clamp(shifted, 0.001, 0.999));
+
+  // Light catches the turn: bright just off the crown, dark in the valley.
+  float curve = across * across;
+  float highlight = pow(1.0 - curve, 6.0) * uShine;
+  float shadow = pow(curve, 2.0) * uShine * 0.55;
+  vec3 glass = refracted.rgb * (1.0 - shadow) + highlight * 0.35;
+
+  fragColor = vec4(mix(texture(uTex, uv).rgb, glass, uMix), refracted.a);
 }`;

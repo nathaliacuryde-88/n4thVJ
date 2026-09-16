@@ -11,16 +11,16 @@ import {
 } from './gl';
 import {
   BLEND,
-  BLOOM_BLUR,
-  BLOOM_BRIGHT,
-  BLOOM_COMPOSITE,
-  COLOUR,
+        COLOUR,
   COPY,
   DISPLACE,
   FEEDBACK,
   KALEIDO,
-  QUANTIZE,
+  PIXELATE,
   RGB_SPLIT,
+  NOISE_TILE,
+  INWARD_ECHO,
+  FLUTED_GLASS,
 } from './shaders';
 
 type Cfg = typeof PipelineConfig;
@@ -28,6 +28,33 @@ type Cfg = typeof PipelineConfig;
 /** A stage runs only if it is switched on, has opacity, and is doing something. */
 function stageLive(stage: { enabled: number; mix: number }, doingSomething: boolean): boolean {
   return stage.enabled >= 0.5 && stage.mix > 0 && doingSomething;
+}
+
+/**
+ * Whether one named stage is set to do something.
+ *
+ * Exported so the panel can light a stage up without inventing its own rule
+ * for what "doing something" means. A guess — "the first slider is off its
+ * minimum" — gets Colour and Transition wrong, because their resting values
+ * are not their minimums, and a panel that says an effect is running when it
+ * is not is worse than one that says nothing.
+ */
+export function stageDoing(stage: string, values: ParamValues): boolean {
+  const c = withOverrides(PipelineConfig, values);
+  switch (stage) {
+    case 'feedback': return stageLive(c.feedback, c.feedback.amount > 0);
+    case 'colour': return stageLive(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1);
+    case 'displace': return stageLive(c.displace, c.displace.amount > 0);
+    case 'rgbSplit': return stageLive(c.rgbSplit, c.rgbSplit.amount > 0);
+    case 'kaleido': return stageLive(c.kaleido, c.kaleido.segments >= 2);
+    case 'pixelate': return stageLive(c.pixelate, c.pixelate.pixel > 1 || c.pixelate.levels >= 2);
+    case 'noiseTile': return stageLive(c.noiseTile, c.noiseTile.size > 1);
+    case 'echo': return stageLive(c.echo, c.echo.count >= 1);
+    case 'fluted': return stageLive(c.fluted, c.fluted.ribs >= 1);
+    // The crossfade is always doing its job; it has no "off".
+    case 'transition': return c.transition.enabled >= 0.5;
+    default: return false;
+  }
 }
 
 /**
@@ -43,8 +70,10 @@ export function fxActive(values: ParamValues): boolean {
     stageLive(c.displace, c.displace.amount > 0) ||
     stageLive(c.rgbSplit, c.rgbSplit.amount > 0) ||
     stageLive(c.kaleido, c.kaleido.segments >= 2) ||
-    stageLive(c.quantize, c.quantize.pixel > 1 || c.quantize.levels >= 2) ||
-    stageLive(c.bloom, c.bloom.amount > 0)
+    stageLive(c.pixelate, c.pixelate.pixel > 1 || c.pixelate.levels >= 2) ||
+    stageLive(c.noiseTile, c.noiseTile.size > 1) ||
+    stageLive(c.echo, c.echo.count >= 1) ||
+    stageLive(c.fluted, c.fluted.ribs >= 1)
   );
 }
 
@@ -60,7 +89,8 @@ export function fxActive(values: ParamValues): boolean {
  * whole chain is kept and sampled by the next frame, so the effects compound
  * on their own history rather than being re-applied to a fresh image.
  *
- *   source ─▶ feedback ─▶ displace ─▶ rgb split ─▶ kaleido ─▶ quantize ─▶ bloom
+ *   source ─▶ feedback ─▶ displace ─▶ rgb split ─▶ kaleido ─▶ pixelate
+ *          ─▶ noise tile ─▶ inward echo ─▶ fluted glass
  *                 ▲                                                        │
  *                 └──────────────── kept for next frame ◀──────────────────┘
  *
@@ -83,8 +113,6 @@ export class PostPipeline {
   private targets: [RenderTarget, RenderTarget];
   /** Holds the previous frame's finished output. */
   private feedback: RenderTarget;
-  /** Half-resolution pair for the bloom blur. */
-  private bloomTargets: [RenderTarget, RenderTarget];
 
   private width = 1;
   private height = 1;
@@ -112,11 +140,11 @@ export class PostPipeline {
       displace: createProgram(gl, DISPLACE),
       rgbSplit: createProgram(gl, RGB_SPLIT),
       kaleido: createProgram(gl, KALEIDO),
-      quantize: createProgram(gl, QUANTIZE),
+      pixelate: createProgram(gl, PIXELATE),
       blend: createProgram(gl, BLEND),
-      bloomBright: createProgram(gl, BLOOM_BRIGHT),
-      bloomBlur: createProgram(gl, BLOOM_BLUR),
-      bloomComposite: createProgram(gl, BLOOM_COMPOSITE),
+      noiseTile: createProgram(gl, NOISE_TILE),
+      echo: createProgram(gl, INWARD_ECHO),
+      fluted: createProgram(gl, FLUTED_GLASS),
     };
 
     /*
@@ -146,7 +174,6 @@ export class PostPipeline {
     this.blendTarget = createTarget(gl, 1, 1);
     this.targets = [createTarget(gl, 1, 1), createTarget(gl, 1, 1)];
     this.feedback = createTarget(gl, 1, 1);
-    this.bloomTargets = [createTarget(gl, 1, 1), createTarget(gl, 1, 1)];
   }
 
   setParams(values: ParamValues) {
@@ -167,8 +194,10 @@ export class PostPipeline {
       this.live(c.displace, c.displace.amount > 0) ||
       this.live(c.rgbSplit, c.rgbSplit.amount > 0) ||
       this.live(c.kaleido, c.kaleido.segments >= 2) ||
-      this.live(c.quantize, c.quantize.pixel > 1 || c.quantize.levels >= 2) ||
-      this.live(c.bloom, c.bloom.amount > 0)
+      this.live(c.pixelate, c.pixelate.pixel > 1 || c.pixelate.levels >= 2) ||
+      this.live(c.noiseTile, c.noiseTile.size > 1) ||
+      this.live(c.echo, c.echo.count >= 1) ||
+      this.live(c.fluted, c.fluted.ribs >= 1)
     );
   }
 
@@ -181,8 +210,6 @@ export class PostPipeline {
     resizeTarget(gl, this.targets[1], width, height);
     resizeTarget(gl, this.feedback, width, height);
     resizeTarget(gl, this.blendTarget, width, height);
-    resizeTarget(gl, this.bloomTargets[0], Math.max(1, width >> 1), Math.max(1, height >> 1));
-    resizeTarget(gl, this.bloomTargets[1], Math.max(1, width >> 1), Math.max(1, height >> 1));
     // The history is a different size now; anything kept would stretch.
     this.feedbackPrimed = false;
   }
@@ -315,19 +342,52 @@ export class PostPipeline {
       current = target.texture;
     }
 
-    if (this.live(c.quantize, c.quantize.pixel > 1 || c.quantize.levels >= 2)) {
-      const program = this.use('quantize');
+    if (this.live(c.pixelate, c.pixelate.pixel > 1 || c.pixelate.levels >= 2)) {
+      const program = this.use('pixelate');
       bindTexture(gl, program, 'uTex', current, 0);
-      gl.uniform1f(gl.getUniformLocation(program, 'uPixel'), c.quantize.pixel);
-      gl.uniform1f(gl.getUniformLocation(program, 'uLevels'), c.quantize.levels);
-      gl.uniform1f(gl.getUniformLocation(program, 'uMix'), c.quantize.mix);
+      gl.uniform1f(gl.getUniformLocation(program, 'uPixel'), c.pixelate.pixel);
+      gl.uniform1f(gl.getUniformLocation(program, 'uLevels'), c.pixelate.levels);
+      gl.uniform1f(gl.getUniformLocation(program, 'uMix'), c.pixelate.mix);
       target = this.next();
       drawFullscreen(gl, target, width, height);
       current = target.texture;
     }
 
-    if (this.live(c.bloom, c.bloom.amount > 0)) {
-      current = this.renderBloom(current, width, height);
+    if (this.live(c.noiseTile, c.noiseTile.size > 1)) {
+      const program = this.use('noiseTile', width, height, time);
+      bindTexture(gl, program, 'uTex', current, 0);
+      gl.uniform1f(gl.getUniformLocation(program, 'uSize'), c.noiseTile.size);
+      gl.uniform1f(gl.getUniformLocation(program, 'uGrain'), c.noiseTile.grain);
+      gl.uniform1f(gl.getUniformLocation(program, 'uDrift'), c.noiseTile.drift);
+      gl.uniform1f(gl.getUniformLocation(program, 'uMix'), c.noiseTile.mix);
+      target = this.next();
+      drawFullscreen(gl, target, width, height);
+      current = target.texture;
+    }
+
+    if (this.live(c.echo, c.echo.count >= 1)) {
+      const program = this.use('echo', width, height, time);
+      bindTexture(gl, program, 'uTex', current, 0);
+      gl.uniform1f(gl.getUniformLocation(program, 'uCount'), c.echo.count);
+      gl.uniform1f(gl.getUniformLocation(program, 'uDepth'), c.echo.depth);
+      gl.uniform1f(gl.getUniformLocation(program, 'uFade'), c.echo.fade);
+      gl.uniform1f(gl.getUniformLocation(program, 'uSpeed'), c.echo.speed);
+      gl.uniform1f(gl.getUniformLocation(program, 'uMix'), c.echo.mix);
+      target = this.next();
+      drawFullscreen(gl, target, width, height);
+      current = target.texture;
+    }
+
+    if (this.live(c.fluted, c.fluted.ribs >= 1)) {
+      const program = this.use('fluted', width, height, time);
+      bindTexture(gl, program, 'uTex', current, 0);
+      gl.uniform1f(gl.getUniformLocation(program, 'uRibs'), c.fluted.ribs);
+      gl.uniform1f(gl.getUniformLocation(program, 'uBend'), c.fluted.bend);
+      gl.uniform1f(gl.getUniformLocation(program, 'uShine'), c.fluted.shine);
+      gl.uniform1f(gl.getUniformLocation(program, 'uVertical'), c.fluted.vertical);
+      target = this.next();
+      drawFullscreen(gl, target, width, height);
+      current = target.texture;
     }
 
     // Keep this frame's output for the next one to sample, then present it.
@@ -340,38 +400,6 @@ export class PostPipeline {
     drawFullscreen(gl, null, width, height);
   }
 
-  /** Bright pass and blur at half resolution, composited back at full. */
-  private renderBloom(source: WebGLTexture, width: number, height: number): WebGLTexture {
-    const gl = this.gl;
-    const half = this.bloomTargets;
-    const hw = half[0].width;
-    const hh = half[0].height;
-
-    let program = this.use('bloomBright', hw, hh);
-    bindTexture(gl, program, 'uTex', source, 0);
-    gl.uniform1f(gl.getUniformLocation(program, 'uThreshold'), this.cfg.bloom.threshold);
-    drawFullscreen(gl, half[0], hw, hh);
-
-    program = this.use('bloomBlur', hw, hh);
-    bindTexture(gl, program, 'uTex', half[0].texture, 0);
-    gl.uniform2f(gl.getUniformLocation(program, 'uDirection'), 1, 0);
-    drawFullscreen(gl, half[1], hw, hh);
-
-    program = this.use('bloomBlur', hw, hh);
-    bindTexture(gl, program, 'uTex', half[1].texture, 0);
-    gl.uniform2f(gl.getUniformLocation(program, 'uDirection'), 0, 1);
-    drawFullscreen(gl, half[0], hw, hh);
-
-    program = this.use('bloomComposite');
-    bindTexture(gl, program, 'uTex', source, 0);
-    bindTexture(gl, program, 'uBloom', half[0].texture, 1);
-    gl.uniform1f(gl.getUniformLocation(program, 'uAmount'), this.cfg.bloom.amount);
-    gl.uniform1f(gl.getUniformLocation(program, 'uMix'), this.cfg.bloom.mix);
-    const target = this.next();
-    drawFullscreen(gl, target, width, height);
-    return target.texture;
-  }
-
   destroy() {
     const gl = this.gl;
     for (const program of Object.values(this.programs)) gl.deleteProgram(program);
@@ -381,8 +409,6 @@ export class PostPipeline {
     deleteTarget(gl, this.targets[0]);
     deleteTarget(gl, this.targets[1]);
     deleteTarget(gl, this.feedback);
-    deleteTarget(gl, this.bloomTargets[0]);
-    deleteTarget(gl, this.bloomTargets[1]);
     gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
 }
