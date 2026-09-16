@@ -1,6 +1,7 @@
 import { HandData, AudioData } from '../../App';
 import * as THREE from 'three';
 import { disposeThree } from './disposeThree';
+import { timeScale } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -282,7 +283,7 @@ export class NetworkCubeRenderer {
   }
 
   render(handData: HandData, colors: string[], audioData?: AudioData) {
-    this.time += 0.02;
+    this.time += (0.02) * timeScale();
     
     // Resize
     const pixelRatio = this.renderer.getPixelRatio();

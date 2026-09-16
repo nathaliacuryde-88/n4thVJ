@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { HandData, AudioData } from '../../App';
+import { timeScale } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -253,7 +254,7 @@ export class DistortedCameraRenderer {
       this.renderer.setSize(this.canvas.width, this.canvas.height);
     }
 
-    this.time += 0.016;
+    this.time += (0.016) * timeScale();
     this.uniforms.uTime.value = this.time;
 
     // Update color uniforms from palette

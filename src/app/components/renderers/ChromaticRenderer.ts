@@ -1,4 +1,5 @@
 import { HandData } from '../../App';
+import { timeScale } from '../../motion/clock';
 
 interface GlowObject {
   x: number;
@@ -95,7 +96,7 @@ export class ChromaticRenderer {
 
     // Spawn shapes at hand position - More continuous smoke emission
     if (hasHand && handX !== null && handY !== null) {
-      this.time += 1;
+      this.time += (1) * timeScale();
       
       let spawnRate = 4; // Base spawning rate
       let shapeSize = 100; // Medium size for 2-4 fingers

@@ -2,6 +2,7 @@ import { HandData } from '../../App';
 import { alphaHex } from './alpha';
 import { WaveConfig } from '../../config/WaveRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
+import { timeScale } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -35,7 +36,7 @@ export class WaveRenderer {
   }
 
   render(handData: HandData, colors: string[]) {
-    this.time += 0.016;
+    this.time += (0.016) * timeScale();
     
     // ⭐ CRITICAL FIX: Wrap time to prevent floating point precision loss
     // Sine waves repeat every 2π, so we can safely wrap time

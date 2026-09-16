@@ -1,4 +1,5 @@
 import { HandData, AudioData } from '../../App';
+import { timeScale } from '../../motion/clock';
 
 interface Rectangle {
   id: number;
@@ -141,7 +142,7 @@ export class LottieInspiredRenderer {
   }
 
   render(handData: HandData, colors: string[], audioData?: AudioData, colorMode?: 'black' | 'contrast' | 'grayscale') {
-    this.time += 0.016;
+    this.time += (0.016) * timeScale();
     
     // Handle Color Modes
     const isContrastMode = colorMode === 'contrast';

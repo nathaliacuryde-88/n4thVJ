@@ -1,4 +1,5 @@
 import { HandData } from '../../App';
+import { vjTime } from '../../motion/clock';
 
 interface Fragment {
   x: number;
@@ -523,7 +524,7 @@ export class TechnicalHandRenderer {
 
   private renderHearts() {
     // Use time for synchronized beat animation
-    const time = Date.now() / 1000;
+    const time = vjTime();
     
     this.hearts.forEach(heart => {
       this.ctx.save();

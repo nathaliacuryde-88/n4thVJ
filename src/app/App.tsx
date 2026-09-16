@@ -14,6 +14,7 @@ import { AllParamValues, ParamValues, sanitizeAllParams } from './params/types';
 import { HOLD_MS, Layer, MAX_LAYERS, STACKED_OPACITY } from './config/LayerConfig';
 import { fxActive } from './pipeline/PostPipeline';
 import { idleHands } from './hands/idle';
+import { MOTION_DEFAULT, MOTION_MAX, MOTION_MIN, shapeHands } from './hands/motion';
 import { ColorMode, generateColors } from './config/palette';
 import { clearClip, loadClip, loadText, saveClip, saveText } from './config/content';
 
@@ -200,6 +201,19 @@ export default function App() {
 
   const [autoHueEnabled, setAutoHueEnabled] = useState(false);
 
+  /**
+   * How hard the hands drive everything, across the whole set. Persisted,
+   * because it is a decision about the room rather than about a visual.
+   */
+  const [motion, setMotion] = useState(() =>
+    loadSetting('vj-motion', MOTION_DEFAULT, isNumberIn(MOTION_MIN, MOTION_MAX)),
+  );
+  useEffect(() => { saveSetting('vj-motion', motion); }, [motion]);
+  const nudgeMotion = useCallback((delta: number) => {
+    setMotion((m) => Math.min(MOTION_MAX, Math.max(MOTION_MIN,
+      Math.round((m + delta) * 100) / 100)));
+  }, []);
+
   /*
    * What the content-driven visuals show. The words live in localStorage; the
    * clip is a Blob in IndexedDB, turned into an object URL here and revoked
@@ -385,6 +399,15 @@ export default function App() {
     distanceBetweenHands: 0.4 - audioData.bass * 0.2,
   } : handsPresent || !idleDrive ? handData : idleHands(audioTime);
 
+  /*
+   * The motion knob is applied here, once, rather than in each renderer — so
+   * one control calms or drives the whole stack. It eases against its own last
+   * output, which is what makes a low setting drift instead of snap.
+   */
+  const shapedRef = useRef<HandData | null>(null);
+  const shapedHandData = shapeHands(effectiveHandData, shapedRef.current, motion);
+  shapedRef.current = shapedHandData;
+
   // Remember the palette across reloads. The previous version stored the
   // derived colours instead, which ColorController overwrote from its defaults
   // on mount before anything could read them back.
@@ -487,6 +510,8 @@ export default function App() {
         cycleLayer();
         return;
       }
+      if (e.key === '-') { nudgeMotion(-0.1); return; }
+      if (e.key === '=' || e.key === '+') { nudgeMotion(0.1); return; }
       if (e.key === '[') { nudgeLayerOpacity(-0.1); return; }
       if (e.key === ']') { nudgeLayerOpacity(0.1); return; }
 
@@ -544,7 +569,7 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyPress);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [set, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity]);
+  }, [set, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity, nudgeMotion]);
 
   // Right-click to toggle UI visibility
   useEffect(() => {
@@ -611,13 +636,14 @@ export default function App() {
 
       {/* Main VJ Canvas */}
       <VJCanvas
-        handData={effectiveHandData}
+        handData={shapedHandData}
         layerColors={layerColors}
         layers={layers}
         videoElement={videoElement}
         audioData={rendererAudioData}
         layerParams={layerParams}
         content={content}
+        motion={motion}
         fxParams={fxParams}
       />
 
@@ -707,6 +733,8 @@ export default function App() {
           onAudioControlDensityChange={setAudioControlDensity}
           audioTriggerBeats={audioTriggerBeats}
           onAudioTriggerBeatsChange={setAudioTriggerBeats}
+          motion={motion}
+          onMotionChange={setMotion}
           idleDrive={idleDrive}
           onIdleDriveToggle={() => setIdleDrive(prev => !prev)}
           fxEnabled={fxEnabled}

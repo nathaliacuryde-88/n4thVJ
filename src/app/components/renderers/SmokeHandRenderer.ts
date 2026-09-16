@@ -21,9 +21,47 @@ export class SmokeHandRenderer {
   private baseScale = 1.0;
   
   private currentModel: 'torus' | 'hand' = 'torus';
-  private cachedHandGeometry: THREE.BufferGeometry | null = null;
-  private isLoadingHand = false;
+  /** Set on teardown, so a mesh that lands late is not pushed into a dead scene. */
+  private disposed = false;
   
+  /**
+   * The hand mesh, fetched once for the page rather than once per renderer.
+   *
+   * Every preview tile and every layer used to start its own download, and in
+   * the library — where a tile gets a few seconds before handing its slot on —
+   * the fetch almost never finished before the renderer was torn down. It fell
+   * back to the torus each time, which is why Smoke Hand and Smoke Torus looked
+   * like the same visual. Sharing one promise means the first instance pays for
+   * it and every later one has it immediately.
+   */
+  private static handGeometry: Promise<THREE.BufferGeometry> | null = null;
+
+  private static loadHandGeometry(): Promise<THREE.BufferGeometry> {
+    if (!SmokeHandRenderer.handGeometry) {
+      SmokeHandRenderer.handGeometry = new Promise((resolve, reject) => {
+        new OBJLoader().load(
+          SmokeHandRenderer.HAND_MODEL_URL,
+          (object) => {
+            const meshes: THREE.Mesh[] = [];
+            object.traverse((child) => {
+              if (child instanceof THREE.Mesh) meshes.push(child);
+            });
+            const mesh = meshes[meshes.length - 1]; // last mesh wins, as before
+            if (mesh?.geometry) resolve(mesh.geometry);
+            else reject(new Error('No mesh in the hand model'));
+          },
+          undefined,
+          reject,
+        );
+      });
+      // A failed fetch must not poison every later attempt.
+      SmokeHandRenderer.handGeometry.catch(() => {
+        SmokeHandRenderer.handGeometry = null;
+      });
+    }
+    return SmokeHandRenderer.handGeometry;
+  }
+
   private static readonly HAND_MODEL_URL = 'https://raw.githubusercontent.com/NPC-88/3dfiles/195a81cd4607a3176f231766b5bd2dd4b4d216fb/16834_hand_v1_NEW.obj';
   
   private uniforms = {
@@ -365,71 +403,30 @@ export class SmokeHandRenderer {
 
   public setSmokeHandModel(model: 'torus' | 'hand') {
     if (this.currentModel === model) return;
-    
-    console.log(`💨 Switching smoke hand model from ${this.currentModel} to ${model}`);
     this.currentModel = model;
-    
+
     if (model === 'torus') {
       this.createTorusGeometry();
-    } else if (model === 'hand') {
-      // Check if hand geometry is cached
-      if (this.cachedHandGeometry) {
-        console.log('💨 Using cached hand geometry');
-        this.createParticleSystem(this.cachedHandGeometry);
-      } else {
-        // Load hand model from GitHub
-        this.loadHandModel();
-      }
+      return;
     }
-  }
-  
-  private loadHandModel() {
-    if (this.isLoadingHand) return;
-    
-    this.isLoadingHand = true;
-    console.log('💨 Loading hand model from GitHub...');
-    
-    const loader = new OBJLoader();
-    loader.load(
-      SmokeHandRenderer.HAND_MODEL_URL,
-      (object) => {
-        // Find the mesh in the loaded OBJ
-        const meshes: THREE.Mesh[] = [];
-        object.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            meshes.push(child);
-          }
-        });
 
-        // Last mesh wins, as before.
-        const mesh = meshes[meshes.length - 1];
-        if (mesh && mesh.geometry) {
-          console.log('✅ Hand model loaded successfully');
-          this.cachedHandGeometry = mesh.geometry;
-          this.createParticleSystem(mesh.geometry);
-        } else {
-          console.error('❌ No mesh found in hand model');
-        }
-        
-        this.isLoadingHand = false;
-      },
-      (xhr) => {
-        if (xhr.lengthComputable) {
-          const percent = Math.round((xhr.loaded / xhr.total) * 100);
-          console.log(`💨 Loading hand model: ${percent}%`);
+    // Something to look at while the mesh arrives, rather than an empty scene.
+    this.createTorusGeometry();
+    SmokeHandRenderer.loadHandGeometry().then(
+      (geometry) => {
+        // It may have been switched away from, or destroyed, while we waited.
+        if (this.currentModel === 'hand' && !this.disposed) {
+          this.createParticleSystem(geometry);
         }
       },
       (error) => {
-        console.error('❌ Failed to load hand model:', error);
-        this.isLoadingHand = false;
-        // Fall back to torus
-        this.currentModel = 'torus';
-        this.createTorusGeometry();
-      }
+        console.error('Hand model unavailable, staying on the torus:', error);
+      },
     );
   }
 
   public destroy() {
+    this.disposed = true;
     if (this.handGroup) {
       this.scene.remove(this.handGroup);
     }

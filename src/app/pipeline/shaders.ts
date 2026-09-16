@@ -208,3 +208,25 @@ export const COPY = `
 void main() {
   fragColor = vec4(texture(uTex, vUv).rgb, 1.0);
 }`;
+
+
+/**
+ * COLOUR — hue rotation and saturation over the whole frame.
+ *
+ * Its own stage because the only hue control used to live inside FEEDBACK,
+ * which does not run until feedback Amount is above zero — so moving Hue drift
+ * on its own did nothing at all, with no way to tell why from looking. That one
+ * still ages the trail as it should; this one turns the picture.
+ */
+export const COLOUR = `${COMMON}
+uniform float uHue;
+uniform float uSaturation;
+uniform float uMix;
+
+void main() {
+  vec3 src = texture(uTex, vUv).rgb;
+  vec3 wet = hueRotate(src, uHue);
+  float grey = dot(wet, vec3(0.299, 0.587, 0.114));
+  wet = mix(vec3(grey), wet, uSaturation);
+  fragColor = vec4(mix(src, clamp(wet, 0.0, 1.0), uMix), 1.0);
+}`;

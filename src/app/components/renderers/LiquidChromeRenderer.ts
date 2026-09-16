@@ -1,5 +1,6 @@
 import { HandData } from '../../App';
 import * as THREE from 'three';
+import { timeScale } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -263,7 +264,7 @@ export class LiquidChromeRenderer {
   }
 
   render(handData: HandData, colors: string[]) {
-    this.time += 0.01;
+    this.time += (0.01) * timeScale();
 
     // Handle Resize
     if (this.threeCanvas.width !== this.canvas.width || this.threeCanvas.height !== this.canvas.height) {

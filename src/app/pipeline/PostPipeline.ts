@@ -14,6 +14,7 @@ import {
   BLOOM_BLUR,
   BLOOM_BRIGHT,
   BLOOM_COMPOSITE,
+  COLOUR,
   COPY,
   DISPLACE,
   FEEDBACK,
@@ -37,6 +38,7 @@ export function fxActive(values: ParamValues): boolean {
   const c = withOverrides(PipelineConfig, values);
   if (c.master.enabled < 0.5) return false;
   return (
+    stageLive(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1) ||
     stageLive(c.feedback, c.feedback.amount > 0) ||
     stageLive(c.displace, c.displace.amount > 0) ||
     stageLive(c.rgbSplit, c.rgbSplit.amount > 0) ||
@@ -104,6 +106,7 @@ export class PostPipeline {
     this.gl = gl;
 
     this.programs = {
+      colour: createProgram(gl, COLOUR),
       copy: createProgram(gl, COPY),
       feedback: createProgram(gl, FEEDBACK),
       displace: createProgram(gl, DISPLACE),
@@ -159,6 +162,7 @@ export class PostPipeline {
     const c = this.cfg;
     if (c.master.enabled < 0.5) return false;
     return (
+      this.live(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1) ||
       this.live(c.feedback, c.feedback.amount > 0) ||
       this.live(c.displace, c.displace.amount > 0) ||
       this.live(c.rgbSplit, c.rgbSplit.amount > 0) ||
@@ -251,6 +255,17 @@ export class PostPipeline {
     const c = this.cfg;
     let current: WebGLTexture = incoming;
     let target: RenderTarget;
+
+    if (this.live(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1)) {
+      const program = this.use('colour');
+      bindTexture(gl, program, 'uTex', current, 0);
+      gl.uniform1f(gl.getUniformLocation(program, 'uHue'), c.colour.hue);
+      gl.uniform1f(gl.getUniformLocation(program, 'uSaturation'), c.colour.saturation);
+      gl.uniform1f(gl.getUniformLocation(program, 'uMix'), c.colour.mix);
+      target = this.next();
+      drawFullscreen(gl, target, width, height);
+      current = target.texture;
+    }
 
     if (this.live(c.feedback, c.feedback.amount > 0)) {
       const program = this.use('feedback');

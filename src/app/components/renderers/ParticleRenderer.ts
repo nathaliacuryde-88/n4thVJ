@@ -2,6 +2,7 @@ import { HandData } from '../../App';
 import { alphaHex } from './alpha';
 import { ParticleConfig } from '../../config/ParticleRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
+import { timeScale } from '../../motion/clock';
 
 type ParticleCfg = typeof ParticleConfig;
 
@@ -102,7 +103,7 @@ export class ParticleRenderer {
   }
 
   render(handData: HandData, colors: string[]) {
-    this.time += 0.016;
+    this.time += (0.016) * timeScale();
 
     // BACKGROUND FADE - Creates motion trails
     this.ctx.fillStyle = `rgba(0, 0, 0, ${this.cfg.trail.fadeAlpha})`;

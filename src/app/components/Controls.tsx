@@ -65,6 +65,9 @@ interface ControlsProps {
   onAudioControlDensityChange: (enabled: boolean) => void;
   audioTriggerBeats: boolean;
   onAudioTriggerBeatsChange: (enabled: boolean) => void;
+  /** How hard the hands drive the whole set. 1 is neutral. */
+  motion: number;
+  onMotionChange: (motion: number) => void;
   idleDrive: boolean;
   onIdleDriveToggle: () => void;
   fxEnabled: boolean;
@@ -142,6 +145,8 @@ export function Controls({
   onAudioControlDensityChange,
   audioTriggerBeats,
   onAudioTriggerBeatsChange,
+  motion,
+  onMotionChange,
   idleDrive,
   onIdleDriveToggle,
   fxEnabled,
@@ -242,6 +247,33 @@ export function Controls({
                   </button>
                 );
               })}
+            </div>
+
+            {/* How hard the hands drive. Sits with the set because it is a
+                decision about the room, not about one visual. */}
+            <div className="w-px h-6 bg-white/20" />
+            <div className="flex items-center gap-1.5" title="How hard the hands drive every visual (- and =)">
+              <span className="text-[8px] tracking-widest text-white/35">HANDS</span>
+              <input
+                type="range"
+                aria-label="Hand motion"
+                min={0}
+                max={2}
+                step={0.05}
+                value={motion}
+                onChange={(e) => onMotionChange(parseFloat(e.target.value))}
+                className="vj-slider h-1 w-16 cursor-pointer appearance-none rounded-full focus:outline-none"
+                style={{
+                  background: `linear-gradient(to right, rgba(255,255,255,0.85) ${
+                    (motion / 2) * 100
+                  }%, rgba(255,255,255,0.15) ${(motion / 2) * 100}%)`,
+                }}
+              />
+              <span className={`w-7 text-[9px] tabular-nums ${
+                motion > 1.35 ? 'text-amber-300' : motion < 0.65 ? 'text-cyan-300' : 'text-white/55'
+              }`}>
+                {Math.round(motion * 100)}%
+              </span>
             </div>
 
             {/* Which layer the sliders are pointed at. Only worth the space once

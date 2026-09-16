@@ -2,6 +2,7 @@ import { AudioData, HandData } from '../../App';
 import { VideoConfig } from '../../config/VideoRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { alphaHex } from './alpha';
+import { vjTime } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -118,7 +119,7 @@ export class VideoRenderer {
     const originX = (width - drawW) / 2 + this.drift.x * width * cfg.frame.handDrift;
     const originY = (height - drawH) / 2 + this.drift.y * height * cfg.frame.handDrift;
 
-    const t = Date.now() / 1000;
+    const t = vjTime();
     const beat = audioData?.beat ? cfg.slice.beatKick : 1;
     const bands = Math.max(1, Math.round(cfg.slice.count));
     const bandH = height / bands;

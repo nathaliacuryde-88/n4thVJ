@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import { Layer } from '../config/LayerConfig';
 import { AudioData, HandData, VisualPattern } from '../App';
 import { createRenderer, VJRenderer } from './renderers/create';
+import { advanceClock } from '../motion/clock';
 import { ParamValues, withOverrides } from '../params/types';
 import { PostPipeline } from '../pipeline/PostPipeline';
 import { PipelineConfig } from '../config/PipelineConfig';
@@ -59,6 +60,8 @@ interface VJCanvasProps {
   fxParams?: ParamValues;
   /** What the content-driven visuals show: the words, and the uploaded clip. */
   content: { text: string; clipUrl: string | null };
+  /** Tempo for the whole set. Scales every renderer's clock. */
+  motion: number;
 }
 
 export function VJCanvas({
@@ -69,7 +72,8 @@ export function VJCanvas({
   audioData,
   layerParams,
   fxParams,
-  content
+  content,
+  motion
 }: VJCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -102,6 +106,7 @@ export function VJCanvas({
   const layerParamsRef = useRef<(ParamValues | undefined)[] | undefined>(layerParams);
   const fxParamsRef = useRef<ParamValues | undefined>(fxParams);
   const contentRef = useRef(content);
+  const motionRef = useRef(motion);
 
   // Update refs whenever props change
   useEffect(() => {
@@ -113,7 +118,8 @@ export function VJCanvas({
     layersRef.current = layers;
     fxParamsRef.current = fxParams;
     contentRef.current = content;
-  }, [handData, layerColors, videoElement, audioData, layerParams, layers, fxParams, content]);
+    motionRef.current = motion;
+  }, [handData, layerColors, videoElement, audioData, layerParams, layers, fxParams, content, motion]);
 
   // Retyping the words must not rebuild the renderer, any more than a slider does.
   useEffect(() => {
@@ -274,9 +280,16 @@ export function VJCanvas({
       ctx.globalCompositeOperation = 'source-over';
     };
 
+    let lastFrame = performance.now();
     const animate = () => {
       const now = performance.now();
       const ctx = compositeCtxRef.current;
+
+      // One tick for the whole stack, before anything draws. Clamped so a tab
+      // returning from the background does not jump every visual forwards.
+      const delta = Math.min(0.1, (now - lastFrame) / 1000);
+      lastFrame = now;
+      advanceClock(delta, motionRef.current);
 
       slotsRef.current.forEach((slot, index) => {
         if (!slot) return;

@@ -1,5 +1,6 @@
 import { HandData } from '../../App';
 import { alphaHex } from './alpha';
+import { timeScale } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -98,7 +99,7 @@ export class GlitchRenderer {
   }
 
   render(handData: HandData, colors: string[]) {
-    this.time += 0.016;
+    this.time += (0.016) * timeScale();
 
     // Fade previous frame with glitch effect
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';

@@ -22,6 +22,19 @@ export interface ParamSpec {
   step: number;
   /** Shown under the label. Usually lifted from the config file's own comment. */
   hint?: string;
+  /**
+   * Names for a slider whose numbers are really a list of choices, indexed by
+   * value. "Mask" says what it selects; "0" only says where the handle is.
+   */
+  labels?: string[];
+  /**
+   * Path to another parameter this one does nothing without.
+   *
+   * The feedback stage's transforms all act on the history, so with Amount at
+   * zero there is no history and they are inert — five sliders that move and
+   * change nothing, with no way to tell why. Dimmed, they say so.
+   */
+  needs?: string;
 }
 
 /** Sliders that belong together, rendered as one titled block. */
@@ -32,6 +45,14 @@ export interface ParamGroup {
    * the TouchDesigner layer model: kill the stage without losing its settings.
    */
   togglePath?: string;
+  /**
+   * Hides the group unless another parameter holds one of these values.
+   *
+   * For a renderer built around a mode, where each mode has its own controls
+   * and the rest do nothing: showing all of them at once is a wall of sliders
+   * where most are inert, and there is no way to tell which from looking.
+   */
+  visibleWhen?: { path: string; equals: number[] };
   params: ParamSpec[];
 }
 

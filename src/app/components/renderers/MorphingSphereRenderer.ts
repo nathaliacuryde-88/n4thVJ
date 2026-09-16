@@ -1,6 +1,7 @@
 import { HandData } from '../../App';
 import * as THREE from 'three';
 import { disposeThree } from './disposeThree';
+import { timeScale } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -214,7 +215,7 @@ export class MorphingSphereRenderer {
   }
 
   render(handData: HandData, colors: string[]) {
-    this.time += 0.02;
+    this.time += (0.02) * timeScale();
     
     // Update state from hand data
     this.updateState(handData);

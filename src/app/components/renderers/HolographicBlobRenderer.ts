@@ -1,4 +1,5 @@
 import { HandData } from '../../App';
+import { timeScale } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -396,7 +397,7 @@ export class HolographicBlobRenderer {
   }
 
   render(handData: HandData, colors: string[]) {
-    this.time += 0.016;
+    this.time += (0.016) * timeScale();
 
     // Initialize particles if needed
     if (this.particles.length === 0) {

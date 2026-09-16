@@ -1,4 +1,5 @@
 import { HandData } from '../../App';
+import { timeScale } from '../../motion/clock';
 
 interface DataPacket {
   x: number;
@@ -71,7 +72,7 @@ export class CyberStreamRenderer {
 
   render(handData: HandData, colors: string[]) {
     const { width, height } = this.canvas;
-    this.time += 0.016;
+    this.time += (0.016) * timeScale();
 
     // Get gesture data
     const leftHand = handData.left;

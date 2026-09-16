@@ -1,5 +1,6 @@
 import { HandData } from '../../App';
 import * as THREE from 'three';
+import { timeScale } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -613,7 +614,7 @@ export class ParametricBloomRenderer {
   }
 
   render(handData: HandData, colors: string[]) {
-    this.time += 0.016; // ~60fps
+    this.time += (0.016) * timeScale(); // ~60fps
     
     // Update colors
     this.updateColors(colors);

@@ -1,4 +1,5 @@
 import { HandData } from '../../App';
+import { timeScale } from '../../motion/clock';
 
 interface ListItem {
   text: string;
@@ -47,7 +48,7 @@ export class SpinningListRenderer {
     if (this.canvas.width === 0 || this.canvas.height === 0) return;
 
     // Increment time for animated code background
-    this.time += 0.016;
+    this.time += (0.016) * timeScale();
 
     // Black background (no fade trail, instant clear)
     this.ctx.fillStyle = '#000000';

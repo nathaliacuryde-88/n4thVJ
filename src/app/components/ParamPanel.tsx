@@ -23,19 +23,22 @@ function Slider({
   spec,
   value,
   isDefault,
+  inert,
   onChange,
   onReset,
 }: {
   spec: ParamSpec;
   value: number;
   isDefault: boolean;
+  /** True when what this needs is switched off, so it currently does nothing. */
+  inert?: boolean;
   onChange: (value: number) => void;
   onReset: () => void;
 }) {
   const fraction = ((value - spec.min) / (spec.max - spec.min)) * 100;
 
   return (
-    <div className="group">
+    <div className={`group ${inert ? 'opacity-40' : ''}`} title={inert ? `Does nothing until ${spec.needs} is above zero` : undefined}>
       <div className="flex justify-between items-baseline text-[9px] leading-tight">
         <button
           onClick={onReset}
@@ -47,7 +50,9 @@ function Slider({
           {spec.label}
           {!isDefault && <span className="ml-1 opacity-60">•</span>}
         </button>
-        <span className="text-white tabular-nums">{format(value, spec.step)}</span>
+        <span className={`text-white ${spec.labels ? '' : 'tabular-nums'}`}>
+          {spec.labels?.[Math.round(value)] ?? format(value, spec.step)}
+        </span>
       </div>
       <input
         type="range"
@@ -141,6 +146,15 @@ export function ParamPanel({
         {!collapsed && (
           <div className="overflow-y-auto px-3 py-2 min-h-0">
             {active.entry.groups.map((group) => {
+              // A group tied to a mode only appears while that mode is running.
+              if (group.visibleWhen) {
+                const current =
+                  active.values[group.visibleWhen.path] ??
+                  getByPath(active.entry.config, group.visibleWhen.path) ??
+                  0;
+                if (!group.visibleWhen.equals.includes(Math.round(current as number))) return null;
+              }
+
               const toggleValue = group.togglePath
                 ? active.values[group.togglePath] ??
                   getByPath(active.entry.config, group.togglePath) ??
@@ -179,10 +193,14 @@ export function ParamPanel({
                   const fallback = getByPath(active.entry.config, spec.path);
                   if (fallback === undefined) return null;
                   const value = active.values[spec.path] ?? fallback;
+                  const needed = spec.needs
+                    ? active.values[spec.needs] ?? getByPath(active.entry.config, spec.needs) ?? 0
+                    : 1;
                   return (
                     <Slider
                       key={spec.path}
                       spec={spec}
+                      inert={!((needed as number) > 0)}
                       value={value}
                       isDefault={active.values[spec.path] === undefined}
                       onChange={(v) => active.onChange(spec.path, v)}

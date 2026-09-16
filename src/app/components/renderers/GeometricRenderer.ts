@@ -2,6 +2,7 @@ import { HandData } from '../../App';
 import { alphaHex } from './alpha';
 import { GeometricConfig } from '../../config/GeometricRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
+import { timeScale } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -32,7 +33,7 @@ export class GeometricRenderer {
   }
 
   render(handData: HandData, colors: string[]) {
-    this.time += 0.016; // Animation speed (60 FPS)
+    this.time += (0.016) * timeScale(); // Animation speed (60 FPS)
 
     // ═════════════════════════════════════════════════════════════════════════
     // BACKGROUND FADE - Creates motion trails

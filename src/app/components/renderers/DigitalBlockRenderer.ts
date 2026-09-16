@@ -3,6 +3,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import type { HandData, AudioData } from '../../App';
+import { HorizonConfig } from '../../config/HorizonRendererConfig';
+import { ParamValues, withOverrides } from '../../params/types';
 
 export class DigitalBlockRenderer {
   private canvas: HTMLCanvasElement;
@@ -18,12 +20,21 @@ export class DigitalBlockRenderer {
   
   private chaosLevel = 0;
   
+  private cfg: typeof HorizonConfig = HorizonConfig;
+
   private uniforms = {
     uTime: { value: 0 },
     uColor1: { value: new THREE.Vector3(0.5, 0.0, 1.0) }, // Purple
     uColor2: { value: new THREE.Vector3(0.0, 0.0, 0.0) }, // Black
     uColor3: { value: new THREE.Vector3(0.8, 0.9, 1.0) }, // White/Blueish
     uChaos: { value: 0 },
+    uStrips: { value: 10 },
+    uStripsChaos: { value: 20 },
+    uBlocks: { value: 5 },
+    uBlocksChaos: { value: 15 },
+    uSpeedBase: { value: 0.05 },
+    uSpeedVar: { value: 0.1 },
+    uSpeedChaos: { value: 0.35 },
     uAudioLow: { value: 0 },
     uAudioMid: { value: 0 },
     uAudioHigh: { value: 0 }
@@ -68,6 +79,13 @@ export class DigitalBlockRenderer {
         uniform vec3 uColor2;
         uniform vec3 uColor3;
         uniform float uChaos;
+        uniform float uStrips;
+        uniform float uStripsChaos;
+        uniform float uBlocks;
+        uniform float uBlocksChaos;
+        uniform float uSpeedBase;
+        uniform float uSpeedVar;
+        uniform float uSpeedChaos;
         uniform float uAudioLow;
         uniform float uAudioHigh;
         
@@ -93,14 +111,13 @@ export class DigitalBlockRenderer {
             vec2 uv = vUv; // Back to standard vertical orientation
             
             // 1. Create Vertical Columns (Strips)
-            float numStrips = 10.0 + (uChaos * 20.0); // Reduced strip multiplier
+            float numStrips = uStrips + (uChaos * uStripsChaos);
             float stripIdx = floor(uv.x * numStrips);
             
             // 2. Vertical Movement per strip
             // SIGNIFICANTLY REDUCED SPEEDS
-            float baseSpeed = 0.05 + random(vec2(stripIdx, 1.0)) * 0.1; // Base slow drift
-            float chaosSpeed = uChaos * 0.8; // Chaos adds speed, but less aggressively
-            float speed = baseSpeed + chaosSpeed;
+            float baseSpeed = uSpeedBase + random(vec2(stripIdx, 1.0)) * uSpeedVar;
+            float speed = baseSpeed + uChaos * uSpeedChaos;
             
             float yOffset = uTime * speed;
             
@@ -112,7 +129,7 @@ export class DigitalBlockRenderer {
             }
 
             // 3. Blocky distortion
-            float numBlocks = 5.0 + uChaos * 15.0;
+            float numBlocks = uBlocks + uChaos * uBlocksChaos;
             float blockY = floor((uv.y + yOffset) * numBlocks);
             
             // 4. Determine Color / Noise
@@ -178,6 +195,10 @@ export class DigitalBlockRenderer {
     console.log('📼 DigitalBlockRenderer initialized');
   }
 
+  setParams(values: ParamValues) {
+    this.cfg = withOverrides(HorizonConfig, values);
+  }
+
   render(handData: HandData, colors: string[], audioData?: AudioData) {
     // This renderer draws into its own stacked canvas rather than blitting into
     // the 2D one, so nothing resizes it for us: without this, resizing the
@@ -213,37 +234,43 @@ export class DigitalBlockRenderer {
     // 5 finger = Fast (0.7)
     // Clap = Faster (1.0)
     
-    let targetC = 0.0; // Default "Nothing" -> Very slow drift
-    
-    // Priority 1: Clapping
-    if (handData.clapping) {
-      targetC = 1.0;
-    } 
-    // Priority 2: Single Hand Gestures
-    else if (handData.right || handData.left) {
-      const hand = handData.right || handData.left;
-      const gesture = hand?.gesture;
-      const fingerCount = hand?.fingerCount || 0;
-      
-      if (gesture === 'open' || fingerCount === 5) {
-        targetC = 0.7; // Fast but not max
-      } else if (fingerCount === 2) {
-        targetC = 0.4; // Medium
-      } else if (gesture === 'pinch') {
-        targetC = 0.2; // Slow
-      } else {
-        // Fallback or other gestures 
-        targetC = 0.1; 
-      }
-    } 
-    // Priority 3: Audio fallback if no hands
-    else {
-      if (bass > 0.6) targetC = 0.3 * bass;
+    /*
+     * Chaos, read continuously.
+     *
+     * It used to snap to a level per gesture, and 'open' — which is what the
+     * idle drive reports and what most tracked hands read as — went almost to
+     * the top. The result ran flat out nearly always, and stepped hard whenever
+     * tracking flickered between states. Now openness and hand speed each add
+     * their share of a ceiling that is well under 1, and the whole thing eases
+     * in slowly.
+     */
+    const cfg = this.cfg.chaos;
+    const hand = handData.right ?? handData.left;
+    let targetC = cfg.idle;
+
+    if (hand) {
+      const fingers = hand.fingerCount ?? (hand.gesture === 'open' ? 5 : 0);
+      const openness = Math.min(1, Math.max(0, fingers / 5));
+      const speed = Math.min(1, Math.max(0, hand.velocity ?? 0));
+      targetC = cfg.idle + (openness * cfg.openness + speed * cfg.velocity) * cfg.range;
+    } else if (bass > 0.6) {
+      targetC = cfg.idle + bass * cfg.audio;
     }
-    
-    // Smooth transition - VERY GRADUAL (0.05)
-    this.chaosLevel = THREE.MathUtils.lerp(this.chaosLevel, targetC, 0.05);
+    if (handData.clapping) targetC += cfg.clap * (handData.clapIntensity ?? 1);
+    targetC = Math.min(cfg.range, targetC);
+
+    this.chaosLevel = THREE.MathUtils.lerp(this.chaosLevel, targetC, cfg.ease);
     this.uniforms.uChaos.value = this.chaosLevel;
+
+    const strips = this.cfg.strips;
+    const speedCfg = this.cfg.speed;
+    this.uniforms.uStrips.value = strips.base;
+    this.uniforms.uStripsChaos.value = strips.chaos;
+    this.uniforms.uBlocks.value = strips.blocks;
+    this.uniforms.uBlocksChaos.value = strips.blocksChaos;
+    this.uniforms.uSpeedBase.value = speedCfg.base;
+    this.uniforms.uSpeedVar.value = speedCfg.variation;
+    this.uniforms.uSpeedChaos.value = speedCfg.chaos;
 
     // --- Colors ---
     if (colors && colors.length >= 3) {

@@ -216,7 +216,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
   'smokehand-hand': {
     pattern: 'smokehand-hand',
     name: 'Smoke Hand',
-    short: 'Smoke',
+    short: 'Hand',
     category: '3D',
     key: '7',
     description: 'Particle smoke shaped around a hand model'

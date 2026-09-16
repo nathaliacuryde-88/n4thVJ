@@ -1,6 +1,7 @@
 import { HandData, AudioData } from '../../App';
 import * as THREE from 'three';
 import { disposeThree } from './disposeThree';
+import { timeScale } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -262,7 +263,7 @@ export class ElasticNetRenderer {
   }
 
   render(handData: HandData, colors: string[], audioData?: AudioData) {
-    this.time += 0.01;
+    this.time += (0.01) * timeScale();
     
     // Resize handling
     const pixelRatio = this.renderer.getPixelRatio();

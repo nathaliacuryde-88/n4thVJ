@@ -2,6 +2,7 @@ import { AudioData, Hand, HandData } from '../../App';
 import { TextConfig } from '../../config/TextRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { alphaHex } from './alpha';
+import { vjTime } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -162,7 +163,7 @@ export class TextRenderer {
       cfg.trail.fadeAlpha >= 1 ? '#000' : `#000000${alphaHex(cfg.trail.fadeAlpha * 255)}`;
     ctx.fillRect(0, 0, width, height);
 
-    const time = Date.now() / 1000;
+    const time = vjTime();
     const bass = audioData?.bass ?? 0;
     const kick = audioData?.beat ? cfg.audio.beatKick : 0;
 

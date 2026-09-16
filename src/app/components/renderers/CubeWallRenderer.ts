@@ -1,6 +1,7 @@
 import { HandData } from '../../App';
 import * as THREE from 'three';
 import { disposeThree } from './disposeThree';
+import { timeScale } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -262,7 +263,7 @@ export class CubeWallRenderer {
   }
 
   render(handData: HandData, colors: string[]) {
-    this.time += 0.016 * this.speedMultiplier; // ~60fps base
+    this.time += (0.016 * this.speedMultiplier) * timeScale(); // ~60fps base
     
     // Update hand tracking state
     this.updateHandData(handData);

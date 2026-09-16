@@ -24,6 +24,7 @@ import { ParticleConfig } from '../config/ParticleRendererConfig';
 import { WaveConfig } from '../config/WaveRendererConfig';
 import { PipelineConfig } from '../config/PipelineConfig';
 import { RippleConfig } from '../config/RippleRendererConfig';
+import { HorizonConfig } from '../config/HorizonRendererConfig';
 import { TextConfig } from '../config/TextRendererConfig';
 import { VideoConfig } from '../config/VideoRendererConfig';
 import { ParamGroup } from './types';
@@ -169,7 +170,11 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Movement',
         params: [
-          { path: 'mode', label: 'Mode', min: 0, max: 4, step: 1, hint: '0 mask 1 radial 2 wave 3 depth 4 scatter' },
+          {
+            path: 'mode', label: 'Mode', min: 0, max: 4, step: 1,
+            labels: ['Mask', 'Radial', 'Wave', 'Depth', 'Scatter'],
+            hint: 'each mode brings its own controls',
+          },
           { path: 'motion.handInfluence', label: 'Hands', min: 0, max: 3, step: 0.05 },
           { path: 'trail.fadeAlpha', label: 'Trail', min: 0.02, max: 1, step: 0.01, hint: 'lower = longer' },
         ],
@@ -186,6 +191,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       },
       {
         name: 'Grid',
+        visibleWhen: { path: 'mode', equals: [0, 1, 2] },
         params: [
           { path: 'grid.columns', label: 'Columns', min: 1, max: 40, step: 1 },
           { path: 'grid.rows', label: 'Rows', min: 1, max: 60, step: 1 },
@@ -195,7 +201,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
-        name: 'Mask — mode 0',
+        name: 'Mask',
+        visibleWhen: { path: 'mode', equals: [0] },
         params: [
           { path: 'mask.reach', label: 'Reach', min: 0.02, max: 0.8, step: 0.01, hint: 'hand size' },
           { path: 'mask.threshold', label: 'Threshold', min: 0.02, max: 2, step: 0.02, hint: 'lower fills more' },
@@ -204,7 +211,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
-        name: 'Radial — mode 1',
+        name: 'Radial',
+        visibleWhen: { path: 'mode', equals: [1] },
         params: [
           { path: 'radial.strength', label: 'Warp', min: -2, max: 3, step: 0.05, hint: 'negative pinches' },
           { path: 'radial.power', label: 'Bite', min: 0.4, max: 5, step: 0.1 },
@@ -213,7 +221,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
-        name: 'Wave — mode 2',
+        name: 'Wave',
+        visibleWhen: { path: 'mode', equals: [2] },
         params: [
           { path: 'wave.amplitude', label: 'Amount', min: 0, max: 0.6, step: 0.01 },
           { path: 'wave.frequency', label: 'Waves', min: 0.2, max: 8, step: 0.1 },
@@ -222,7 +231,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
-        name: 'Depth — mode 3',
+        name: 'Depth',
+        visibleWhen: { path: 'mode', equals: [3] },
         params: [
           { path: 'depth.speed', label: 'Fly', min: -2, max: 2, step: 0.02 },
           { path: 'depth.spread', label: 'Open', min: 0, max: 4, step: 0.05, hint: 'tracking with distance' },
@@ -233,7 +243,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
-        name: 'Scatter — mode 4',
+        name: 'Scatter',
+        visibleWhen: { path: 'mode', equals: [4] },
         params: [
           { path: 'scatter.amount', label: 'Spread', min: 0, max: 1.5, step: 0.02, hint: '0 = readable' },
           { path: 'scatter.spiral', label: 'Spiral', min: 0, max: 1, step: 1 },
@@ -287,6 +298,40 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'look.tint', label: 'Tint', min: 0, max: 1, step: 0.02, hint: 'palette over the clip' },
           { path: 'look.gain', label: 'Gain', min: 1, max: 3, step: 0.05 },
           { path: 'trail.fadeAlpha', label: 'Trail', min: 0.02, max: 1, step: 0.01, hint: 'lower = longer' },
+        ],
+      },
+    ],
+  },
+
+  digitalblocks: {
+    config: HorizonConfig,
+    groups: [
+      {
+        name: 'Hands',
+        params: [
+          { path: 'chaos.range', label: 'Ceiling', min: 0.05, max: 1, step: 0.01, hint: 'how wild it can get' },
+          { path: 'chaos.openness', label: 'Open hand', min: 0, max: 1, step: 0.02 },
+          { path: 'chaos.velocity', label: 'Hand speed', min: 0, max: 1, step: 0.02 },
+          { path: 'chaos.clap', label: 'Clap', min: 0, max: 1, step: 0.02 },
+          { path: 'chaos.ease', label: 'Ease', min: 0.005, max: 0.3, step: 0.005, hint: 'lower = calmer' },
+          { path: 'chaos.idle', label: 'Idle', min: 0, max: 0.5, step: 0.01 },
+        ],
+      },
+      {
+        name: 'Motion',
+        params: [
+          { path: 'speed.base', label: 'Drift', min: 0, max: 0.4, step: 0.005 },
+          { path: 'speed.variation', label: 'Spread', min: 0, max: 0.5, step: 0.005 },
+          { path: 'speed.chaos', label: 'Chaos speed', min: 0, max: 1.5, step: 0.02 },
+        ],
+      },
+      {
+        name: 'Grid',
+        params: [
+          { path: 'strips.base', label: 'Columns', min: 2, max: 60, step: 1 },
+          { path: 'strips.chaos', label: 'Columns +', min: 0, max: 60, step: 1 },
+          { path: 'strips.blocks', label: 'Blocks', min: 1, max: 40, step: 1 },
+          { path: 'strips.blocksChaos', label: 'Blocks +', min: 0, max: 40, step: 1 },
         ],
       },
     ],
@@ -360,16 +405,25 @@ export const PIPELINE_PARAMS: RendererParams = {
       ],
     },
     {
+      name: 'Colour',
+      togglePath: 'colour.enabled',
+      params: [
+        { path: 'colour.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
+        { path: 'colour.hue', label: 'Hue', min: -3.14, max: 3.14, step: 0.01, hint: 'turns the whole frame' },
+        { path: 'colour.saturation', label: 'Saturation', min: 0, max: 2, step: 0.01, hint: '1 = untouched' },
+      ],
+    },
+    {
       name: 'Feedback',
       togglePath: 'feedback.enabled',
       params: [
         { path: 'feedback.mix', label: 'Mix', min: 0, max: 1, step: 0.01, hint: 'stage opacity' },
         { path: 'feedback.amount', label: 'Amount', min: 0, max: 0.99, step: 0.01, hint: '0 = off' },
-        { path: 'feedback.zoom', label: 'Zoom', min: 0.9, max: 1.1, step: 0.001, hint: '>1 tunnels out' },
-        { path: 'feedback.rotate', label: 'Rotate', min: -0.05, max: 0.05, step: 0.0005 },
-        { path: 'feedback.offsetX', label: 'Drift X', min: -0.02, max: 0.02, step: 0.0005 },
-        { path: 'feedback.offsetY', label: 'Drift Y', min: -0.02, max: 0.02, step: 0.0005 },
-        { path: 'feedback.hueShift', label: 'Hue drift', min: -0.2, max: 0.2, step: 0.002 },
+        { needs: 'feedback.amount', path: 'feedback.zoom', label: 'Zoom', min: 0.9, max: 1.1, step: 0.001, hint: '>1 tunnels out' },
+        { needs: 'feedback.amount', path: 'feedback.rotate', label: 'Rotate', min: -0.05, max: 0.05, step: 0.0005 },
+        { needs: 'feedback.amount', path: 'feedback.offsetX', label: 'Drift X', min: -0.02, max: 0.02, step: 0.0005 },
+        { needs: 'feedback.amount', path: 'feedback.offsetY', label: 'Drift Y', min: -0.02, max: 0.02, step: 0.0005 },
+        { path: 'feedback.hueShift', label: 'Trail hue', min: -0.2, max: 0.2, step: 0.002, hint: 'ages the trail — needs Amount' },
       ],
     },
     {

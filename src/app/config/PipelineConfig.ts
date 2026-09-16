@@ -72,9 +72,30 @@ export const PipelineConfig = {
 
     /**
      * Hue rotation applied to the history each frame, in radians.
-     * This is what makes a trail change colour as it ages.
+     * This is what makes a trail change colour as it ages — so like every
+     * transform in this stage it needs an Amount above zero to show at all.
+     * For turning the hue of the picture itself, use the Colour stage.
      */
     hueShift: 0,
+  },
+
+  /**
+   * COLOUR — turn the hue of the whole frame, and pull the saturation.
+   *
+   * Separate from the feedback stage's own hue shift, which only ages the
+   * trail and therefore does nothing until feedback has an Amount.
+   */
+  colour: {
+    /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
+    enabled: 1,
+
+    /** Stage opacity: blends between this stage's input and its output. */
+    mix: 1,
+
+    /** Hue rotation in radians. 0 = off. */
+    hue: 0,
+    /** 1 = untouched, 0 = grey, above 1 = pushed. */
+    saturation: 1,
   },
 
   /** DISPLACE — push pixels along a drifting noise field. */

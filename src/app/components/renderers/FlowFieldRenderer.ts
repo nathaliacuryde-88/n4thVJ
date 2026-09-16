@@ -1,4 +1,5 @@
 import { Hand, HandData, AudioData } from '../../App';
+import { timeScale } from '../../motion/clock';
 
 interface FlowElement {
   x: number;
@@ -51,7 +52,7 @@ export class FlowFieldRenderer {
   render(handData: HandData, colors: string[], audioData?: AudioData) {
     // Audio-driven time speed
     const speed = 0.01 + (audioData ? audioData.mid * 0.05 : 0);
-    this.time += speed;
+    this.time += (speed) * timeScale();
     
     // Background - Deep Blue/Dark
     const bgColor = colors[4] ? colors[4] + '40' : '#000022'; 
