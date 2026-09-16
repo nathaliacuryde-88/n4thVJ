@@ -17,6 +17,36 @@
         height: 100%;
       }
     </style>
+    <style>
+      /* The last resort, hidden until the watchdog below gives up. */
+      #vj-stuck {
+        display: none;
+        position: fixed;
+        inset: 0;
+        place-content: center;
+        justify-items: center;
+        gap: 14px;
+        padding: 24px;
+        background: #000;
+        color: #fff;
+        font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-align: center;
+      }
+      #vj-stuck b { font-size: 22px; letter-spacing: -0.02em; }
+      #vj-stuck p { margin: 0; max-width: 34em; color: rgba(255, 255, 255, 0.55); }
+      #vj-stuck button {
+        margin-top: 4px;
+        padding: 10px 22px;
+        border: 0;
+        border-radius: 999px;
+        background: #fff;
+        color: #000;
+        font: inherit;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        cursor: pointer;
+      }
+    </style>
     <script>
       /*
        * Recover from a stale cached page.
@@ -24,34 +54,82 @@
        * Every build gives the bundle a new hashed name and a deploy replaces the
        * old one, so a browser holding this file from a previous deploy asks for
        * a script that is no longer there. Nothing then runs: the page is blank,
-       * with no error on screen and nothing to click, and only a manual hard
-       * refresh brings it back — which is not something to discover mid-set.
+       * with no error on screen and nothing to click.
        *
        * A failed script or stylesheet fires an error that does not bubble, hence
-       * the capture. Reloading re-requests this document rather than serving the
-       * cached copy, which is the whole fix. The flag makes it a one-shot, so a
-       * genuinely missing file cannot turn into a reload loop; the app clears it
-       * once it is running, leaving the recovery armed for the next deploy.
+       * the capture. Two things matter in the retry:
+       *
+       * The guard is a cooldown, not a latch. It used to be a flag that lasted
+       * the whole tab, so once a retry had been spent the recovery never armed
+       * again — and every later refresh in that tab went straight back to a
+       * blank page with nothing trying to fix it. A timestamp lets a reload a
+       * minute later have another go while still refusing to loop.
+       *
+       * And the reload carries a cache-buster. A plain reload() is supposed to
+       * revalidate the document, but the whole problem is a cache serving a
+       * stale copy, so this does not rely on that.
        */
-      window.addEventListener(
-        'error',
-        function (event) {
-          var el = event.target;
-          if (!el || (el.tagName !== 'SCRIPT' && el.tagName !== 'LINK')) return;
+      (function () {
+        var KEY = 'vj-stale-bundle-reload';
+        var COOLDOWN = 15000;
+
+        function lastTry() {
           try {
-            if (sessionStorage.getItem('vj-stale-bundle-reload')) return;
-            sessionStorage.setItem('vj-stale-bundle-reload', '1');
+            return parseInt(sessionStorage.getItem(KEY) || '0', 10) || 0;
           } catch (_) {
-            return; // no storage means no loop guard, so do not risk the loop
+            return 0;
           }
-          location.reload();
-        },
-        true,
-      );
+        }
+
+        window.addEventListener(
+          'error',
+          function (event) {
+            var el = event.target;
+            if (!el || (el.tagName !== 'SCRIPT' && el.tagName !== 'LINK')) return;
+            if (Date.now() - lastTry() < COOLDOWN) return;
+            try {
+              sessionStorage.setItem(KEY, String(Date.now()));
+            } catch (_) {
+              return; // no storage means no loop guard, so do not risk the loop
+            }
+            location.replace(location.pathname + '?v=' + Date.now());
+          },
+          true,
+        );
+
+        /*
+         * Whatever else happens, never just sit there black.
+         *
+         * The reload above only fires when a file fails to load. A bundle that
+         * loads and then throws on the way up leaves the same empty screen with
+         * no explanation, so this waits for React to put something in #root and
+         * otherwise says so, with a button that bypasses the cache.
+         */
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            var root = document.getElementById('root');
+            if (root && root.childElementCount > 0) return;
+            var stuck = document.getElementById('vj-stuck');
+            if (stuck) stuck.style.display = 'grid';
+          }, 6000);
+        });
+      })();
     </script>
   </head>
   <body>
     <div id="root"></div>
+
+    <div id="vj-stuck">
+      <b>&lt;N4TH&gt;</b>
+      <p>
+        This did not start. Usually that is an old copy of the page held in the
+        browser cache after an update — reloading past it fixes it.
+      </p>
+      <button onclick="location.replace(location.pathname + '?v=' + Date.now())">
+        RELOAD
+      </button>
+    </div>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
