@@ -188,15 +188,6 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
-        name: 'Type',
-        params: [
-          { path: 'type.fit', label: 'Fit', min: 0.2, max: 1.6, step: 0.02, hint: 'word width in its cell' },
-          { path: 'type.weight', label: 'Weight', min: 100, max: 900, step: 100 },
-          { path: 'type.tracking', label: 'Tracking', min: -0.1, max: 1.2, step: 0.01 },
-          { path: 'type.outline', label: 'Outline', min: 0, max: 1, step: 1, hint: 'filled or hollow' },
-        ],
-      },
-      {
         name: 'Grid',
         params: [
           { path: 'grid.columns', label: 'Columns', min: 1, max: 40, step: 1 },
@@ -207,7 +198,6 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Colour',
         params: [
-          { path: 'color.rainbow', label: 'Rainbow', min: 0, max: 1, step: 1, hint: 'ignores the palette' },
           { path: 'color.step', label: 'Hue step', min: 0, max: 120, step: 1 },
           { path: 'color.cycleSpeed', label: 'Cycle', min: 0, max: 3, step: 0.05 },
         ],
@@ -233,7 +223,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'slice.count', label: 'Bands', min: 1, max: 60, step: 1, hint: '1 = whole frame' },
           { path: 'slice.offset', label: 'Shear', min: 0, max: 0.4, step: 0.005 },
           { path: 'slice.speed', label: 'Speed', min: 0, max: 5, step: 0.05 },
-          { path: 'slice.beatKick', label: 'Beat kick', min: 1, max: 6, step: 0.1 },
+          { path: 'slice.beatKick', label: 'Beat kick', min: 1, max: 2.5, step: 0.02, hint: '1 = none' },
         ],
       },
       {

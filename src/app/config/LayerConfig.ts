@@ -24,6 +24,15 @@ export interface Layer {
   hue: number;
   saturation: number;
   colorMode: ColorMode;
+  /**
+   * How hard the hands drive this layer. 1 is neutral.
+   *
+   * Per layer rather than per set, so a stack can hold one visual drifting
+   * under another she is playing hard. Zero hands it over to the automatic
+   * drive instead of freezing it — a fader at zero on something still on
+   * screen has to mean "not mine to play" rather than "stop".
+   */
+  motion: number;
 }
 
 /**

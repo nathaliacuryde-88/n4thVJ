@@ -124,10 +124,17 @@ export function FxPanel({
                 key={group.name}
                 onClick={() => {
                   if (!live) {
-                    // Switch it on at something visible, and show its controls.
                     if (group.togglePath) onChange(group.togglePath, 1);
+                    /*
+                     * Her setting if she has one, the preset only if she does
+                     * not. A set begins with every effect bypassed but with
+                     * the amounts intact, so switching one on has to bring
+                     * back what she built rather than overwrite it.
+                     */
                     for (const [path, v] of Object.entries(group.turnOn ?? {})) {
-                      onChange(path, v);
+                      const stored = values[path];
+                      const off = (getByPath(entry.config, path) ?? 0) as number;
+                      onChange(path, stored !== undefined && stored !== off ? stored : v);
                     }
                     onOpen(group.name);
                     return;
@@ -136,11 +143,16 @@ export function FxPanel({
                     onOpen(group.name);
                     return;
                   }
-                  // Running and open: this click puts it away. Back to the
-                  // config's own value, which for every effect is its off.
-                  for (const path of Object.keys(group.turnOn ?? {})) {
-                    onChange(path, (getByPath(entry.config, path) ?? 0) as number);
-                  }
+                  /*
+                   * Running and open: this click puts it away — by bypassing
+                   * it, not by zeroing it.
+                   *
+                   * Turning the amount back to its off value threw the setting
+                   * away, so an effect she had dialled in came back at a
+                   * default the next time she reached for it. The bypass flag
+                   * is the off switch; what she built stays underneath.
+                   */
+                  if (group.togglePath) onChange(group.togglePath, 0);
                   onOpen(null);
                 }}
                 title={

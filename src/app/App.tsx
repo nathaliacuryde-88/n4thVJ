@@ -128,7 +128,7 @@ export default function App() {
    * the selection is what the sliders and the colour controls act on.
    */
   const [layers, setLayers] = useState<Layer[]>(() => [
-    { pattern: 'geometric', opacity: 1, ...loadLook() },
+    { pattern: 'geometric', opacity: 1, motion: MOTION_DEFAULT, ...loadLook() },
   ]);
   const [selectedLayer, setSelectedLayer] = useState(0);
   const currentPattern = (layers[selectedLayer] ?? layers[0]).pattern;
@@ -156,7 +156,7 @@ export default function App() {
     // A new layer starts from the look you last set, then diverges from there.
     const from = layers[selectedLayer] ?? layers[0];
     setLayers([...layers, {
-      pattern, opacity: STACKED_OPACITY,
+      pattern, opacity: STACKED_OPACITY, motion: from.motion,
       hue: from.hue, saturation: from.saturation, colorMode: from.colorMode,
     }]);
     /*
@@ -241,10 +241,15 @@ export default function App() {
    * How hard the hands drive everything, across the whole set. Persisted,
    * because it is a decision about the room rather than about a visual.
    */
-  const [motion, setMotion] = useState(() =>
-    loadSetting('vj-motion', MOTION_DEFAULT, isNumberIn(MOTION_MIN, MOTION_MAX)),
-  );
-  useEffect(() => { saveSetting('vj-motion', motion); }, [motion]);
+  /** The selected layer's own hands fader, which is what the knob shows. */
+  const motion = (layers[selectedLayer] ?? layers[0]).motion;
+  const setMotion = useCallback((next: number | ((m: number) => number)) => {
+    setLayers((prev) => prev.map((l, i) => (
+      i === selectedLayer
+        ? { ...l, motion: typeof next === 'function' ? next(l.motion) : next }
+        : l
+    )));
+  }, [selectedLayer]);
   const nudgeMotion = useCallback((delta: number) => {
     setMotion((m) => Math.min(MOTION_MAX, Math.max(MOTION_MIN,
       Math.round((m + delta) * 100) / 100)));
@@ -456,65 +461,64 @@ export default function App() {
   );
 
   /*
-   * Effects belong to a layer, not to the screen.
+   * Effects belong to a visual.
    *
-   * There used to be one chain over the flattened stack, so kaleidoscoping the
-   * type kaleidoscoped the footage underneath it as well — which is not what
-   * anyone means by putting an effect on a layer. Each layer carries its own
-   * settings and its own chain now, and the controls act on whichever layer is
-   * selected, exactly as the colour and the sliders already do.
+   * They were keyed by layer position, which made them per-layer — the thing
+   * that matters when two are stacked — but meant they were lost the moment a
+   * layer played something else, and a visual came back bare every time. The
+   * shape sliders were already keyed by pattern for exactly that reason.
+   *
+   * Keying effects the same way gives both at once: a layer runs one pattern
+   * and the stack never runs the same pattern twice, so per-visual settings
+   * are per-layer settings — and they are still there when she comes back to
+   * it tomorrow.
    */
-  /** Which effect's controls are open. Held here so hiding the UI keeps it. */
-  const [openFx, setOpenFx] = useState<string | null>(null);
+  const [fxByPattern, setFxByPattern] = useState<AllParamValues>(() =>
+    sanitizeAllParams(loadSetting<unknown>('vj-fx', {}, () => true)),
+  );
 
-  const [fxByLayer, setFxByLayer] = useState<AllParamValues>(() => {
-    const stored = sanitizeAllParams(loadSetting<unknown>('vj-fx', {}, () => true));
-    // Anything saved before this change was one set of effects for everything.
-    // It becomes the first layer's, rather than being dropped on the floor.
-    if (stored.fx && Object.keys(stored.fx).length > 0 && !stored['0']) {
-      return { 0: stored.fx };
-    }
-    return stored;
-  });
-
-  /** The selected layer's effects, which is what the panel edits. */
-  const fxParams = fxByLayer[String(selectedLayer)] ?? {};
+  /** The selected layer's visual's effects, which is what the panel edits. */
+  const fxParams = fxByPattern[currentPattern] ?? {};
 
   const setFxParam = useCallback((path: string, value: number) => {
-    setFxByLayer((prev) => {
-      const key = String(selectedLayer);
-      return { ...prev, [key]: { ...(prev[key] ?? {}), [path]: value } };
-    });
-  }, [selectedLayer]);
+    setFxByPattern((prev) => ({
+      ...prev,
+      [currentPattern]: { ...(prev[currentPattern] ?? {}), [path]: value },
+    }));
+  }, [currentPattern]);
 
   /** Every layer's effects, in layer order, for the canvas. */
   const layerFx = useMemo(
-    () => layers.map((_, index) => fxByLayer[String(index)] ?? {}),
-    [layers, fxByLayer],
+    () => layers.map((l) => fxByPattern[l.pattern] ?? {}),
+    [layers, fxByPattern],
   );
 
   // One switch over the whole chain, so a heavy look left over from an earlier
   // session is one click away from gone rather than a hunt through the panel.
   const fxEnabled = (fxParams['master.enabled'] ?? 1) >= 0.5;
   const toggleFx = useCallback(() => {
-    setFxByLayer((prev) => {
-      const key = String(selectedLayer);
-      const mine = prev[key] ?? {};
+    setFxByPattern((prev) => {
+      const mine = prev[currentPattern] ?? {};
       return {
         ...prev,
-        [key]: { ...mine, 'master.enabled': (mine['master.enabled'] ?? 1) >= 0.5 ? 0 : 1 },
+        [currentPattern]: {
+          ...mine,
+          'master.enabled': (mine['master.enabled'] ?? 1) >= 0.5 ? 0 : 1,
+        },
       };
     });
-  }, [selectedLayer]);
+  }, [currentPattern]);
+
+  /** Which effect's controls are open. Held here so hiding the UI keeps it. */
+  const [openFx, setOpenFx] = useState<string | null>(null);
 
   const resetFxParam = useCallback((path?: string) => {
-    setFxByLayer((prev) => {
-      const key = String(selectedLayer);
-      if (path === undefined) return { ...prev, [key]: {} };
-      const { [path]: _removed, ...keep } = prev[key] ?? {};
-      return { ...prev, [key]: keep };
+    setFxByPattern((prev) => {
+      if (path === undefined) return { ...prev, [currentPattern]: {} };
+      const { [path]: _removed, ...keep } = prev[currentPattern] ?? {};
+      return { ...prev, [currentPattern]: keep };
     });
-  }, [selectedLayer]);
+  }, [currentPattern]);
 
   const setParam = useCallback((path: string, value: number) => {
     setParamValues((prev) => ({
@@ -598,6 +602,9 @@ export default function App() {
     return () => clearInterval(interval);
   }, [autoHueEnabled]);
 
+  /** The slow figure a layer runs on when it is not being played. */
+  const autoHands = useMemo(() => idleHands(audioTime), [audioTime]);
+
   /*
    * Audio standing in for hands.
    *
@@ -651,7 +658,7 @@ export default function App() {
     clapIntensity: audioData.beatIntensity,
     // Hands close on the kick, so the low end squeezes the whole frame.
     distanceBetweenHands: 0.45 - audioData.bass * 0.3,
-  } : handsPresent || !idleDrive ? handData : idleHands(audioTime);
+  } : handsPresent || !idleDrive ? handData : autoHands;
 
   /*
    * The motion knob is applied here, once, rather than in each renderer — so
@@ -676,8 +683,8 @@ export default function App() {
   }, [paramValues]);
 
   useEffect(() => {
-    saveSetting('vj-fx', fxByLayer);
-  }, [fxByLayer]);
+    saveSetting('vj-fx', fxByPattern);
+  }, [fxByPattern]);
 
   useEffect(() => {
     saveSetList(set);
@@ -690,8 +697,29 @@ export default function App() {
    */
   const startSet = useCallback(() => {
     if (set.length === 0) return;
-    setLayers([{ pattern: set[0], opacity: 1, ...loadLook() }]);
+    setLayers([{ pattern: set[0], opacity: 1, motion: MOTION_DEFAULT, ...loadLook() }]);
     setSelectedLayer(0);
+    /*
+     * Every effect starts bypassed, whatever was left on last time.
+     *
+     * Walking into a set already wearing last night's effects is not a start,
+     * it is the middle of something — and there is no way to bring a look up
+     * by hand if it is already there. Only the bypass flags are touched, so
+     * every setting underneath survives: switching an effect on brings it
+     * back exactly as she left it rather than at some default.
+     */
+    setFxByPattern((prev) => {
+      const next: AllParamValues = {};
+      for (const [pattern, values] of Object.entries(prev)) {
+        next[pattern] = { ...values };
+        for (const group of PIPELINE_PARAMS.groups) {
+          if (group.togglePath) next[pattern][group.togglePath] = 0;
+        }
+        next[pattern]['master.enabled'] = 1;
+      }
+      return next;
+    });
+    setOpenFx(null);
     setView('vj');
   }, [set]);
 
@@ -920,7 +948,9 @@ export default function App() {
         audioData={rendererAudioData}
         layerParams={layerParams}
         content={content}
-        motion={motion}
+        motion={layers.map((l) => l.motion)}
+        autoHandData={autoHands}
+        autoDrive={idleDrive}
         layerFx={layerFx}
         onCanvasReady={(canvas) => {
           canvasRef.current = canvas;

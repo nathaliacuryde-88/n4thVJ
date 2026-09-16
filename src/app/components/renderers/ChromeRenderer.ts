@@ -477,7 +477,7 @@ export class ChromeRenderer {
      */
     const weight = Math.min(1,
       (audioData?.bass ?? 0) * 0.8 + (audioData?.onset ?? 0) * 0.35);
-    this.swell += (weight - this.swell) * (weight > this.swell ? 0.035 : 0.012);
+    this.swell += (weight - this.swell) * (weight > this.swell ? 0.014 : 0.006);
 
     // A clap is the one thing that is meant to be a shock, and only a clap.
     const clap = handData.clapping ? (handData.clapIntensity ?? 1) : 0;
@@ -504,7 +504,7 @@ export class ChromeRenderer {
       (1 + (spread - 0.4) * cfg.hands.spread + (this.openness - 0.25) * 0.55) +
       this.kick * cfg.hands.kick * 0.35);
     // Mass swells with the music's weight, slowly.
-    f1('uSize2', cfg.form.size * (1 + this.swell * 0.3));
+    f1('uSize2', cfg.form.size * (1 + this.swell * 0.14));
     f1('uBlend', Math.max(0.05, cfg.form.blend));
     // A closed hand leaves the surface molten and rippling; an open one
     // draws it taut, so the same form reads as liquid or as polished.
@@ -512,10 +512,10 @@ export class ChromeRenderer {
       (1.35 - this.openness * 0.7 + this.kick * cfg.hands.kick * 1.6));
     f1('uRippleScale', cfg.form.rippleScale);
     // The lobes wander further when the music is carrying weight.
-    f1('uDrift', cfg.motion.drift * (1 + this.swell * 0.5));
+    f1('uDrift', cfg.motion.drift * (1 + this.swell * 0.18));
     f1('uChurn', cfg.motion.churn);
     f1('uSpin', cfg.motion.spin);
-    f1('uDispersion', cfg.material.dispersion * (1 + this.swell * 0.4 + this.kick * 0.35));
+    f1('uDispersion', cfg.material.dispersion * (1 + this.swell * 0.18 + this.kick * 0.3));
     f1('uRimTight', Math.max(0.5, cfg.material.rimTightness));
     f1('uSplit', cfg.material.split);
     f1('uSilver', cfg.material.silver);

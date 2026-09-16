@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { Layer } from '../config/LayerConfig';
 import { AudioData, HandData, VisualPattern } from '../App';
 import { createRenderer, VJRenderer } from './renderers/create';
-import { advanceClock } from '../motion/clock';
+import { advanceClock, useLayerClock } from '../motion/clock';
 import { createGestureState, gestureRate } from '../hands/gesture';
 import { ParamValues, withOverrides } from '../params/types';
 import { PostPipeline, fxActive } from '../pipeline/PostPipeline';
@@ -62,8 +62,18 @@ interface VJCanvasProps {
   layerFx?: (ParamValues | undefined)[];
   /** What the content-driven visuals show: the words, and the uploaded clip. */
   content: { text: string; clips: Clips };
-  /** Tempo for the whole set. Scales every renderer's clock. */
-  motion: number;
+  /** Tempo per layer, index-matched to `layers`. Scales that layer's clock. */
+  motion: number[];
+  /**
+   * The hands when nobody is playing — a slow figure to sit on.
+   *
+   * A layer whose tempo is at zero is not meant to freeze: it is meant to run
+   * itself. It gets these instead of the tracked hands, so one visual can idle
+   * under another that she is playing.
+   */
+  autoHandData: HandData;
+  /** Whether that automatic drive is switched on at all. */
+  autoDrive: boolean;
   /**
    * The visible canvas, whenever it changes.
    *
@@ -84,6 +94,8 @@ export function VJCanvas({
   layerFx,
   content,
   motion,
+  autoHandData,
+  autoDrive,
   onCanvasReady,
 }: VJCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -143,7 +155,9 @@ export function VJCanvas({
   const layerFxRef = useRef<(ParamValues | undefined)[] | undefined>(layerFx);
   const contentRef = useRef(content);
   const motionRef = useRef(motion);
+  const autoRef = useRef({ hands: autoHandData, on: autoDrive });
   const gestureRef = useRef(createGestureState());
+  const autoGestureRef = useRef(createGestureState());
 
   // Update refs whenever props change
   useEffect(() => {
@@ -156,7 +170,8 @@ export function VJCanvas({
     layerFxRef.current = layerFx;
     contentRef.current = content;
     motionRef.current = motion;
-  }, [handData, layerColors, videoElement, audioData, layerParams, layers, layerFx, content, motion]);
+    autoRef.current = { hands: autoHandData, on: autoDrive };
+  }, [handData, layerColors, videoElement, audioData, layerParams, layers, layerFx, content, motion, autoHandData, autoDrive]);
 
   // Retyping the words must not rebuild the renderer, any more than a slider does.
   useEffect(() => {
@@ -264,8 +279,20 @@ export function VJCanvas({
           deck.renderer.setVideoElement?.(videoElementRef.current);
         }
         const layer = layersRef.current[index];
+        /*
+         * A layer with its hands fader at zero runs itself.
+         *
+         * Zero on a fader that is still showing a visual should not mean
+         * frozen; it means "take this one off my hands", which is exactly
+         * what the automatic drive is for. So that layer sees the idle
+         * figure while the others see her.
+         */
+        const onHands = (motionRef.current?.[index] ?? 1) > 0;
+        const hands = onHands || !autoRef.current.on
+          ? handDataRef.current
+          : autoRef.current.hands;
         deck.renderer.render(
-          handDataRef.current,
+          hands,
           layerColorsRef.current[index] ?? layerColorsRef.current[0] ?? [],
           audioDataRef.current,
           layer?.colorMode,
@@ -365,11 +392,23 @@ export function VJCanvas({
       lastFrame = now;
       // Tempo is the motion knob and the hands together: the knob says how
       // hard the whole set runs tonight, the gesture says how hard right now.
+      /*
+       * One rate per layer.
+       *
+       * A layer at zero is not stopped — it is off the hands and onto the
+       * automatic drive, running at its own steady pace. Freezing it would be
+       * the one thing a fader at zero should never mean on a visual that is
+       * still on screen.
+       */
       const gesture = gestureRate(handDataRef.current, gestureRef.current, delta);
-      advanceClock(delta, motionRef.current * gesture);
+      const autoGesture = gestureRate(autoRef.current.hands, autoGestureRef.current, delta);
+      const rates = (motionRef.current ?? []).map((m) =>
+        m > 0 ? m * gesture : (autoRef.current.on ? autoGesture : 1));
+      advanceClock(delta, rates.length ? rates : [gesture]);
 
       slotsRef.current.forEach((slot, index) => {
         if (!slot) return;
+        useLayerClock(index);
         drawDeck(slot.current, index);
         if (slot.outgoing) {
           if (fadeProgress(slot.outgoing, now) >= 1) {

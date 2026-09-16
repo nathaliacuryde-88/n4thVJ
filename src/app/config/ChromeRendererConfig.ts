@@ -19,9 +19,9 @@ export const ChromeConfig = {
 
   motion: {
     /** How fast the lobes drift around each other. */
-    drift: 0.24,
+    drift: 0.14,
     /** How fast the surface ripple crawls. */
-    churn: 0.35,
+    churn: 0.2,
     /** Slow turn of the whole form. */
     spin: 0.08,
   },

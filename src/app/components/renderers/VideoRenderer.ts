@@ -142,7 +142,16 @@ export class VideoRenderer {
     const originY = (height - drawH) / 2 + this.drift.y * height * cfg.frame.handDrift;
 
     const t = vjTime();
-    const beat = audioData?.beat ? cfg.slice.beatKick : 1;
+    /*
+     * Ridden rather than triggered.
+     *
+     * This read the beat flag, which is true for a single frame, so the bands
+     * snapped to full width and back between one frame and the next — at any
+     * setting, including the lowest. Onset carries the same pulse with a
+     * decay, so the same slider now swells the shear instead of flicking it.
+     */
+    const pulse = Math.max(audioData?.onset ?? 0, audioData?.beat ? 1 : 0);
+    const beat = 1 + (cfg.slice.beatKick - 1) * pulse;
     const bands = Math.max(1, Math.round(cfg.slice.count));
     const bandH = height / bands;
 

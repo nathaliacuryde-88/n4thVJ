@@ -21,7 +21,7 @@ export const VideoConfig = {
     /** Speed the slide pattern travels through the bands. */
     speed: 0.8,
     /** A beat throws the bands wider. */
-    beatKick: 1.5,
+    beatKick: 1.25,
   },
   look: {
     /** Tints the clip towards the layer's palette. */

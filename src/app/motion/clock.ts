@@ -2,40 +2,51 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * THE CLOCK EVERY VISUAL RUNS ON
  * ═══════════════════════════════════════════════════════════════════════════
- * One rate, so one control changes the tempo of the whole set.
+ * Nearly every renderer advances its own time by a fixed step per frame and
+ * animates from that, so the hands modulate a motion whose speed they never
+ * set. Damping the hand data alone was measured and did almost nothing: three
+ * layers stacked moved 8.8 at the calmest setting and 8.9 at the wildest. The
+ * knob has to scale time itself, which is what this is.
  *
- * Damping the hand data alone was not enough, and measuring said so: three
- * layers stacked moved almost exactly as much at the calmest setting as at the
- * wildest. Almost none of what you see is actually hand-driven — nearly every
- * renderer advances its own time by a fixed step per frame and animates from
- * that, so the hands modulate a motion whose speed they never set.
- *
- * So the knob scales time itself. Renderers take their step from `timeScale()`
- * and their wall clock from `vjTime()`, and both slow down or speed up
- * together. At 1 the step is 0.016 and the clock tracks real seconds, which is
- * what every renderer was written against.
+ * ONE CLOCK PER LAYER. It used to be a single rate for the whole set, so the
+ * knob moved everything at once and a stack could not hold one visual drifting
+ * under another racing. Each layer keeps its own rate and its own elapsed
+ * time; the canvas selects a layer just before drawing its deck, and the
+ * renderer reads whatever is current without knowing any of this happened.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-let rate = 1;
-let elapsed = 0;
+/** Per-layer rate and elapsed time, grown as layers appear. */
+const rates: number[] = [1];
+const elapsed: number[] = [0];
+let current = 0;
 
 /**
- * Advances the clock. Called once per frame by the canvas, before anything
- * draws — never by a renderer, or each one would push time along again and the
- * set would run at a speed that depended on how many layers were up.
+ * Advances every layer's clock by one frame.
+ *
+ * Called once per frame by the canvas, before anything draws — never by a
+ * renderer, or each one would push time along again and the set would run at a
+ * speed that depended on how many layers were up.
  */
-export function advanceClock(seconds: number, motion: number) {
-  rate = motion;
-  elapsed += seconds * motion;
+export function advanceClock(seconds: number, layerRates: number[]) {
+  for (let i = 0; i < layerRates.length; i++) {
+    const rate = layerRates[i] ?? 1;
+    rates[i] = rate;
+    elapsed[i] = (elapsed[i] ?? 0) + seconds * rate;
+  }
+}
+
+/** Points the readers below at one layer, for the length of its draw. */
+export function useLayerClock(index: number) {
+  current = index;
 }
 
 /** Multiplier for a renderer's own per-frame step. */
 export function timeScale(): number {
-  return rate;
+  return rates[current] ?? 1;
 }
 
 /** Seconds elapsed on the scaled clock, for renderers that want a wall time. */
 export function vjTime(): number {
-  return elapsed;
+  return elapsed[current] ?? 0;
 }
