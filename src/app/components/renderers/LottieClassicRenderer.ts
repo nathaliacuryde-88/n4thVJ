@@ -1,4 +1,5 @@
 import { HandData } from '../../App';
+import { timeScale } from '../../motion/clock';
 
 interface Rectangle {
   id: number;
@@ -224,10 +225,15 @@ export class LottieClassicRenderer {
       });
     }
     
-    // Smooth interpolation with finger-controlled speed
-    this.gridStructure.forEach((grid, index) => {
-      grid.w += (grid.targetW - grid.w) * animationSpeed;
-      grid.h += (grid.targetH - grid.h) * animationSpeed;
+    /*
+     * Eased rather than clocked, like Halftone — so the tempo has to act on
+     * the rate of approach, and be clamped short of 1 or the cells overshoot
+     * and ring rather than settling.
+     */
+    const eased = Math.min(0.95, animationSpeed * timeScale());
+    this.gridStructure.forEach((grid) => {
+      grid.w += (grid.targetW - grid.w) * eased;
+      grid.h += (grid.targetH - grid.h) * eased;
     });
     
     // CRITICAL: Normalize grid to maintain perfect tiling without gaps/overlaps

@@ -150,13 +150,23 @@ export class ChromaticRenderer {
       }
     }
 
-    // Update shapes - Smoother, slower movement
+    /*
+     * The simulation runs on the clock, not only the spawner.
+     *
+     * Scaling the spawn counter alone made this one visual run BACKWARDS
+     * against the tempo: more shapes were emitted, but each still drifted and
+     * faded at a fixed rate, so they piled up into an even wash that changed
+     * less from frame to frame the faster the hand asked it to go. Measured at
+     * 0.1x — the only visual in the set where a spread hand calmed it down.
+     * Movement and lifetime have to scale with emission or the balance breaks.
+     */
+    const rate = timeScale();
     this.glowObjects = this.glowObjects.filter(shape => {
-      shape.x += shape.vx;
-      shape.y += shape.vy;
-      shape.vx *= 0.99; // Less friction for smooth flow
-      shape.vy *= 0.99;
-      shape.life -= shape.decay; // Slower fade for longer smoke trails
+      shape.x += shape.vx * rate;
+      shape.y += shape.vy * rate;
+      shape.vx *= Math.pow(0.99, rate); // Less friction for smooth flow
+      shape.vy *= Math.pow(0.99, rate);
+      shape.life -= shape.decay * rate; // Slower fade for longer smoke trails
       
       if (vibrationIntensity > 0) {
         shape.x += (Math.random() - 0.5) * vibrationIntensity * 10;

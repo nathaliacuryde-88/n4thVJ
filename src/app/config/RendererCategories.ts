@@ -265,6 +265,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '3',
     description: 'Your own footage, sheared into sliding bands'
   },
+  chrome: {
+    pattern: 'chrome',
+    name: 'Chrome',
+    short: 'Chrome',
+    category: 'TD',
+    key: '5',
+    description: 'Liquid metal on black, splitting light into rainbow at its edges'
+  },
   mosaic: {
     pattern: 'mosaic',
     name: 'Mosaic',

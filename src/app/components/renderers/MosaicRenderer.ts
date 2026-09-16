@@ -2,7 +2,7 @@ import { AudioData, HandData } from '../../App';
 import { MosaicConfig } from '../../config/MosaicRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { alphaHex } from './alpha';
-import { vjTime } from '../../motion/clock';
+import { timeScale, vjTime } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -113,6 +113,27 @@ export class MosaicRenderer {
     this.video = video;
   }
 
+
+  /**
+   * Footage follows the tempo too.
+   *
+   * Everything else takes its step from the shared clock, but a video plays at
+   * whatever rate the decoder feels like — so one finger slowed the whole set
+   * except the clip, which carried on regardless and fell out of step with
+   * everything stacked around it. Clamped to the range browsers will actually
+   * honour; beyond that they silently ignore it or mute the track.
+   */
+  private followTempo(video: HTMLVideoElement) {
+    const wanted = Math.min(4, Math.max(0.25, timeScale()));
+    if (Math.abs(video.playbackRate - wanted) > 0.02) {
+      try {
+        video.playbackRate = wanted;
+      } catch {
+        // Out of range for this browser; it keeps its own rate.
+      }
+    }
+  }
+
   destroy() {
     this.video?.pause();
     this.video = null;
@@ -122,6 +143,7 @@ export class MosaicRenderer {
   /** The element to sample, once it has enough decoded to be worth sampling. */
   private source(): { el: CanvasImageSource; w: number; h: number } | null {
     const { video, image } = this;
+    if (video) this.followTempo(video);
     if (video && video.readyState >= 2 && video.videoWidth > 0) {
       return { el: video, w: video.videoWidth, h: video.videoHeight };
     }

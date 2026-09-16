@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Hand, HandData, VisualPattern } from '../App';
+import { AudioData, Hand, HandData, VisualPattern } from '../App';
 import { HOLD_MS, Layer } from '../config/LayerConfig';
 import {
   Video, VideoOff, Mic, MicOff, Orbit, Sparkles, Circle, Square,
@@ -63,12 +63,11 @@ interface ControlsProps {
   onAudioToggle: () => void;
   audioSensitivity: number;
   onAudioSensitivityChange: (sensitivity: number) => void;
-  audioControlSpeed: boolean;
-  onAudioControlSpeedChange: (enabled: boolean) => void;
-  audioControlDensity: boolean;
-  onAudioControlDensityChange: (enabled: boolean) => void;
-  audioTriggerBeats: boolean;
-  onAudioTriggerBeatsChange: (enabled: boolean) => void;
+  /** Which parts of the music are allowed to reach the visuals. */
+  audioUse: { bass: boolean; mid: boolean; high: boolean; beat: boolean };
+  onAudioUseToggle: (band: 'bass' | 'mid' | 'high' | 'beat') => void;
+  /** What is coming through right now, for the meter. */
+  audioLevels: AudioData;
   /** How hard the hands drive the whole set. 1 is neutral. */
   motion: number;
   onMotionChange: (motion: number) => void;
@@ -90,6 +89,27 @@ interface ControlsProps {
   output: boolean;
   onOutputToggle: () => void;
 }
+
+/** The meter's bars, low to high. */
+const BANDS = [
+  { key: 'bass', label: 'LOW', band: 'bass' },
+  { key: 'lowMid', label: 'L-MID', band: 'bass' },
+  { key: 'mid', label: 'MID', band: 'mid' },
+  { key: 'high', label: 'HIGH', band: 'high' },
+] as const;
+
+/**
+ * The switches.
+ *
+ * Named after the band each one carries, because that is all any of them ever
+ * did — the old SPEED, DENSITY and BEATS described a hope rather than a wire.
+ */
+const TOGGLES = [
+  { band: 'bass', label: 'LOWS', hint: 'Kick and bassline drive scale, weight and push' },
+  { band: 'mid', label: 'MIDS', hint: 'Melody and voice drive speed and movement' },
+  { band: 'high', label: 'HIGHS', hint: 'Hats and air drive density and detail' },
+  { band: 'beat', label: 'BEAT', hint: 'Onsets hit the visuals, the way a clap does' },
+] as const;
 
 /** m:ss, so a take's length reads at a glance instead of counting seconds. */
 function clock(seconds: number): string {
@@ -161,12 +181,9 @@ export function Controls({
   onAudioToggle,
   audioSensitivity,
   onAudioSensitivityChange,
-  audioControlSpeed,
-  onAudioControlSpeedChange,
-  audioControlDensity,
-  onAudioControlDensityChange,
-  audioTriggerBeats,
-  onAudioTriggerBeatsChange,
+  audioUse,
+  onAudioUseToggle,
+  audioLevels,
   motion,
   onMotionChange,
   idleDrive,
@@ -514,41 +531,64 @@ export function Controls({
                       </div>
                   </div>
 
-                  {/* Toggles */}
+                  {/*
+                    The meter.
+
+                    Without it there is no way to tell a band that is silent
+                    from one that is switched off from an analyser that is not
+                    working — which is exactly the doubt that comes with a
+                    control that seems to do nothing. Now a switch visibly
+                    stops a bar.
+                  */}
+                  <div className="space-y-1">
+                      <div className="flex justify-between text-[9px] text-white/50 font-medium">
+                          <span>LEVELS</span>
+                          <span
+                              className={`transition-colors ${
+                                  audioLevels.onset > 0.05 ? 'text-cyan-300' : 'text-white/20'
+                              }`}
+                          >
+                              ●
+                          </span>
+                      </div>
+                      <div className="flex items-end gap-1 h-10">
+                          {BANDS.map(({ key, label, band }) => (
+                              <div key={key} className="flex-1 flex flex-col items-center gap-1">
+                                  <div className="relative w-full h-8 rounded-sm bg-white/10 overflow-hidden">
+                                      <div
+                                          className="absolute inset-x-0 bottom-0 bg-white transition-[height] duration-75"
+                                          style={{ height: `${Math.round(audioLevels[key] * 100)}%` }}
+                                      />
+                                  </div>
+                                  <span
+                                      className={`text-[7px] tracking-wider ${
+                                          audioUse[band] ? 'text-white/50' : 'text-white/20'
+                                      }`}
+                                  >
+                                      {label}
+                                  </span>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+
+                  {/* Which parts of the music get through. */}
                   <div className="flex flex-col gap-1.5">
-                      <button
-                          onClick={() => onAudioControlSpeedChange(!audioControlSpeed)}
-                          className={`flex justify-between items-center px-2 py-1.5 rounded-md text-[9px] font-bold transition-all border ${
-                              audioControlSpeed 
-                                  ? 'bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.3)]' 
-                                  : 'bg-transparent text-white/50 border-white/10 hover:bg-white/10 hover:text-white'
-                          }`}
-                      >
-                          <span>SPEED</span>
-                          <div className={`w-1.5 h-1.5 rounded-full ${audioControlSpeed ? 'bg-black' : 'bg-white/30'}`} />
-                      </button>
-                      <button
-                          onClick={() => onAudioControlDensityChange(!audioControlDensity)}
-                          className={`flex justify-between items-center px-2 py-1.5 rounded-md text-[9px] font-bold transition-all border ${
-                              audioControlDensity 
-                                  ? 'bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.3)]' 
-                                  : 'bg-transparent text-white/50 border-white/10 hover:bg-white/10 hover:text-white'
-                          }`}
-                      >
-                          <span>DENSITY</span>
-                          <div className={`w-1.5 h-1.5 rounded-full ${audioControlDensity ? 'bg-black' : 'bg-white/30'}`} />
-                      </button>
-                      <button
-                          onClick={() => onAudioTriggerBeatsChange(!audioTriggerBeats)}
-                          className={`flex justify-between items-center px-2 py-1.5 rounded-md text-[9px] font-bold transition-all border ${
-                              audioTriggerBeats 
-                                  ? 'bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.3)]' 
-                                  : 'bg-transparent text-white/50 border-white/10 hover:bg-white/10 hover:text-white'
-                          }`}
-                      >
-                          <span>BEATS</span>
-                          <div className={`w-1.5 h-1.5 rounded-full ${audioTriggerBeats ? 'bg-black' : 'bg-white/30'}`} />
-                      </button>
+                      {TOGGLES.map(({ band, label, hint }) => (
+                          <button
+                              key={band}
+                              onClick={() => onAudioUseToggle(band)}
+                              title={hint}
+                              className={`flex justify-between items-center px-2 py-1.5 rounded-md text-[9px] font-bold transition-all border ${
+                                  audioUse[band]
+                                      ? 'bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.3)]'
+                                      : 'bg-transparent text-white/50 border-white/10 hover:bg-white/10 hover:text-white'
+                              }`}
+                          >
+                              <span>{label}</span>
+                              <div className={`w-1.5 h-1.5 rounded-full ${audioUse[band] ? 'bg-black' : 'bg-white/30'}`} />
+                          </button>
+                      ))}
                   </div>
               </div>
           </div>

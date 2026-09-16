@@ -12,7 +12,7 @@ import { Hand, HandData } from '../App';
  * rather than just a position (Chromatic Glow, Technical Hand) need the real
  * shape, not a point.
  */
-function idleLandmarks(x: number, y: number, t: number, phase: number) {
+export function idleLandmarks(x: number, y: number, t: number, phase: number) {
   const scale = 0.16;
   const wrist = { x, y: y + scale * 0.55 };
   const points = [{ ...wrist, z: 0 }];

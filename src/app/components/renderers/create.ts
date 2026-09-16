@@ -33,6 +33,7 @@ import { RippleRenderer } from './RippleRenderer';
 import { TextRenderer } from './TextRenderer';
 import { VideoRenderer } from './VideoRenderer';
 import { MosaicRenderer } from './MosaicRenderer';
+import { ChromeRenderer } from './ChromeRenderer';
 import { AudioData, HandData, VisualPattern } from '../../App';
 import { ParamValues } from '../../params/types';
 
@@ -158,6 +159,9 @@ export function createRenderer(
       break;
     case 'mosaic':
       renderer = new MosaicRenderer(canvas, ctx);
+      break;
+    case 'chrome':
+      renderer = new ChromeRenderer(canvas, ctx);
       break;
     case 'ripple':
       renderer = new RippleRenderer(canvas, ctx);

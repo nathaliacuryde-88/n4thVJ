@@ -3,6 +3,7 @@ import { Layer } from '../config/LayerConfig';
 import { AudioData, HandData, VisualPattern } from '../App';
 import { createRenderer, VJRenderer } from './renderers/create';
 import { advanceClock } from '../motion/clock';
+import { createGestureState, gestureRate } from '../hands/gesture';
 import { ParamValues, withOverrides } from '../params/types';
 import { PostPipeline } from '../pipeline/PostPipeline';
 import { PipelineConfig } from '../config/PipelineConfig';
@@ -126,6 +127,7 @@ export function VJCanvas({
   const fxParamsRef = useRef<ParamValues | undefined>(fxParams);
   const contentRef = useRef(content);
   const motionRef = useRef(motion);
+  const gestureRef = useRef(createGestureState());
 
   // Update refs whenever props change
   useEffect(() => {
@@ -310,7 +312,10 @@ export function VJCanvas({
       // returning from the background does not jump every visual forwards.
       const delta = Math.min(0.1, (now - lastFrame) / 1000);
       lastFrame = now;
-      advanceClock(delta, motionRef.current);
+      // Tempo is the motion knob and the hands together: the knob says how
+      // hard the whole set runs tonight, the gesture says how hard right now.
+      const gesture = gestureRate(handDataRef.current, gestureRef.current, delta);
+      advanceClock(delta, motionRef.current * gesture);
 
       slotsRef.current.forEach((slot, index) => {
         if (!slot) return;

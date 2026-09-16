@@ -13,7 +13,7 @@ import { PIPELINE_PARAMS, RENDERER_PARAMS } from './params/registry';
 import { AllParamValues, ParamValues, sanitizeAllParams } from './params/types';
 import { HOLD_MS, Layer, MAX_LAYERS, STACKED_OPACITY } from './config/LayerConfig';
 import { fxActive } from './pipeline/PostPipeline';
-import { idleHands } from './hands/idle';
+import { idleHands, idleLandmarks } from './hands/idle';
 import { MOTION_DEFAULT, MOTION_MAX, MOTION_MIN, shapeHands } from './hands/motion';
 import { ColorMode, generateColors } from './config/palette';
 import { Recorder, canRecord, save } from './record/Recorder';
@@ -29,15 +29,29 @@ import {
   saveText,
 } from './config/content';
 
-export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple' | 'text' | 'video' | 'mosaic';
+export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple' | 'text' | 'video' | 'mosaic' | 'chrome';
 
 export interface AudioData {
-  bass: number; // 0-1, controls scale/blooming
-  mid: number; // 0-1, controls speed/movement
-  high: number; // 0-1, controls particle density
-  overall: number; // 0-1, overall volume
-  beat: boolean; // Beat detected
-  beatIntensity: number; // 0-1, strength of beat
+  /** Kick and sub, 20–160Hz. Scale, weight, push. */
+  bass: number;
+  /** Bassline and the body of a voice, 160–800Hz. */
+  lowMid: number;
+  /** Where melody lives, 800Hz–4kHz. Speed and movement. */
+  mid: number;
+  /** Hats, air, consonants, 4–12kHz. Density and detail. */
+  high: number;
+  /** Everything, 20Hz–12kHz. */
+  overall: number;
+  /** An onset landed this frame. */
+  beat: boolean;
+  /** How hard, 0-1. Zero on frames with no beat. */
+  beatIntensity: number;
+  /**
+   * The pulse without the on/off edge: jumps on an onset and falls away over
+   * about a third of a second. Anything that would stutter on a boolean —
+   * a scale, a brightness, a speed — should ride this instead.
+   */
+  onset: number;
 }
 
 /** One tracked hand, as produced by {@link HandTracker} from MediaPipe landmarks. */
@@ -502,18 +516,22 @@ export default function App() {
 
   // Audio reactive state
   const [audioEnabled, setAudioEnabled] = useState(false);
-  const [audioData, setAudioData] = useState<AudioData>({
-    bass: 0,
-    mid: 0,
-    high: 0,
-    overall: 0,
-    beat: false,
-    beatIntensity: 0
-  });
+  const [audioData, setAudioData] = useState<AudioData>({ bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 });
   const [audioSensitivity, setAudioSensitivity] = useState(0.5); // 0-1
-  const [audioControlSpeed, setAudioControlSpeed] = useState(true);
-  const [audioControlDensity, setAudioControlDensity] = useState(true);
-  const [audioTriggerBeats, setAudioTriggerBeats] = useState(true);
+  /*
+   * Which parts of the music are allowed through.
+   *
+   * These used to be called SPEED, DENSITY and BEATS, which described what
+   * someone hoped they would do rather than what they did — each one simply
+   * zeroed a band. Named after the band, a switch that mutes the lows is
+   * obvious, and the meter beside them shows it happening.
+   */
+  const [audioUse, setAudioUse] = useState({
+    bass: true, mid: true, high: true, beat: true,
+  });
+  const toggleAudioUse = useCallback((band: keyof typeof audioUse) => {
+    setAudioUse((prev) => ({ ...prev, [band]: !prev[band] }));
+  }, []);
   const [audioTime, setAudioTime] = useState(0); // For smooth audio-driven animation
 
   const handsPresent = handData.left !== null || handData.right !== null;
@@ -546,29 +564,59 @@ export default function App() {
     return () => clearInterval(interval);
   }, [autoHueEnabled]);
 
-  // Convert audio data to hand data when audio is enabled
+  /*
+   * Audio standing in for hands.
+   *
+   * The gesture vocabulary is the same one her hands use — finger count is
+   * speed, a clap is an explosion — so the music is mapped onto it rather than
+   * onto some parallel set of rules. Brightness up top means more fingers;
+   * an onset is a clap. That way every visual reacts to sound exactly as it
+   * reacts to her, and nothing needs a second code path.
+   */
   const effectiveHandData: HandData = audioEnabled ? {
     left: {
-      position: { 
-        x: 0.3 + Math.sin(audioTime) * 0.2 * audioData.mid, 
-        y: 0.5 + audioData.bass * 0.3 
+      position: {
+        x: 0.3 + Math.sin(audioTime) * 0.2 * audioData.mid,
+        y: 0.5 + audioData.bass * 0.3,
       },
-      gesture: audioData.overall > 0.3 ? 'open' : 'fist',
-      fingerCount: audioControlSpeed ? Math.max(1, Math.ceil(audioData.mid * 5)) : 5,
-      velocity: audioControlSpeed ? audioData.mid : 0.5,
+      gesture: audioData.overall > 0.25 ? 'open' : 'fist',
+      fingerCount: 1 + Math.round(Math.min(1, audioData.mid + audioData.high * 0.6) * 4),
+      velocity: Math.min(1, audioData.mid * 0.7 + audioData.onset * 0.6),
+      /*
+       * Landmarks, not just a position.
+       *
+       * Several renderers draw from the fingertips rather than the palm, and
+       * they check for the array before drawing anything at all — so without
+       * it they came up completely black in audio-reactive mode. A visual that
+       * is blank whenever the camera is off is not a visual she can put in a
+       * set.
+       */
+      landmarks: idleLandmarks(
+        0.3 + Math.sin(audioTime) * 0.2 * audioData.mid,
+        0.5 + audioData.bass * 0.3,
+        audioTime,
+        0,
+      ),
     },
     right: {
-      position: { 
-        x: 0.7 - Math.sin(audioTime) * 0.2 * audioData.mid, 
-        y: 0.5 + audioData.bass * 0.3 
+      position: {
+        x: 0.7 - Math.sin(audioTime) * 0.2 * audioData.mid,
+        y: 0.5 + audioData.bass * 0.3,
       },
-      gesture: audioData.overall > 0.3 ? 'open' : 'fist',
-      fingerCount: audioControlSpeed ? Math.max(1, Math.ceil(audioData.mid * 5)) : 5,
-      velocity: audioControlSpeed ? audioData.mid : 0.5,
+      gesture: audioData.overall > 0.25 ? 'open' : 'fist',
+      fingerCount: 1 + Math.round(Math.min(1, audioData.mid + audioData.high * 0.6) * 4),
+      velocity: Math.min(1, audioData.mid * 0.7 + audioData.onset * 0.6),
+      landmarks: idleLandmarks(
+        0.7 - Math.sin(audioTime) * 0.2 * audioData.mid,
+        0.5 + audioData.bass * 0.3,
+        audioTime,
+        Math.PI,
+      ),
     },
-    clapping: audioTriggerBeats && audioData.beat,
+    clapping: audioData.beat,
     clapIntensity: audioData.beatIntensity,
-    distanceBetweenHands: 0.4 - audioData.bass * 0.2,
+    // Hands close on the kick, so the low end squeezes the whole frame.
+    distanceBetweenHands: 0.45 - audioData.bass * 0.3,
   } : handsPresent || !idleDrive ? handData : idleHands(audioTime);
 
   /*
@@ -790,13 +838,16 @@ export default function App() {
     setShowPermissionRequest(false);
   };
 
-  // Filter audio data for renderers based on control flags
+  // What the renderers get, after the band switches.
   const rendererAudioData: AudioData = {
     ...audioData,
-    mid: audioControlSpeed ? audioData.mid : 0,
-    high: audioControlDensity ? audioData.high : 0,
-    beat: audioTriggerBeats ? audioData.beat : false,
-    beatIntensity: audioTriggerBeats ? audioData.beatIntensity : 0,
+    bass: audioUse.bass ? audioData.bass : 0,
+    lowMid: audioUse.bass ? audioData.lowMid : 0,
+    mid: audioUse.mid ? audioData.mid : 0,
+    high: audioUse.high ? audioData.high : 0,
+    beat: audioUse.beat ? audioData.beat : false,
+    beatIntensity: audioUse.beat ? audioData.beatIntensity : 0,
+    onset: audioUse.beat ? audioData.onset : 0,
   };
 
   if (view === 'library') {
@@ -923,12 +974,9 @@ export default function App() {
           onAudioToggle={() => setAudioEnabled(!audioEnabled)}
           audioSensitivity={audioSensitivity}
           onAudioSensitivityChange={setAudioSensitivity}
-          audioControlSpeed={audioControlSpeed}
-          onAudioControlSpeedChange={setAudioControlSpeed}
-          audioControlDensity={audioControlDensity}
-          onAudioControlDensityChange={setAudioControlDensity}
-          audioTriggerBeats={audioTriggerBeats}
-          onAudioTriggerBeatsChange={setAudioTriggerBeats}
+          audioUse={audioUse}
+          onAudioUseToggle={toggleAudioUse}
+          audioLevels={rendererAudioData}
           motion={motion}
           onMotionChange={setMotion}
           idleDrive={idleDrive}

@@ -28,6 +28,7 @@ import { HorizonConfig } from '../config/HorizonRendererConfig';
 import { TextConfig } from '../config/TextRendererConfig';
 import { VideoConfig } from '../config/VideoRendererConfig';
 import { MosaicConfig } from '../config/MosaicRendererConfig';
+import { ChromeConfig } from '../config/ChromeRendererConfig';
 import { ParamGroup } from './types';
 
 export interface RendererParams {
@@ -299,6 +300,62 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'look.tint', label: 'Tint', min: 0, max: 1, step: 0.02, hint: 'palette over the clip' },
           { path: 'look.gain', label: 'Gain', min: 1, max: 3, step: 0.05 },
           { path: 'trail.fadeAlpha', label: 'Trail', min: 0.02, max: 1, step: 0.01, hint: 'lower = longer' },
+        ],
+      },
+    ],
+  },
+
+  chrome: {
+    config: ChromeConfig,
+    groups: [
+      {
+        name: 'Form',
+        params: [
+          { path: 'form.lobes', label: 'Lobes', min: 1, max: 7, step: 1 },
+          { path: 'form.spread', label: 'Spread', min: 0.2, max: 2.4, step: 0.05, hint: 'wider pulls tendrils out' },
+          { path: 'form.size', label: 'Mass', min: 0.2, max: 1.2, step: 0.02 },
+          { path: 'form.blend', label: 'Melt', min: 0.05, max: 1.4, step: 0.05, hint: 'higher closes the holes' },
+          { path: 'form.ripple', label: 'Ripple', min: 0, max: 0.4, step: 0.005 },
+          { path: 'form.rippleScale', label: 'Ripple scale', min: 0.5, max: 9, step: 0.1 },
+        ],
+      },
+      {
+        name: 'Motion',
+        params: [
+          { path: 'motion.drift', label: 'Drift', min: 0, max: 1.2, step: 0.01 },
+          { path: 'motion.churn', label: 'Churn', min: 0, max: 2, step: 0.02 },
+          { path: 'motion.spin', label: 'Spin', min: -0.6, max: 0.6, step: 0.01 },
+        ],
+      },
+      {
+        name: 'Chrome',
+        params: [
+          { path: 'material.dispersion', label: 'Rainbow', min: 0, max: 2.5, step: 0.05 },
+          { path: 'material.split', label: 'Spread', min: 0, max: 0.3, step: 0.005, hint: 'width of the rainbow' },
+          { path: 'material.rimTightness', label: 'Rim', min: 0.5, max: 8, step: 0.1, hint: 'higher = thinner band' },
+          { path: 'material.silver', label: 'Silver', min: 0, max: 1.5, step: 0.02 },
+          { path: 'material.facing', label: 'Face-on', min: 0, max: 0.6, step: 0.01, hint: 'low keeps the middles dark' },
+          { path: 'material.polish', label: 'Polish', min: 4, max: 260, step: 2 },
+        ],
+      },
+      {
+        name: 'Light',
+        params: [
+          { path: 'light.keyX', label: 'Key X', min: -1, max: 1, step: 0.02 },
+          { path: 'light.keyY', label: 'Key Y', min: -1, max: 1, step: 0.02 },
+          { path: 'light.key', label: 'Key', min: 0, max: 3, step: 0.05 },
+          { path: 'light.fill', label: 'Fill', min: 0, max: 1.5, step: 0.02 },
+          { path: 'light.ambient', label: 'Ambient', min: 0, max: 0.3, step: 0.005 },
+        ],
+      },
+      {
+        name: 'Hands and sound',
+        params: [
+          { path: 'hands.push', label: 'Hand push', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.spread', label: 'Hand spread', min: 0, max: 1.5, step: 0.05 },
+          { path: 'hands.kick', label: 'Beat throw', min: 0, max: 2, step: 0.05 },
+          { path: 'look.gain', label: 'Exposure', min: 0.2, max: 2.5, step: 0.05 },
+          { path: 'look.grain', label: 'Grain', min: 0, max: 0.2, step: 0.005 },
         ],
       },
     ],

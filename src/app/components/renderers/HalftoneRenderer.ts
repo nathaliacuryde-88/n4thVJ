@@ -1,4 +1,5 @@
 import { HandData } from '../../App';
+import { timeScale } from '../../motion/clock';
 
 interface Dot {
   x: number;
@@ -134,8 +135,13 @@ export class HalftoneRenderer {
         }
       }
       
-      // Smooth transition
-      dot.currentSize += (dot.targetSize - dot.currentSize) * 0.2;
+      /*
+       * This one eases towards a target rather than running a clock, which is
+       * why the tempo never reached it: there was no time variable to scale.
+       * For an ease, the rate of approach IS the speed. Clamped, because past
+       * 1 the dot overshoots its target and rings instead of settling.
+       */
+      dot.currentSize += (dot.targetSize - dot.currentSize) * Math.min(1, 0.2 * timeScale());
       
       // Add vibration
       if (vibrationIntensity > 0) {

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { AudioData } from '../App';
+import { AnalyserState, analyse, createState } from '../audio/analyse';
 
 interface AudioAnalyzerProps {
-  onAudioData: (data: AudioData) => void;
+  onAudioData: (data: ReturnType<typeof analyse>) => void;
   /**
    * The live microphone stream, or null once it is torn down.
    *
@@ -22,9 +22,8 @@ export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: A
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   
-  // Beat detection state
-  const beatHistoryRef = useRef<number[]>([]);
-  const lastBeatTimeRef = useRef<number>(0);
+  /** Envelopes, flux history and the last beat — all of it lives here. */
+  const stateRef = useRef<AnalyserState>(createState());
   
   const [error, setError] = useState<string | null>(null);
 
@@ -70,14 +69,7 @@ export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: A
       teardown();
       
       // Send empty audio data
-      onAudioData({
-        bass: 0,
-        mid: 0,
-        high: 0,
-        overall: 0,
-        beat: false,
-        beatIntensity: 0
-      });
+      onAudioData({ bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 });
       
       return;
     }
@@ -98,7 +90,9 @@ export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: A
 
         const analyzer = audioContext.createAnalyser();
         analyzer.fftSize = 2048;
-        analyzer.smoothingTimeConstant = 0.8;
+            // Less smoothing than before: 0.8 averages a transient away, and a
+        // transient is exactly what an onset detector is looking for.
+        analyzer.smoothingTimeConstant = 0.55;
         analyzerRef.current = analyzer;
 
         const source = audioContext.createMediaStreamSource(stream);
@@ -118,75 +112,16 @@ export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: A
     };
 
     const analyze = () => {
-      if (!analyzerRef.current || !dataArrayRef.current) return;
+      const analyser = analyzerRef.current;
+      const data = dataArrayRef.current;
+      const context = audioContextRef.current;
+      if (!analyser || !data || !context) return;
 
-      analyzerRef.current.getByteFrequencyData(dataArrayRef.current);
-      
-      const dataArray = dataArrayRef.current;
-      const bufferLength = dataArray.length;
-      
-      // Calculate frequency bands
-      // Bass: 20-250Hz (bins 0-24 at 44.1kHz sample rate)
-      // Mid: 250Hz-4kHz (bins 24-384)
-      // High: 4kHz+ (bins 384+)
-      
-      const bassEnd = Math.floor(bufferLength * 0.12); // ~250Hz
-      const midEnd = Math.floor(bufferLength * 0.4); // ~4kHz
-      
-      let bassSum = 0;
-      let midSum = 0;
-      let highSum = 0;
-      let overallSum = 0;
-      
-      for (let i = 0; i < bufferLength; i++) {
-        const value = dataArray[i];
-        overallSum += value;
-        
-        if (i < bassEnd) {
-          bassSum += value;
-        } else if (i < midEnd) {
-          midSum += value;
-        } else {
-          highSum += value;
-        }
-      }
-      
-      // Normalize to 0-1 range and apply sensitivity
-      const sensitivity = sensitivityRef.current;
-      const bass = Math.min(1, (bassSum / (bassEnd * 255)) * (1 + sensitivity));
-      const mid = Math.min(1, (midSum / ((midEnd - bassEnd) * 255)) * (1 + sensitivity));
-      const high = Math.min(1, (highSum / ((bufferLength - midEnd) * 255)) * (1 + sensitivity));
-      const overall = Math.min(1, (overallSum / (bufferLength * 255)) * (1 + sensitivity));
-      
-      // Beat detection using bass energy
-      const currentTime = Date.now();
-      const beatThreshold = 0.6 * sensitivity; // Adjustable beat sensitivity
-      
-      beatHistoryRef.current.push(bass);
-      if (beatHistoryRef.current.length > 10) {
-        beatHistoryRef.current.shift();
-      }
-      
-      const averageBass = beatHistoryRef.current.reduce((a, b) => a + b, 0) / beatHistoryRef.current.length;
-      const beatDetected = bass > averageBass * 1.5 && 
-                          bass > beatThreshold && 
-                          currentTime - lastBeatTimeRef.current > 300; // Min 300ms between beats
-      
-      if (beatDetected) {
-        lastBeatTimeRef.current = currentTime;
-      }
-      
-      const beatIntensity = beatDetected ? Math.min(1, (bass - averageBass) / averageBass) : 0;
-      
-      onAudioData({
-        bass,
-        mid,
-        high,
-        overall,
-        beat: beatDetected,
-        beatIntensity
-      });
-      
+      analyser.getByteFrequencyData(data);
+      onAudioData(
+        analyse(data, context.sampleRate, stateRef.current, sensitivityRef.current, Date.now()),
+      );
+
       animationFrameRef.current = requestAnimationFrame(analyze);
     };
 
