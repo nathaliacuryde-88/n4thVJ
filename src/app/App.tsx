@@ -17,6 +17,8 @@ import { idleHands } from './hands/idle';
 import { MOTION_DEFAULT, MOTION_MAX, MOTION_MIN, shapeHands } from './hands/motion';
 import { ColorMode, generateColors } from './config/palette';
 import { Recorder, canRecord, save } from './record/Recorder';
+import { SoundSource, nextSound, openTakeAudio } from './record/audio';
+import { OutputWindow } from './output/OutputWindow';
 import {
   Clips,
   clearClip,
@@ -304,23 +306,93 @@ export default function App() {
     recorderRef.current = new Recorder({
       canvas: () => canvasRef.current,
       camera: () => (showCameraRef.current ? cameraRef.current : null),
-      audio: () => micStreamRef.current,
     });
   }
 
-  const toggleRecording = useCallback(() => {
+  /*
+   * Where a take's sound comes from, remembered between sessions because it
+   * is a property of how she works rather than of one recording.
+   */
+  const [sound, setSound] = useState<SoundSource>(() => {
+    try {
+      const saved = localStorage.getItem('vj-sound');
+      return saved === 'music' || saved === 'off' || saved === 'mic' ? saved : 'mic';
+    } catch {
+      return 'mic';
+    }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('vj-sound', sound); } catch { /* storage blocked */ }
+  }, [sound]);
+
+  /** Streams opened for the take, as opposed to borrowed from the analyser. */
+  const takeAudioRef = useRef<MediaStream | null>(null);
+  const [soundProblem, setSoundProblem] = useState<string | null>(null);
+
+  const toggleRecording = useCallback(async () => {
     const recorder = recorderRef.current;
     if (!recorder) return;
+
     if (recorder.recording) {
       setRecording(false);
-      recorder.stop().then((take) => {
-        if (take) save(take);
-      });
+      const take = await recorder.stop();
+      // Anything opened for this take is closed with it. The analyser's own
+      // microphone is not ours to stop.
+      for (const track of takeAudioRef.current?.getTracks() ?? []) track.stop();
+      takeAudioRef.current = null;
+      if (take) save(take);
       return;
     }
-    recorder.start();
+
+    setSoundProblem(null);
+    const audio = await openTakeAudio(sound, micStreamRef.current);
+    if (audio.problem) setSoundProblem(audio.problem);
+    takeAudioRef.current = audio.owned ? audio.stream : null;
+    recorder.start(audio.stream);
     setRecording(recorder.recording);
+  }, [sound]);
+
+  // A sound problem is worth reading, not worth blocking on: the take is
+  // already rolling and a dialog mid-set would be worse than a silent file.
+  useEffect(() => {
+    if (!soundProblem) return;
+    const id = setTimeout(() => setSoundProblem(null), 9000);
+    return () => clearTimeout(id);
+  }, [soundProblem]);
+
+  /*
+   * The projector.
+   *
+   * A second window showing the visuals and nothing else, so the controls can
+   * stay on her screen while the wall gets only the work.
+   */
+  const [output, setOutput] = useState(false);
+  const [outputProblem, setOutputProblem] = useState<string | null>(null);
+  const outputRef = useRef<OutputWindow | null>(null);
+  if (!outputRef.current) {
+    outputRef.current = new OutputWindow(() => setOutput(false));
+  }
+
+  const toggleOutput = useCallback(() => {
+    const out = outputRef.current;
+    if (!out) return;
+    if (out.open) {
+      out.close();
+      return;
+    }
+    const problem = out.show(canvasRef.current);
+    setOutputProblem(problem);
+    setOutput(out.open);
   }, []);
+
+  useEffect(() => {
+    if (!outputProblem) return;
+    const id = setTimeout(() => setOutputProblem(null), 9000);
+    return () => clearTimeout(id);
+  }, [outputProblem]);
+
+  // Closing the tab must not leave an orphaned window on the projector.
+  useEffect(() => () => outputRef.current?.close(), []);
 
   // The counter, ticked once a second rather than every frame: it is a number
   // on a button, and the render loop has better things to do.
@@ -583,7 +655,19 @@ export default function App() {
       
       // Start or stop a recording (R)
       if (e.key.toLowerCase() === 'r') {
-        toggleRecording();
+        void toggleRecording();
+        return;
+      }
+
+      // Where a take's sound comes from (S)
+      if (e.key.toLowerCase() === 's') {
+        setSound(nextSound);
+        return;
+      }
+
+      // The projector window (O)
+      if (e.key.toLowerCase() === 'o') {
+        toggleOutput();
         return;
       }
 
@@ -675,7 +759,7 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyPress);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [set, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity, nudgeMotion, toggleRecording]);
+  }, [set, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity, nudgeMotion, toggleRecording, toggleOutput]);
 
   // Right-click to toggle UI visibility
   useEffect(() => {
@@ -750,7 +834,12 @@ export default function App() {
         content={content}
         motion={motion}
         fxParams={fxParams}
-        onCanvasReady={(canvas) => { canvasRef.current = canvas; }}
+        onCanvasReady={(canvas) => {
+          canvasRef.current = canvas;
+          // The canvas is replaced rather than reused when the pipeline falls
+          // back to 2D, and the projector's stream dies with the old one.
+          outputRef.current?.attach(canvas);
+        }}
       />
 
       {/* Camera Feed - Always running for hand tracking, but only visible when showCamera is true */}
@@ -850,8 +939,26 @@ export default function App() {
           canRecord={recordable}
           recording={recording}
           recordSeconds={recordSeconds}
-          onRecordToggle={toggleRecording}
+          onRecordToggle={() => void toggleRecording()}
+          sound={sound}
+          onSoundCycle={() => setSound(nextSound)}
+          output={output}
+          onOutputToggle={toggleOutput}
         />
+      )}
+
+      {/*
+        Anything that quietly did not happen — a refused microphone, a picker
+        with no audio ticked, a blocked pop-up. Each one leaves a button
+        looking as though it simply does nothing, so it says so instead. Above
+        the controls, out of the way, and it clears itself.
+      */}
+      {(soundProblem || outputProblem) && (
+        <div className="pointer-events-none absolute bottom-28 left-1/2 z-[60] w-[min(34rem,90vw)] -translate-x-1/2">
+          <div className="rounded-xl border border-amber-300/30 bg-black/85 px-4 py-3 text-center font-mono text-[11px] leading-relaxed text-amber-200/90 backdrop-blur-sm">
+            {soundProblem ?? outputProblem}
+          </div>
+        </div>
       )}
     </div>
   );

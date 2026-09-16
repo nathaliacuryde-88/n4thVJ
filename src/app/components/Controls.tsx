@@ -1,7 +1,11 @@
 import { useRef } from 'react';
 import { Hand, HandData, VisualPattern } from '../App';
 import { HOLD_MS, Layer } from '../config/LayerConfig';
-import { Video, VideoOff, Mic, MicOff, Orbit, Sparkles, Circle, Square } from 'lucide-react';
+import {
+  Video, VideoOff, Mic, MicOff, Orbit, Sparkles, Circle, Square,
+  Volume2, VolumeX, MonitorPlay, Music,
+} from 'lucide-react';
+import { SOUND_HINT, SOUND_LABEL, SoundSource } from '../record/audio';
 import { ColorController } from './ColorController';
 import { RENDERER_CATEGORIES } from '../config/RendererCategories';
 import { slotKey } from '../config/setlist';
@@ -79,6 +83,12 @@ interface ControlsProps {
   /** Seconds into the current take, for the counter under the button. */
   recordSeconds: number;
   onRecordToggle: () => void;
+  /** Where a take's sound comes from. */
+  sound: SoundSource;
+  onSoundCycle: () => void;
+  /** Whether the projector window is up. */
+  output: boolean;
+  onOutputToggle: () => void;
 }
 
 /** m:ss, so a take's length reads at a glance instead of counting seconds. */
@@ -168,6 +178,10 @@ export function Controls({
   recording,
   recordSeconds,
   onRecordToggle,
+  sound,
+  onSoundCycle,
+  output,
+  onOutputToggle,
 }: ControlsProps) {
   
   // Tap switches the selected layer, hold stacks — the same split, and the same
@@ -366,9 +380,39 @@ export function Controls({
             <Sparkles className="w-3.5 h-3.5" />
           </ControlButton>
 
+          <div className="w-px h-8 bg-white/15 self-center" />
+
+          {/* The projector. Not a look and not a take — what the room sees. */}
+          <ControlButton
+            label="OUT"
+            active={output}
+            onClick={onOutputToggle}
+            title={
+              output
+                ? 'Close the projector window (O)'
+                : 'Open a second window with only the visuals in it — drag it onto the projector while these controls stay here (O)'
+            }
+          >
+            <MonitorPlay className="w-3.5 h-3.5" />
+          </ControlButton>
+
           {canRecord && (
             <>
-              <div className="w-px h-8 bg-white/15 self-center" />
+              <ControlButton
+                label={SOUND_LABEL[sound]}
+                active={sound !== 'off'}
+                onClick={onSoundCycle}
+                title={SOUND_HINT[sound]}
+              >
+                {sound === 'off' ? (
+                  <VolumeX className="w-3.5 h-3.5" />
+                ) : sound === 'music' ? (
+                  <Music className="w-3.5 h-3.5" />
+                ) : (
+                  <Volume2 className="w-3.5 h-3.5" />
+                )}
+              </ControlButton>
+
               <ControlButton
                 label={recording ? clock(recordSeconds) : 'REC'}
                 active={recording}

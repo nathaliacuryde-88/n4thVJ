@@ -12,10 +12,9 @@
  * which means it cannot reach the file even in principle — there is no filter
  * to get wrong.
  *
- * Sound comes from the microphone track when audio-reactive mode is already
- * running. It is the same stream the analyser is using, so nothing new is
- * asked for and no second permission prompt appears; with the mic off the
- * recording is silent, which is the honest result rather than a failure.
+ * Sound is opened separately and handed in — see record/audio.ts, which knows
+ * about rooms and tabs. All this module does with it is attach the audio
+ * tracks, and refuse the video one a screen capture brings along.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -25,8 +24,6 @@ export interface RecordSources {
   canvas: () => HTMLCanvasElement | null;
   /** The camera, when its preview is up. Null keeps it out of the recording. */
   camera: () => HTMLVideoElement | null;
-  /** The microphone stream, when audio-reactive mode is on. */
-  audio: () => MediaStream | null;
 }
 
 /**
@@ -95,7 +92,12 @@ export class Recorder {
     return this.startedAt ? (performance.now() - this.startedAt) / 1000 : 0;
   }
 
-  start(): void {
+  /**
+   * Begins a take. `audio` is whatever sound was opened for it, or null for a
+   * silent one — a MediaRecorder's tracks are fixed at construction, so this
+   * cannot be changed once the take is running.
+   */
+  start(audio: MediaStream | null): void {
     if (this.recording) return;
     const source = this.sources.canvas();
     const format = pickFormat();
@@ -112,10 +114,10 @@ export class Recorder {
     this.ctx = ctx;
 
     const stream = frame.captureStream(FPS);
-    const mic = this.sources.audio();
-    // Only the audio track: the mic stream has no video, but taking it whole
-    // would be a promise about that rather than a fact.
-    if (mic) for (const track of mic.getAudioTracks()) stream.addTrack(track);
+    // Only the audio tracks: a display-capture stream carries a video track
+    // too, and that one is the screen — the thing this whole module exists to
+    // keep out of the file.
+    if (audio) for (const track of audio.getAudioTracks()) stream.addTrack(track);
 
     const recorder = new MediaRecorder(stream, {
       mimeType: format,
