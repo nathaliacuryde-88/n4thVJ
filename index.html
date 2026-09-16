@@ -210,11 +210,31 @@
              * a fair guess while nothing else is known.
              */
             var blurb = document.getElementById('vj-blurb');
-            if (blurb) {
+            if (!blurb) return;
+
+            /*
+             * One cause is worth naming outright.
+             *
+             * src/main.tsx is the source entry. A browser cannot run it — the
+             * build turns it into assets/index-*.js — so a page asking for it
+             * is the unbuilt page, which means the host is serving the
+             * repository rather than the build. That is a setting, not a bug
+             * in here, and printing the URL leaves the reader to work that out.
+             */
+            if (firstError.indexOf('/src/main.tsx') !== -1) {
               blurb.textContent =
-                'It tripped over this on the way up. RESET EVERYTHING throws away ' +
-                'the saved set, settings and clips, which is usually what fixes it.';
+                'This is the unbuilt page: the host is serving the project\u2019s ' +
+                'source files instead of the built site. In the repository, under ' +
+                'Settings \u2192 Pages, set Source to \u201CGitHub Actions\u201D. ' +
+                'The deploy already builds it \u2014 nothing here needs changing.';
+              var wipe = document.getElementById('vj-wipe');
+              if (wipe) wipe.style.display = 'none'; // nothing saved can cause this
+              return;
             }
+
+            blurb.textContent =
+              'It tripped over this on the way up. RESET EVERYTHING throws away ' +
+              'the saved set, settings and clips, which is usually what fixes it.';
           }, 6000);
         });
 
@@ -278,7 +298,7 @@
         <button onclick="location.replace(location.pathname + '?v=' + Date.now())">
           RELOAD
         </button>
-        <button class="ghost" onclick="vjWipe()">RESET EVERYTHING</button>
+        <button id="vj-wipe" class="ghost" onclick="vjWipe()">RESET EVERYTHING</button>
       </div>
     </div>
 
