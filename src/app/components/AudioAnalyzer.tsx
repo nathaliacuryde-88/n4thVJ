@@ -3,11 +3,19 @@ import { AudioData } from '../App';
 
 interface AudioAnalyzerProps {
   onAudioData: (data: AudioData) => void;
+  /**
+   * The live microphone stream, or null once it is torn down.
+   *
+   * Recording borrows this track rather than opening the microphone again:
+   * a second getUserMedia would prompt for permission a second time, in the
+   * middle of a set.
+   */
+  onStream?: (stream: MediaStream | null) => void;
   enabled: boolean;
   sensitivity: number; // 0-1, how responsive to audio
 }
 
-export function AudioAnalyzer({ onAudioData, enabled, sensitivity }: AudioAnalyzerProps) {
+export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: AudioAnalyzerProps) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyzerRef = useRef<AnalyserNode | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
@@ -19,6 +27,10 @@ export function AudioAnalyzer({ onAudioData, enabled, sensitivity }: AudioAnalyz
   const lastBeatTimeRef = useRef<number>(0);
   
   const [error, setError] = useState<string | null>(null);
+
+  // Held in a ref so a new callback identity cannot tear the microphone down.
+  const streamOut = useRef(onStream);
+  streamOut.current = onStream;
 
   // Read inside the analyse loop rather than closed over, so that dragging the
   // GAIN slider no longer tears the microphone down and re-prompts for
@@ -41,6 +53,7 @@ export function AudioAnalyzer({ onAudioData, enabled, sensitivity }: AudioAnalyz
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
+        streamOut.current?.(null);
       }
       const context = audioContextRef.current;
       audioContextRef.current = null;
@@ -78,6 +91,7 @@ export function AudioAnalyzer({ onAudioData, enabled, sensitivity }: AudioAnalyz
           return;
         }
         streamRef.current = stream;
+        streamOut.current?.(stream);
 
         const audioContext = new AudioContext();
         audioContextRef.current = audioContext;

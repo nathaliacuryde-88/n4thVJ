@@ -1,6 +1,6 @@
 /**
- * The visuals whose content you supply: the words for Kinetic Type and the
- * file that Clip and Mosaic both read.
+ * The visuals whose content you supply: the words for Kinetic Type, and a file
+ * each for the visuals that play one.
  *
  * Words go in localStorage, which is made for short strings. A video does not:
  * it is megabytes of binary, so it goes in IndexedDB as a Blob. Keeping it
@@ -12,8 +12,16 @@
 const TEXT_KEY = 'vj-text';
 const DB_NAME = 'n4thvj';
 const STORE = 'clips';
-/** One clip at a time, so it always overwrites rather than accumulating. */
-const CLIP_ID = 'clip';
+/**
+ * What the single shared clip used to be stored under.
+ *
+ * Clips are per visual now — uploading footage to Clip should not silently
+ * become Mosaic's source too. Anything found under the old key is handed to
+ * both of them once and then removed, so a file chosen before this change is
+ * still there afterwards rather than quietly disappearing.
+ */
+const LEGACY_ID = 'clip';
+const LEGACY_HEIRS = ['video', 'mosaic'];
 
 export const DEFAULT_TEXT = 'N4TH';
 
@@ -46,52 +54,100 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-/** Stores the clip, replacing whatever was there. */
-export async function saveClip(file: Blob, name: string): Promise<void> {
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put({ file, name }, CLIP_ID);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-  db.close();
-}
-
 /** Whether a stored file is footage or a still. */
 export type ClipKind = 'video' | 'image';
+
+/** One visual's file, ready to hand to a renderer. */
+export interface Clip {
+  url: string;
+  name: string;
+  kind: ClipKind;
+}
+
+/** Every visual's file, keyed by pattern. A visual with none is simply absent. */
+export type Clips = Record<string, Clip>;
 
 /** What a Blob's own MIME type says it is. Anything unknown is treated as footage. */
 export function clipKindOf(blob: Blob): ClipKind {
   return blob.type.startsWith('image/') ? 'image' : 'video';
 }
 
-/** The stored clip, or null when there is none or storage is unavailable. */
-export async function loadClip(): Promise<{ file: Blob; name: string } | null> {
+/** Stores one visual's file, replacing whatever that visual had. */
+export async function saveClip(pattern: string, file: Blob, name: string): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put({ file, name }, pattern);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+}
+
+function read(store: IDBObjectStore, key: string): Promise<{ file: Blob; name: string } | null> {
+  return new Promise((resolve) => {
+    const get = store.get(key);
+    get.onsuccess = () => {
+      const stored: unknown = get.result;
+      if (!stored || typeof stored !== 'object') return resolve(null);
+      const { file, name } = stored as { file?: unknown; name?: unknown };
+      if (!(file instanceof Blob)) return resolve(null);
+      resolve({ file, name: typeof name === 'string' ? name : 'clip' });
+    };
+    get.onerror = () => resolve(null);
+  });
+}
+
+/**
+ * Every stored file, keyed by the visual it belongs to.
+ *
+ * Empty when there is none or storage is unavailable — a browser with
+ * IndexedDB blocked should lose the files, not the app.
+ */
+export async function loadClips(): Promise<Record<string, { file: Blob; name: string }>> {
   try {
     const db = await openDb();
-    const stored = await new Promise<unknown>((resolve, reject) => {
-      const tx = db.transaction(STORE, 'readonly');
-      const get = tx.objectStore(STORE).get(CLIP_ID);
-      get.onsuccess = () => resolve(get.result);
-      get.onerror = () => reject(get.error);
+    const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+      const request = db.transaction(STORE, 'readonly').objectStore(STORE).getAllKeys();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
     });
+
+    const out: Record<string, { file: Blob; name: string }> = {};
+    const tx = db.transaction(STORE, 'readonly');
+    const store = tx.objectStore(STORE);
+    for (const key of keys) {
+      if (typeof key !== 'string') continue;
+      const stored = await read(store, key);
+      if (stored) out[key] = stored;
+    }
     db.close();
-    if (!stored || typeof stored !== 'object') return null;
-    const { file, name } = stored as { file?: unknown; name?: unknown };
-    if (!(file instanceof Blob)) return null;
-    return { file, name: typeof name === 'string' ? name : 'clip' };
+
+    // The one shared clip from before, handed to both visuals that used it.
+    const legacy = out[LEGACY_ID];
+    if (legacy) {
+      delete out[LEGACY_ID];
+      for (const heir of LEGACY_HEIRS) {
+        if (!out[heir]) {
+          out[heir] = legacy;
+          saveClip(heir, legacy.file, legacy.name).catch(() => {});
+        }
+      }
+      clearClip(LEGACY_ID).catch(() => {});
+    }
+    return out;
   } catch {
-    return null;
+    return {};
   }
 }
 
-export async function clearClip(): Promise<void> {
+/** Forgets one visual's file. */
+export async function clearClip(pattern: string): Promise<void> {
   try {
     const db = await openDb();
     await new Promise<void>((resolve) => {
       const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).delete(CLIP_ID);
+      tx.objectStore(STORE).delete(pattern);
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
     });

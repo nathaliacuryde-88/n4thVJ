@@ -16,7 +16,16 @@ import { fxActive } from './pipeline/PostPipeline';
 import { idleHands } from './hands/idle';
 import { MOTION_DEFAULT, MOTION_MAX, MOTION_MIN, shapeHands } from './hands/motion';
 import { ColorMode, generateColors } from './config/palette';
-import { ClipKind, clearClip, clipKindOf, loadClip, loadText, saveClip, saveText } from './config/content';
+import { Recorder, canRecord, save } from './record/Recorder';
+import {
+  Clips,
+  clearClip,
+  clipKindOf,
+  loadClips,
+  loadText,
+  saveClip,
+  saveText,
+} from './config/content';
 
 export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple' | 'text' | 'video' | 'mosaic';
 
@@ -215,51 +224,128 @@ export default function App() {
   }, []);
 
   /*
-   * What the content-driven visuals show. The words live in localStorage; the
-   * clip is a Blob in IndexedDB, turned into an object URL here and revoked
+   * What the content-driven visuals show. The words live in localStorage; each
+   * file is a Blob in IndexedDB, turned into an object URL here and revoked
    * when it is replaced, so a session does not leak one URL per upload.
+   *
+   * Keyed by visual, because they are not the same file. Footage chosen for
+   * Clip should not turn up as Mosaic's source — they are different ideas and
+   * she will want different material in each.
    */
   const [text, setText] = useState(loadText);
-  const [clipUrl, setClipUrl] = useState<string | null>(null);
-  const [clipName, setClipName] = useState<string | null>(null);
-  const [clipKind, setClipKind] = useState<ClipKind>('video');
+  const [clips, setClips] = useState<Clips>({});
 
   useEffect(() => { saveText(text); }, [text]);
 
   useEffect(() => {
-    let url: string | null = null;
+    const urls: string[] = [];
     let cancelled = false;
-    loadClip().then((stored) => {
-      if (cancelled || !stored) return;
-      url = URL.createObjectURL(stored.file);
-      setClipUrl(url);
-      setClipName(stored.name);
-      setClipKind(clipKindOf(stored.file));
+    loadClips().then((stored) => {
+      if (cancelled) return;
+      const next: Clips = {};
+      for (const [pattern, { file, name }] of Object.entries(stored)) {
+        const url = URL.createObjectURL(file);
+        urls.push(url);
+        next[pattern] = { url, name, kind: clipKindOf(file) };
+      }
+      setClips(next);
     });
     return () => {
       cancelled = true;
-      if (url) URL.revokeObjectURL(url);
+      urls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
 
-  /** A file picked in the library: store it, then play it. */
-  const acceptClip = useCallback((file: File | null) => {
-    setClipUrl((previous) => {
-      if (previous) URL.revokeObjectURL(previous);
-      return file ? URL.createObjectURL(file) : null;
+  /** A file picked in the library, for one visual. */
+  const acceptClip = useCallback((pattern: VisualPattern, file: File | null) => {
+    setClips((previous) => {
+      const gone = previous[pattern];
+      if (gone) URL.revokeObjectURL(gone.url);
+      const next = { ...previous };
+      if (file) {
+        next[pattern] = {
+          url: URL.createObjectURL(file),
+          name: file.name,
+          kind: clipKindOf(file),
+        };
+      } else {
+        delete next[pattern];
+      }
+      return next;
     });
-    setClipName(file ? file.name : null);
-    setClipKind(file ? clipKindOf(file) : 'video');
     // Storing is what makes it survive a reload; failing to store still leaves
-    // the clip playing for this session, which is the part that matters now.
-    if (file) saveClip(file, file.name).catch(() => {});
-    else clearClip().catch(() => {});
+    // the file playing for this session, which is the part that matters now.
+    if (file) saveClip(pattern, file, file.name).catch(() => {});
+    else clearClip(pattern).catch(() => {});
   }, []);
 
-  const content = useMemo(
-    () => ({ text, clipUrl, clipKind }),
-    [text, clipUrl, clipKind],
-  );
+  const content = useMemo(() => ({ text, clips }), [text, clips]);
+
+  /*
+   * Recording the set.
+   *
+   * The recorder reads its sources through functions rather than being handed
+   * them, so the camera coming up or the microphone being switched on lands in
+   * the middle of a take instead of needing the take restarted.
+   *
+   * The camera is only offered while its preview is showing: what ends up in
+   * the file should be what she is looking at, minus the controls.
+   */
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const cameraRef = useRef<HTMLVideoElement | null>(null);
+  const showCameraRef = useRef(false);
+  const [recording, setRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const recordable = useMemo(() => canRecord(), []);
+
+  const recorderRef = useRef<Recorder | null>(null);
+  if (!recorderRef.current && recordable) {
+    recorderRef.current = new Recorder({
+      canvas: () => canvasRef.current,
+      camera: () => (showCameraRef.current ? cameraRef.current : null),
+      audio: () => micStreamRef.current,
+    });
+  }
+
+  const toggleRecording = useCallback(() => {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    if (recorder.recording) {
+      setRecording(false);
+      recorder.stop().then((take) => {
+        if (take) save(take);
+      });
+      return;
+    }
+    recorder.start();
+    setRecording(recorder.recording);
+  }, []);
+
+  // The counter, ticked once a second rather than every frame: it is a number
+  // on a button, and the render loop has better things to do.
+  useEffect(() => {
+    if (!recording) {
+      setRecordSeconds(0);
+      return;
+    }
+    const id = setInterval(() => {
+      setRecordSeconds(recorderRef.current?.elapsed ?? 0);
+    }, 500);
+    return () => clearInterval(id);
+  }, [recording]);
+
+  // A take must not outlive the page silently: stop it and keep what there is.
+  useEffect(() => {
+    const onLeave = () => {
+      if (recorderRef.current?.recording) {
+        recorderRef.current.stop().then((take) => take && save(take));
+      }
+    };
+    window.addEventListener('pagehide', onLeave);
+    return () => window.removeEventListener('pagehide', onLeave);
+  }, []);
+
 
   // Several renderers only draw where a hand is, so with no camera — or in a
   // dark room where tracking drops — they show nothing at all and every slider
@@ -332,6 +418,14 @@ export default function App() {
   
   const [handData, setHandData] = useState<HandData>({ left: null, right: null });
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
+
+  // The recorder runs outside React, so what it reads has to be kept current.
+  useEffect(() => {
+    cameraRef.current = videoElement;
+    showCameraRef.current = showCamera;
+  }, [videoElement, showCamera]);
+
+
   const [showPermissionRequest, setShowPermissionRequest] = useState(false); // Skip intro, go directly to app
 
   // Audio reactive state
@@ -487,6 +581,12 @@ export default function App() {
         return;
       }
       
+      // Start or stop a recording (R)
+      if (e.key.toLowerCase() === 'r') {
+        toggleRecording();
+        return;
+      }
+
       // Master FX bypass (X)
       if (e.key.toLowerCase() === 'x') {
         toggleFx();
@@ -575,7 +675,7 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyPress);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [set, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity, nudgeMotion]);
+  }, [set, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity, nudgeMotion, toggleRecording]);
 
   // Right-click to toggle UI visibility
   useEffect(() => {
@@ -623,9 +723,7 @@ export default function App() {
         onStart={startSet}
         text={text}
         onTextChange={setText}
-        clipName={clipName}
-        clipUrl={clipUrl}
-        clipKind={clipKind}
+        clips={clips}
         onClipChange={acceptClip}
       />
     );
@@ -652,6 +750,7 @@ export default function App() {
         content={content}
         motion={motion}
         fxParams={fxParams}
+        onCanvasReady={(canvas) => { canvasRef.current = canvas; }}
       />
 
       {/* Camera Feed - Always running for hand tracking, but only visible when showCamera is true */}
@@ -669,6 +768,7 @@ export default function App() {
         enabled={audioEnabled} 
         sensitivity={audioSensitivity}
         onAudioData={setAudioData}
+        onStream={(stream) => { micStreamRef.current = stream; }}
       />
 
       {/* Shape (this renderer) and FX (the post chain) */}
@@ -747,6 +847,10 @@ export default function App() {
           fxEnabled={fxEnabled}
           fxActive={fxActive(fxParams)}
           onFxToggle={toggleFx}
+          canRecord={recordable}
+          recording={recording}
+          recordSeconds={recordSeconds}
+          onRecordToggle={toggleRecording}
         />
       )}
     </div>

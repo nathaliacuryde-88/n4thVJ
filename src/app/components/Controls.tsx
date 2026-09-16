@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Hand, HandData, VisualPattern } from '../App';
 import { HOLD_MS, Layer } from '../config/LayerConfig';
-import { Video, VideoOff, Mic, MicOff, Orbit, Sparkles } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, Orbit, Sparkles, Circle, Square } from 'lucide-react';
 import { ColorController } from './ColorController';
 import { RENDERER_CATEGORIES } from '../config/RendererCategories';
 import { slotKey } from '../config/setlist';
@@ -73,6 +73,18 @@ interface ControlsProps {
   fxEnabled: boolean;
   fxActive: boolean;
   onFxToggle: () => void;
+  /** Whether this browser can record at all. Hidden rather than dead if not. */
+  canRecord: boolean;
+  recording: boolean;
+  /** Seconds into the current take, for the counter under the button. */
+  recordSeconds: number;
+  onRecordToggle: () => void;
+}
+
+/** m:ss, so a take's length reads at a glance instead of counting seconds. */
+function clock(seconds: number): string {
+  const whole = Math.floor(seconds);
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 }
 
 function ControlButton({
@@ -152,6 +164,10 @@ export function Controls({
   fxEnabled,
   fxActive,
   onFxToggle,
+  canRecord,
+  recording,
+  recordSeconds,
+  onRecordToggle,
 }: ControlsProps) {
   
   // Tap switches the selected layer, hold stacks — the same split, and the same
@@ -349,6 +365,29 @@ export function Controls({
           >
             <Sparkles className="w-3.5 h-3.5" />
           </ControlButton>
+
+          {canRecord && (
+            <>
+              <div className="w-px h-8 bg-white/15 self-center" />
+              <ControlButton
+                label={recording ? clock(recordSeconds) : 'REC'}
+                active={recording}
+                warn={recording}
+                onClick={onRecordToggle}
+                title={
+                  recording
+                    ? 'Stop and save the take (R)'
+                    : 'Record the visuals — and the camera if its preview is up — with none of these controls in it (R)'
+                }
+              >
+                {recording ? (
+                  <Square className="w-3 h-3 fill-current" />
+                ) : (
+                  <Circle className="w-3.5 h-3.5 fill-current text-red-500 group-hover/btn:text-red-400" />
+                )}
+              </ControlButton>
+            </>
+          )}
         </div>
       </div>
 

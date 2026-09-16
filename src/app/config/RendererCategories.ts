@@ -271,7 +271,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     short: 'Mosaic',
     category: 'TD',
     key: '4',
-    description: 'The same file rebuilt out of letters, dots, blocks or bars'
+    description: 'Your video or photo rebuilt out of letters, dots, blocks or bars'
   },
 
   digitalblocks: {

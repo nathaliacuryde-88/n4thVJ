@@ -8,7 +8,7 @@ import {
 import { MAX_SET, slotKey, keySlot } from '../config/setlist';
 import { createRenderer, VJRenderer } from './renderers/create';
 import { idleHands } from '../hands/idle';
-import { DEFAULT_TEXT } from '../config/content';
+import { Clips, DEFAULT_TEXT } from '../config/content';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -79,10 +79,9 @@ interface LibraryProps {
   text: string;
   onTextChange: (text: string) => void;
   /** Clip's footage: the stored file's name, and a picker for a new one. */
-  clipName: string | null;
-  clipUrl: string | null;
-  clipKind: 'video' | 'image';
-  onClipChange: (file: File | null) => void;
+  /** Each file-driven visual's own file, keyed by pattern. */
+  clips: Clips;
+  onClipChange: (pattern: VisualPattern, file: File | null) => void;
 }
 
 export function Library({
@@ -91,9 +90,7 @@ export function Library({
   onStart,
   text,
   onTextChange,
-  clipName,
-  clipUrl,
-  clipKind,
+  clips,
   onClipChange,
 }: LibraryProps) {
   const [filter, setFilter] = useState<RendererCategory | 'ALL'>('ALL');
@@ -104,8 +101,8 @@ export function Library({
   const observer = useRef<IntersectionObserver | null>(null);
   const setRef = useRef(set);
   setRef.current = set;
-  const contentRef = useRef({ text, clipUrl, clipKind });
-  contentRef.current = { text, clipUrl, clipKind };
+  const contentRef = useRef({ text, clips });
+  contentRef.current = { text, clips };
 
   const shown = filter === 'ALL' ? ALL : ALL.filter((r) => r.category === filter);
 
@@ -216,10 +213,8 @@ export function Library({
           try {
             // Cheap, and it means retyping shows in the preview as you type.
             tile.renderer.setText?.(contentRef.current.text);
-            tile.renderer.setClipUrl?.(
-              contentRef.current.clipUrl,
-              contentRef.current.clipKind,
-            );
+            const clip = contentRef.current.clips[pattern];
+            tile.renderer.setClipUrl?.(clip?.url ?? null, clip?.kind);
             tile.renderer.render(hands, PREVIEW_COLORS, undefined, 'contrast');
           } catch {
             tile.failed = true;
@@ -422,25 +417,25 @@ export function Library({
                 {supply === 'file' && (
                   <div className="flex items-center gap-2 px-4 pb-4">
                     <label className="cursor-pointer rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-[11px] tracking-wider text-white/75 transition-colors hover:border-white/45 hover:text-white">
-                      {clipName ? 'REPLACE' : 'UPLOAD'}
+                      {clips[info.pattern] ? 'REPLACE' : 'UPLOAD'}
                       <input
                         type="file"
                         accept="video/*,image/*"
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) onClipChange(file);
+                          if (file) onClipChange(info.pattern, file);
                           e.target.value = ''; // so the same file can be picked again
                         }}
                       />
                     </label>
                     <span className="min-w-0 flex-1 truncate text-[10px] text-white/35">
-                      {clipName ?? 'no file yet'}
+                      {clips[info.pattern]?.name ?? 'no file yet'}
                     </span>
-                    {clipName && (
+                    {clips[info.pattern] && (
                       <button
-                        onClick={() => onClipChange(null)}
-                        title="Remove the file"
+                        onClick={() => onClipChange(info.pattern, null)}
+                        title="Remove this visual's file"
                         className="shrink-0 px-1 text-white/25 transition-colors hover:text-white/80"
                       >
                         ×

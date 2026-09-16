@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { Layer } from '../config/LayerConfig';
 import { AudioData, HandData, VisualPattern } from '../App';
 import { createRenderer, VJRenderer } from './renderers/create';
@@ -6,6 +6,7 @@ import { advanceClock } from '../motion/clock';
 import { ParamValues, withOverrides } from '../params/types';
 import { PostPipeline } from '../pipeline/PostPipeline';
 import { PipelineConfig } from '../config/PipelineConfig';
+import { Clips } from '../config/content';
 
 /** A renderer plus the canvas it draws into. */
 interface Deck {
@@ -59,9 +60,17 @@ interface VJCanvasProps {
   /** Slider overrides for the post pipeline (the FX tab). */
   fxParams?: ParamValues;
   /** What the content-driven visuals show: the words, and the uploaded clip. */
-  content: { text: string; clipUrl: string | null; clipKind: 'video' | 'image' };
+  content: { text: string; clips: Clips };
   /** Tempo for the whole set. Scales every renderer's clock. */
   motion: number;
+  /**
+   * The visible canvas, whenever it changes.
+   *
+   * The recorder needs the element itself, and this one is replaced rather
+   * than reused when the pipeline falls back to 2D — a canvas keeps its first
+   * context kind for life — so a single read at mount would go stale.
+   */
+  onCanvasReady?: (canvas: HTMLCanvasElement | null) => void;
 }
 
 export function VJCanvas({
@@ -73,10 +82,20 @@ export function VJCanvas({
   layerParams,
   fxParams,
   content,
-  motion
+  motion,
+  onCanvasReady,
 }: VJCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+
+  // A ref callback rather than an effect, so a remount is reported as it
+  // happens rather than a frame later.
+  const readyRef = useRef(onCanvasReady);
+  readyRef.current = onCanvasReady;
+  const holdCanvas = useCallback((el: HTMLCanvasElement | null) => {
+    canvasRef.current = el;
+    readyRef.current?.(el);
+  }, []);
   const pipelineRef = useRef<PostPipeline | null>(null);
   const fallbackCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   /**
@@ -124,8 +143,10 @@ export function VJCanvas({
   // Retyping the words must not rebuild the renderer, any more than a slider does.
   useEffect(() => {
     for (const slot of slotsRef.current) {
-      slot?.current.renderer.setText?.(content.text);
-      slot?.current.renderer.setClipUrl?.(content.clipUrl, content.clipKind);
+      if (!slot) continue;
+      const clip = content.clips[slot.current.pattern];
+      slot.current.renderer.setText?.(content.text);
+      slot.current.renderer.setClipUrl?.(clip?.url ?? null, clip?.kind);
     }
   }, [content]);
 
@@ -363,7 +384,8 @@ export function VJCanvas({
       }
       renderer.setParams?.(layerParamsRef.current?.[index] ?? {});
       renderer.setText?.(contentRef.current.text);
-      renderer.setClipUrl?.(contentRef.current.clipUrl, contentRef.current.clipKind);
+      const clip = contentRef.current.clips[pattern];
+      renderer.setClipUrl?.(clip?.url ?? null, clip?.kind);
       return { renderer, canvas, pattern };
     };
 
@@ -404,7 +426,7 @@ export function VJCanvas({
       // Remounting as a new element is the only way to get a 2D context after
       // WebGL2 has claimed the old one.
       key={pipelineFailed ? 'fallback-2d' : 'pipeline-gl'}
-      ref={canvasRef}
+      ref={holdCanvas}
       className="absolute inset-0 w-full h-full z-0"
     />
   );
