@@ -60,6 +60,14 @@ export interface ParamGroup {
    * naming the stage here lets the panel ask rather than guess.
    */
   stage?: string;
+  /**
+   * What to set when the effect is switched on, as paths to values.
+   *
+   * An effect that arrives at zero and has to be dialled up is two actions
+   * where there should be one: switching it on should show you what it does.
+   * These are the settings that make it obvious, not subtle ones.
+   */
+  turnOn?: Record<string, number>;
   params: ParamSpec[];
 }
 

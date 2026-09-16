@@ -36,7 +36,7 @@ export const PipelineConfig = {
     enabled: 1,
 
     /** Seconds to cross from the outgoing visual to the incoming one. */
-    duration: 0.6,
+    duration: 1,
   },
 
   /**
@@ -162,11 +162,17 @@ export const PipelineConfig = {
     /** Stage opacity: blends between this stage's input and its output. */
     mix: 1,
 
-    /** Tile size in pixels. 1 or below = off. */
+    /**
+     * Tile size in pixels. 1 or below = off.
+     *
+     * Fixed at 2 when the effect is switched on: larger tiles turn the dither
+     * into a mosaic, which is Pixelate's job and a different effect entirely.
+     * Two is where it still reads as texture.
+     */
     size: 0,
     /** How much random noise rides on the dither pattern. 0 is a clean grid. */
     grain: 0.35,
-    /** How fast the grain crawls. 0 holds it still. */
+    /** How fast the grain crawls. Fixed: it is texture, not a control. */
     drift: 0.4,
   },
 

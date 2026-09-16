@@ -2,7 +2,7 @@ import { AudioData, Hand, HandData } from '../../App';
 import { TextConfig } from '../../config/TextRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { alphaHex } from './alpha';
-import { vjTime } from '../../motion/clock';
+import { timeScale, vjTime } from '../../motion/clock';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -47,8 +47,12 @@ export class TextRenderer {
   private text = 'N4TH';
   /** Smoothed hand centre, so tracking jitter does not shake the field. */
   private aim = { x: 0.5, y: 0.5 };
-  /** Scatter targets, one per character, regenerated when the word changes. */
-  private targets: { x: number; y: number; seed: number }[] = [];
+  /** How open the hands are, 0 to 1, eased. Drives the twist. */
+  private openness = 0.25;
+  /** Strength of the ring the last onset launched, decaying. */
+  private ringEnergy = 0;
+  /** Where that ring has travelled to, 0 at the centre. */
+  private ringPhase = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
     this.canvas = canvas;
@@ -63,7 +67,6 @@ export class TextRenderer {
     const next = text.trim() || 'N4TH';
     if (next === this.text) return;
     this.text = next;
-    this.targets = [];
   }
 
   /** A stable pseudo-random in 0..1 — the same letter lands in the same place. */
@@ -165,15 +168,46 @@ export class TextRenderer {
 
     const time = vjTime();
     const bass = audioData?.bass ?? 0;
-    const kick = audioData?.beat ? cfg.audio.beatKick : 0;
 
     const points = this.handPoints(handData);
     if (points.length > 0) {
       const mx = points.reduce((s, p) => s + p.x, 0) / points.length;
       const my = points.reduce((s, p) => s + p.y, 0) / points.length;
-      this.aim.x += (mx - this.aim.x) * 0.08;
-      this.aim.y += (my - this.aim.y) * 0.08;
+      // Quicker than it was: at 0.08 the field lagged far enough behind the
+      // hand that the two did not read as connected.
+      this.aim.x += (mx - this.aim.x) * 0.16;
+      this.aim.y += (my - this.aim.y) * 0.16;
     }
+
+    /*
+     * How open the hands are, which is what the twist rides on.
+     *
+     * Taken from the finger count rather than from the gesture label, so it
+     * moves through the middle instead of snapping between fist and open —
+     * one finger and five have to look different, and so do two and four.
+     */
+    const hands = [handData.left, handData.right].filter(Boolean);
+    const fingers = hands.length
+      ? Math.max(...hands.map((h) => h!.fingerCount ?? 2))
+      : 2;
+    this.openness += ((fingers - 1) / 4 - this.openness) * 0.1;
+
+    /*
+     * The ring, launched by onsets.
+     *
+     * Energy jumps on a beat and decays; the phase travels outward all the
+     * time, so the band moves away from the centre rather than pulsing in
+     * place. Riding `onset` as well as `beat` means it still breathes on
+     * music with no hard transients instead of going dead.
+     */
+    const hit = Math.max(
+      audioData?.beat ? audioData.beatIntensity : 0,
+      (audioData?.onset ?? 0) * 0.8,
+      handData.clapping ? (handData.clapIntensity ?? 1) : 0,
+    );
+    this.ringEnergy = Math.max(this.ringEnergy * 0.94, hit);
+    if (hit > this.ringEnergy * 0.98) this.ringPhase = 0;
+    this.ringPhase = (this.ringPhase + 0.012 * timeScale()) % 1;
 
     const swell = 1 + bass * cfg.audio.bassScale;
 
@@ -181,13 +215,7 @@ export class TextRenderer {
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
 
-    switch (Math.round(cfg.mode)) {
-      case 1: this.radial(width, height, swell, time, kick, colors); break;
-      case 2: this.wave(width, height, swell, time, kick, colors); break;
-      case 3: this.depth(width, height, swell, time, kick, colors); break;
-      case 4: this.scatter(width, height, swell, time, kick, colors); break;
-      default: this.mask(width, height, swell, time, points, colors); break;
-    }
+    this.radial(width, height, swell, time, colors);
   }
 
   /** Spacing shared by the three grid modes, with its own slow breath. */
@@ -206,66 +234,42 @@ export class TextRenderer {
     };
   }
 
-  // ── 1. text as pixel ──────────────────────────────────────────────────────
-  private mask(
-    width: number,
-    height: number,
-    swell: number,
-    time: number,
-    points: { x: number; y: number }[],
-    colors: string[],
-  ) {
-    const { cfg } = this;
-    const { cols, rows, dx, dy } = this.spacing(width, height, time);
-    const size = this.fitSize(this.text, dx * cfg.type.fit) * swell;
-    const reach = Math.max(0.01, cfg.mask.reach);
-    const aspect = width / height;
-
-    let index = 0;
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++, index++) {
-        const u = (col + 0.5) / cols;
-        const v = (row + 0.5) / rows;
-
-        // The field the hands leave. Aspect-corrected so a hand reads round.
-        let field = 0;
-        for (const p of points) {
-          const ddx = (u - p.x) * aspect;
-          const ddy = v - p.y;
-          field += Math.exp(-((ddx * ddx + ddy * ddy) / (reach * reach)));
-        }
-
-        // A soft edge dithers into a halftone rather than cutting hard.
-        const edge = cfg.mask.softness * 0.5;
-        const lit = edge <= 0
-          ? (field > cfg.mask.threshold ? 1 : 0)
-          : Math.min(1, Math.max(0,
-              (field - (cfg.mask.threshold - edge)) / (edge * 2)));
-        const shown = cfg.mask.invert >= 0.5 ? 1 - lit : lit;
-        if (shown <= 0.02) continue;
-
-        const x = (col + 0.5) * dx + (width - cols * dx) / 2;
-        const y = (row + 0.5) * dy + (height - rows * dy) / 2;
-        this.stamp(x, y, size, this.colorFor(index, time, colors), shown);
-      }
-    }
-  }
-
-  // ── 2. radial warp ────────────────────────────────────────────────────────
+  /**
+   * The field, and the only mode left.
+   *
+   * Four others were built to match the references and this is the one that
+   * worked, so the rest are gone rather than sitting in a menu as decoys.
+   *
+   * Three things move it, and each has to be legible as itself:
+   *
+   *   THE MUSIC pushes a ring out of the centre on every onset. Before this
+   *   the field breathed on a free-running sine — it looked reactive without
+   *   ever having heard anything, which is worse than sitting still.
+   *
+   *   THE HAND carries the field with it. It used to move the centre that
+   *   cells are pushed away FROM, so reaching right flung the left side
+   *   further left and the whole thing read as inverted. The field follows
+   *   the hand now, and the distortion travels with it.
+   *
+   *   THE FINGERS twist it. Tempo is already global, so counting fingers had
+   *   no visible effect here beyond speed; a twist that opens as the hand
+   *   opens makes one finger and five plainly different shapes.
+   */
   private radial(
     width: number, height: number, swell: number,
-    time: number, kick: number, colors: string[],
+    time: number, colors: string[],
   ) {
     const { cfg } = this;
     const { cols, rows, dx, dy } = this.spacing(width, height, time);
     const size = this.fitSize(this.text, dx * cfg.type.fit) * swell;
-    const strength =
-      (cfg.radial.strength + kick) *
-      (1 + Math.sin(time * cfg.radial.pulseSpeed) * cfg.radial.pulse);
 
-    // The hands move the centre the distortion is measured from.
-    const cx = 0.5 + (this.aim.x - 0.5) * cfg.motion.handInfluence;
-    const cy = 0.5 + (this.aim.y - 0.5) * cfg.motion.handInfluence;
+    // Where the hand is, as a direct offset: the field goes where she does.
+    const reach = cfg.motion.handInfluence;
+    const cx = 0.5 + (this.aim.x - 0.5) * reach;
+    const cy = 0.5 + (this.aim.y - 0.5) * reach;
+
+    const twist = cfg.radial.twist * this.openness;
+    const strength = cfg.radial.strength * (1 + this.ringEnergy * 0.8);
 
     let index = 0;
     for (let row = 0; row < rows; row++) {
@@ -274,144 +278,27 @@ export class TextRenderer {
         const v = (row + 0.5) / rows;
         const ox = u - cx;
         const oy = v - cy;
-        const dist = Math.min(1, Math.hypot(ox, oy) * 1.42);
+        const radius = Math.hypot(ox, oy);
+        const dist = Math.min(1, radius * 1.42);
 
-        // Distance drives how far the cell is pushed along its own radius.
-        const push = 1 + Math.pow(dist, cfg.radial.power) * strength;
-        const x = (cx + ox * push) * width;
-        const y = (cy + oy * push) * height;
+        // The ring: a band of extra push travelling outward from the middle,
+        // launched by the last onset. Cells it passes are thrown out and
+        // settle back once it has gone by.
+        const wave = Math.cos((radius - this.ringPhase) * cfg.radial.ringDensity * Math.PI * 2);
+        const ring = this.ringEnergy * cfg.radial.ring * Math.max(0, wave);
+
+        const push = 1 + Math.pow(dist, cfg.radial.power) * strength + ring;
+
+        // Twist grows with distance, so the middle stays readable and the
+        // outside spirals — which is where an opening hand shows most.
+        const angle = Math.atan2(oy, ox) + twist * dist;
+        const spun = radius * push;
+        const x = (cx + Math.cos(angle) * spun) * width;
+        const y = (cy + Math.sin(angle) * spun) * height;
         if (x < -dx || x > width + dx || y < -dy || y > height + dy) continue;
 
         this.stamp(x, y, size, this.colorFor(index, time, colors));
       }
     }
-  }
-
-  // ── 3. sine displacement ──────────────────────────────────────────────────
-  private wave(
-    width: number, height: number, swell: number,
-    time: number, kick: number, colors: string[],
-  ) {
-    const { cfg } = this;
-    const { cols, rows, dx, dy } = this.spacing(width, height, time);
-    const size = this.fitSize(this.text, dx * cfg.type.fit) * swell;
-    const amplitude = width * cfg.wave.amplitude * (1 + kick);
-    const steer = (this.aim.y - 0.5) * 2 * cfg.motion.handInfluence;
-
-    let index = 0;
-    for (let row = 0; row < rows; row++) {
-      // Every cell in a row shares the row's phase: that is what makes it
-      // read as one ribbon sliding rather than as noise.
-      const phase = (row / Math.max(1, rows)) * cfg.wave.frequency * Math.PI * 2;
-      const slide = Math.sin(phase + time * cfg.wave.speed + steer) * amplitude;
-      const swell = 1 + Math.sin(phase + time * cfg.wave.speed) * cfg.wave.scaleWave;
-
-      for (let col = 0; col < cols; col++, index++) {
-        const x = (col + 0.5) * dx + (width - cols * dx) / 2 + slide;
-        const y = (row + 0.5) * dy + (height - rows * dy) / 2;
-        // Wrap rather than clip, so a row sliding off one edge returns at the
-        // other and the field stays full.
-        const wrapped = ((x % width) + width) % width;
-        this.stamp(wrapped, y, size * swell, this.colorFor(index, time, colors));
-      }
-    }
-  }
-
-  // ── 4. vanishing point ────────────────────────────────────────────────────
-  private depth(
-    width: number, height: number, swell: number,
-    time: number, kick: number, colors: string[],
-  ) {
-    const { cfg } = this;
-    const size = height * cfg.depth.size * swell;
-    const steps = Math.max(2, Math.round(cfg.depth.steps));
-    const scroll = time * cfg.depth.speed;
-    const horizon =
-      height * (cfg.depth.horizon + (this.aim.y - 0.5) * cfg.motion.handInfluence * 0.3);
-
-    for (let i = 0; i < steps; i++) {
-      // Each row sits at a depth that scrolls; wrapping keeps the run endless.
-      const z = ((i / steps + scroll) % 1 + 1) % 1;
-      const eased = Math.pow(z, cfg.depth.curve);
-
-      // Perspective division: near rows are large and far apart, far ones
-      // small and stacked tight.
-      const scale = eased * (1 + kick);
-      const y = horizon + eased * (height - horizon) * 1.1;
-      if (y > height + size || scale <= 0.001) continue;
-
-      // Tracking opens up as a row comes forward, which is what sells the
-      // depth — the near word is not just bigger, it is looser.
-      this.stamp(
-        width / 2,
-        y,
-        Math.max(1, size * scale),
-        this.colorFor(i, time, colors),
-        Math.min(1, 0.25 + eased),
-        this.text,
-        cfg.type.tracking + eased * cfg.depth.spread,
-      );
-    }
-  }
-
-  // ── 5. scattered letterforms ──────────────────────────────────────────────
-  private scatter(
-    width: number, height: number, swell: number,
-    time: number, kick: number, colors: string[],
-  ) {
-    const { cfg } = this;
-    const chars = [...this.text];
-    if (chars.length === 0) return;
-
-    if (this.targets.length !== chars.length) {
-      this.targets = chars.map((_, i) => ({
-        x: TextRenderer.noise(i * 3.7 + 1),
-        y: TextRenderer.noise(i * 7.1 + 2),
-        seed: TextRenderer.noise(i * 11.3 + 3),
-      }));
-    }
-
-    const size = Math.max(2, height * cfg.scatter.size * swell);
-    // Hands open and close the word: spread pulls the letters out to their
-    // targets, so closing your hands reassembles it.
-    const reach = Math.min(1, Math.max(0,
-      cfg.scatter.amount + kick + (this.aim.x - 0.5) * cfg.motion.handInfluence));
-
-    const advance = size * (0.62 + cfg.type.tracking);
-    const lineWidth = advance * chars.length;
-
-    chars.forEach((char, i) => {
-      const target = this.targets[i];
-      // Staggering the pull is what makes them leave one after another rather
-      // than the whole word inflating at once.
-      const delay = i * cfg.scatter.stagger * 0.1;
-      const pull = Math.min(1, Math.max(0, reach - delay));
-
-      const homeX = width / 2 - lineWidth / 2 + advance * (i + 0.5);
-      const homeY = height / 2;
-
-      let awayX: number;
-      let awayY: number;
-      if (cfg.scatter.spiral >= 0.5) {
-        // Wound onto a spiral, so the word turns rather than simply flies apart.
-        const angle = (i / chars.length) * Math.PI * 6 + time * cfg.scatter.drift;
-        const radius = (0.1 + (i / chars.length) * 0.4) * Math.min(width, height);
-        awayX = width / 2 + Math.cos(angle) * radius;
-        awayY = height / 2 + Math.sin(angle) * radius;
-      } else {
-        const wander = time * cfg.scatter.drift + target.seed * Math.PI * 2;
-        awayX = (0.08 + target.x * 0.84) * width + Math.cos(wander) * width * 0.05;
-        awayY = (0.08 + target.y * 0.84) * height + Math.sin(wander) * height * 0.05;
-      }
-
-      this.stamp(
-        homeX + (awayX - homeX) * pull,
-        homeY + (awayY - homeY) * pull,
-        size,
-        this.colorFor(i, time, colors),
-        1,
-        char,
-      );
-    });
   }
 }

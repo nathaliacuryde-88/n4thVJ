@@ -58,9 +58,20 @@ export const TextConfig = {
     strength: 0.6,
     /** Above 1 the distortion bites at the edges; below, near the middle. */
     power: 2,
-    /** How much the strength swings on its own. */
-    pulse: 0.5,
-    pulseSpeed: 0.5,
+    /**
+     * How far a ring travels outward on each onset.
+     *
+     * This replaced a free-running sine. The field used to breathe on its own
+     * clock, which looked like it was reacting to the music without ever
+     * having heard any — the worst of both, since it neither sat still nor
+     * hit anything. A ring leaving the centre on each onset is the same
+     * gesture, actually locked to what is playing.
+     */
+    ring: 0.55,
+    /** How many rings are visible at once. Higher is a tighter ripple. */
+    ringDensity: 3.2,
+    /** How the field twists. Finger count moves this, so gestures read. */
+    twist: 0.5,
   },
 
   wave: {

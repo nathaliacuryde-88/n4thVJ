@@ -170,15 +170,21 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     config: TextConfig,
     groups: [
       {
-        name: 'Movement',
+        name: 'Field',
         params: [
-          {
-            path: 'mode', label: 'Mode', min: 0, max: 4, step: 1,
-            labels: ['Mask', 'Radial', 'Wave', 'Depth', 'Scatter'],
-            hint: 'each mode brings its own controls',
-          },
-          { path: 'motion.handInfluence', label: 'Hands', min: 0, max: 3, step: 0.05 },
+          { path: 'motion.handInfluence', label: 'Hands', min: 0, max: 3, step: 0.05, hint: 'how far the field follows' },
+          { path: 'radial.strength', label: 'Warp', min: -2, max: 3, step: 0.05, hint: 'negative pinches' },
+          { path: 'radial.twist', label: 'Twist', min: -3, max: 3, step: 0.05, hint: 'opens with the hand' },
+          { path: 'radial.power', label: 'Bite', min: 0.4, max: 5, step: 0.1 },
           { path: 'trail.fadeAlpha', label: 'Trail', min: 0.02, max: 1, step: 0.01, hint: 'lower = longer' },
+        ],
+      },
+      {
+        name: 'Beat',
+        params: [
+          { path: 'radial.ring', label: 'Ring', min: 0, max: 2, step: 0.05, hint: 'thrown out on each onset' },
+          { path: 'radial.ringDensity', label: 'Rings', min: 0.5, max: 8, step: 0.1 },
+          { path: 'audio.bassScale', label: 'Bass swell', min: 0, max: 2, step: 0.05 },
         ],
       },
       {
@@ -188,71 +194,14 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'type.weight', label: 'Weight', min: 100, max: 900, step: 100 },
           { path: 'type.tracking', label: 'Tracking', min: -0.1, max: 1.2, step: 0.01 },
           { path: 'type.outline', label: 'Outline', min: 0, max: 1, step: 1, hint: 'filled or hollow' },
-          { path: 'type.strokeWidth', label: 'Stroke', min: 0.5, max: 8, step: 0.5 },
         ],
       },
       {
         name: 'Grid',
-        visibleWhen: { path: 'mode', equals: [0, 1, 2] },
         params: [
           { path: 'grid.columns', label: 'Columns', min: 1, max: 40, step: 1 },
           { path: 'grid.rows', label: 'Rows', min: 1, max: 60, step: 1 },
           { path: 'grid.spread', label: 'Spread', min: 0.2, max: 3, step: 0.02 },
-          { path: 'grid.breathe', label: 'Breathe', min: 0, max: 1, step: 0.02 },
-          { path: 'grid.breatheSpeed', label: 'Breath speed', min: 0, max: 3, step: 0.05 },
-        ],
-      },
-      {
-        name: 'Mask',
-        visibleWhen: { path: 'mode', equals: [0] },
-        params: [
-          { path: 'mask.reach', label: 'Reach', min: 0.02, max: 0.8, step: 0.01, hint: 'hand size' },
-          { path: 'mask.threshold', label: 'Threshold', min: 0.02, max: 2, step: 0.02, hint: 'lower fills more' },
-          { path: 'mask.softness', label: 'Softness', min: 0, max: 1, step: 0.02, hint: '0 = hard cut' },
-          { path: 'mask.invert', label: 'Invert', min: 0, max: 1, step: 1 },
-        ],
-      },
-      {
-        name: 'Radial',
-        visibleWhen: { path: 'mode', equals: [1] },
-        params: [
-          { path: 'radial.strength', label: 'Warp', min: -2, max: 3, step: 0.05, hint: 'negative pinches' },
-          { path: 'radial.power', label: 'Bite', min: 0.4, max: 5, step: 0.1 },
-          { path: 'radial.pulse', label: 'Pulse', min: 0, max: 2, step: 0.05 },
-          { path: 'radial.pulseSpeed', label: 'Pulse speed', min: 0, max: 3, step: 0.05 },
-        ],
-      },
-      {
-        name: 'Wave',
-        visibleWhen: { path: 'mode', equals: [2] },
-        params: [
-          { path: 'wave.amplitude', label: 'Amount', min: 0, max: 0.6, step: 0.01 },
-          { path: 'wave.frequency', label: 'Waves', min: 0.2, max: 8, step: 0.1 },
-          { path: 'wave.speed', label: 'Speed', min: -4, max: 4, step: 0.05 },
-          { path: 'wave.scaleWave', label: 'Swell', min: 0, max: 1, step: 0.02 },
-        ],
-      },
-      {
-        name: 'Depth',
-        visibleWhen: { path: 'mode', equals: [3] },
-        params: [
-          { path: 'depth.speed', label: 'Fly', min: -2, max: 2, step: 0.02 },
-          { path: 'depth.spread', label: 'Open', min: 0, max: 4, step: 0.05, hint: 'tracking with distance' },
-          { path: 'depth.curve', label: 'Curve', min: 0.5, max: 4, step: 0.05 },
-          { path: 'depth.steps', label: 'Rows', min: 2, max: 40, step: 1 },
-          { path: 'depth.size', label: 'Size', min: 0.02, max: 0.5, step: 0.005 },
-          { path: 'depth.horizon', label: 'Horizon', min: -0.2, max: 0.8, step: 0.01 },
-        ],
-      },
-      {
-        name: 'Scatter',
-        visibleWhen: { path: 'mode', equals: [4] },
-        params: [
-          { path: 'scatter.amount', label: 'Spread', min: 0, max: 1.5, step: 0.02, hint: '0 = readable' },
-          { path: 'scatter.spiral', label: 'Spiral', min: 0, max: 1, step: 1 },
-          { path: 'scatter.stagger', label: 'Stagger', min: 0, max: 2, step: 0.05 },
-          { path: 'scatter.drift', label: 'Drift', min: 0, max: 3, step: 0.05 },
-          { path: 'scatter.size', label: 'Letter size', min: 0.02, max: 0.5, step: 0.005 },
         ],
       },
       {
@@ -261,13 +210,6 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'color.rainbow', label: 'Rainbow', min: 0, max: 1, step: 1, hint: 'ignores the palette' },
           { path: 'color.step', label: 'Hue step', min: 0, max: 120, step: 1 },
           { path: 'color.cycleSpeed', label: 'Cycle', min: 0, max: 3, step: 0.05 },
-        ],
-      },
-      {
-        name: 'Audio',
-        params: [
-          { path: 'audio.bassScale', label: 'Bass swell', min: 0, max: 2, step: 0.05 },
-          { path: 'audio.beatKick', label: 'Beat kick', min: 0, max: 3, step: 0.05 },
         ],
       },
     ],
@@ -542,6 +484,7 @@ export const PIPELINE_PARAMS: RendererParams = {
     {
       name: 'Feedback',
       stage: 'feedback',
+      turnOn: { 'feedback.amount': 0.72, 'feedback.zoom': 1.02 },
       togglePath: 'feedback.enabled',
       params: [
         { path: 'feedback.amount', label: 'Trail', min: 0, max: 0.99, step: 0.01, hint: 'how long the image hangs on' },
@@ -552,6 +495,7 @@ export const PIPELINE_PARAMS: RendererParams = {
     {
       name: 'Colour',
       stage: 'colour',
+      turnOn: { 'colour.hue': 1.1 },
       togglePath: 'colour.enabled',
       params: [
         { path: 'colour.hue', label: 'Hue', min: -3.14, max: 3.14, step: 0.01, hint: 'turns the whole frame' },
@@ -561,6 +505,7 @@ export const PIPELINE_PARAMS: RendererParams = {
     {
       name: 'Displace',
       stage: 'displace',
+      turnOn: { 'displace.amount': 0.08 },
       togglePath: 'displace.enabled',
       params: [
         { path: 'displace.amount', label: 'Warp', min: 0, max: 0.3, step: 0.002 },
@@ -571,6 +516,7 @@ export const PIPELINE_PARAMS: RendererParams = {
     {
       name: 'Chromatic',
       stage: 'rgbSplit',
+      turnOn: { 'rgbSplit.amount': 0.022 },
       togglePath: 'rgbSplit.enabled',
       params: [
         { path: 'rgbSplit.amount', label: 'Split', min: 0, max: 0.1, step: 0.001 },
@@ -579,6 +525,7 @@ export const PIPELINE_PARAMS: RendererParams = {
     {
       name: 'Kaleido',
       stage: 'kaleido',
+      turnOn: { 'kaleido.segments': 4 },
       togglePath: 'kaleido.enabled',
       params: [
         {
@@ -591,6 +538,7 @@ export const PIPELINE_PARAMS: RendererParams = {
     {
       name: 'Pixelate',
       stage: 'pixelate',
+      turnOn: { 'pixelate.pixel': 14 },
       togglePath: 'pixelate.enabled',
       params: [
         { path: 'pixelate.pixel', label: 'Block', min: 0, max: 64, step: 1, hint: '0 = off' },
@@ -600,16 +548,16 @@ export const PIPELINE_PARAMS: RendererParams = {
     {
       name: 'Noise',
       stage: 'noiseTile',
+      turnOn: { 'noiseTile.size': 2 },
       togglePath: 'noiseTile.enabled',
       params: [
-        { path: 'noiseTile.size', label: 'Tile', min: 0, max: 24, step: 1, hint: '0 = off' },
-        { needs: 'noiseTile.size', path: 'noiseTile.grain', label: 'Grain', min: 0, max: 1, step: 0.02, hint: '0 is a clean grid' },
-        { needs: 'noiseTile.size', path: 'noiseTile.drift', label: 'Crawl', min: 0, max: 2, step: 0.02 },
+        { path: 'noiseTile.grain', label: 'Grain', min: 0, max: 1, step: 0.02, hint: 'coarse noise over the dither' },
       ],
     },
     {
       name: 'Echo',
       stage: 'echo',
+      turnOn: { 'echo.count': 4 },
       togglePath: 'echo.enabled',
       params: [
         { path: 'echo.count', label: 'Echoes', min: 0, max: 6, step: 1, hint: '0 = off' },
@@ -620,19 +568,12 @@ export const PIPELINE_PARAMS: RendererParams = {
     {
       name: 'Fluted',
       stage: 'fluted',
+      turnOn: { 'fluted.ribs': 26 },
       togglePath: 'fluted.enabled',
       params: [
         { path: 'fluted.ribs', label: 'Ribs', min: 0, max: 80, step: 1, hint: '0 = off' },
         { needs: 'fluted.ribs', path: 'fluted.bend', label: 'Bend', min: 0, max: 2, step: 0.02 },
         { needs: 'fluted.ribs', path: 'fluted.shine', label: 'Shine', min: 0, max: 1, step: 0.02 },
-      ],
-    },
-    {
-      name: 'Crossfade',
-      stage: 'transition',
-      togglePath: 'transition.enabled',
-      params: [
-        { path: 'transition.duration', label: 'Crossfade', min: 0.05, max: 5, step: 0.05, hint: 'seconds between visuals' },
       ],
     },
   ],

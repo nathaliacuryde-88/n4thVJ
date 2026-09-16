@@ -315,8 +315,12 @@ export class ChromeRenderer {
 
   /** Smoothed hand aim, so tracking jitter does not shake the form. */
   private aim = { x: 0, y: 0 };
-  /** Kick energy from beats and claps, decaying. */
+  /** Shock from a clap, decaying. Beats do not reach this. */
   private kick = 0;
+  /** The music's weight, gathered slowly. What the form floats on. */
+  private swell = 0;
+  /** How open the hands are, 0 to 1, eased. Stretches and sharpens the form. */
+  private openness = 0.25;
   private failed = false;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
@@ -441,6 +445,11 @@ export class ChromeRenderer {
     gl.useProgram(this.program);
 
     const hands = [handData.left, handData.right].filter(Boolean);
+    const fingers = hands.length
+      ? Math.max(...hands.map((h) => h!.fingerCount ?? 2))
+      : 2;
+    this.openness += ((fingers - 1) / 4 - this.openness) * 0.08;
+
     let targetX = 0;
     let targetY = 0;
     if (hands.length > 0) {
@@ -449,33 +458,64 @@ export class ChromeRenderer {
       targetX = (mx - 0.5) * 2;
       targetY = (0.5 - my) * 2;
     }
-    this.aim.x += (targetX - this.aim.x) * 0.06;
-    this.aim.y += (targetY - this.aim.y) * 0.06;
+    // Quicker than it was: at 0.06 the form arrived so long after the hand
+    // that the two did not read as connected.
+    this.aim.x += (targetX - this.aim.x) * 0.14;
+    this.aim.y += (targetY - this.aim.y) * 0.14;
 
-    // A clap or a beat throws the surface, then it settles.
-    const hit = (handData.clapping ? (handData.clapIntensity ?? 1) : 0) +
-      (audioData?.beat ? audioData.beatIntensity : 0) +
-      (audioData?.onset ?? 0) * 0.5;
-    this.kick = Math.max(this.kick * 0.92, Math.min(1.6, hit));
+    /*
+     * Floating, not beating.
+     *
+     * This used to jump on every beat, and a mirror that flinches on the kick
+     * reads as a light flicking on and off rather than as metal. Molten metal
+     * has mass: it does not respond to a transient at all, it responds to the
+     * weight of the music over a second or two.
+     *
+     * So the onset is integrated rather than used. A loud passage raises the
+     * swell over about a second and it falls away over several — the form
+     * gathers and settles instead of twitching.
+     */
+    const weight = Math.min(1,
+      (audioData?.bass ?? 0) * 0.8 + (audioData?.onset ?? 0) * 0.35);
+    this.swell += (weight - this.swell) * (weight > this.swell ? 0.035 : 0.012);
 
+    // A clap is the one thing that is meant to be a shock, and only a clap.
+    const clap = handData.clapping ? (handData.clapIntensity ?? 1) : 0;
+    this.kick = Math.max(this.kick * 0.94, clap);
+
+    /*
+     * The hand, read as a pose rather than as a position.
+     *
+     * Reaching across moved the form a little and every finger count looked
+     * much the same, so the gestures did not read. An open hand now stretches
+     * the lobes apart and sharpens the metal; a closed one gathers them into
+     * a single heavy mass. That is a change of shape, not of speed, so it
+     * survives the tempo already being global.
+     */
     const spread = handData.distanceBetweenHands ?? 0.4;
-    const bass = audioData?.bass ?? 0;
     const u = this.uniforms;
     const f1 = (name: string, v: number) => gl.uniform1f(u[name], v);
 
     gl.uniform2f(u.uSize, w, h);
     f1('uTime', vjTime());
     f1('uLobes', Math.max(1, Math.min(7, Math.round(cfg.form.lobes))));
-    f1('uSpread', cfg.form.spread * (1 + (spread - 0.4) * cfg.hands.spread) +
+    // Spread is the hands: how far apart, and how open. Both stretch it.
+    f1('uSpread', cfg.form.spread *
+      (1 + (spread - 0.4) * cfg.hands.spread + (this.openness - 0.25) * 0.55) +
       this.kick * cfg.hands.kick * 0.35);
-    f1('uSize2', cfg.form.size * (1 + bass * 0.22));
+    // Mass swells with the music's weight, slowly.
+    f1('uSize2', cfg.form.size * (1 + this.swell * 0.3));
     f1('uBlend', Math.max(0.05, cfg.form.blend));
-    f1('uRipple', cfg.form.ripple * (1 + this.kick * cfg.hands.kick * 1.6));
+    // A closed hand leaves the surface molten and rippling; an open one
+    // draws it taut, so the same form reads as liquid or as polished.
+    f1('uRipple', cfg.form.ripple *
+      (1.35 - this.openness * 0.7 + this.kick * cfg.hands.kick * 1.6));
     f1('uRippleScale', cfg.form.rippleScale);
-    f1('uDrift', cfg.motion.drift);
+    // The lobes wander further when the music is carrying weight.
+    f1('uDrift', cfg.motion.drift * (1 + this.swell * 0.5));
     f1('uChurn', cfg.motion.churn);
     f1('uSpin', cfg.motion.spin);
-    f1('uDispersion', cfg.material.dispersion * (1 + this.kick * 0.35));
+    f1('uDispersion', cfg.material.dispersion * (1 + this.swell * 0.4 + this.kick * 0.35));
     f1('uRimTight', Math.max(0.5, cfg.material.rimTightness));
     f1('uSplit', cfg.material.split);
     f1('uSilver', cfg.material.silver);

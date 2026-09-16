@@ -566,20 +566,6 @@ export default function App() {
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [audioData, setAudioData] = useState<AudioData>({ bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 });
   const [audioSensitivity, setAudioSensitivity] = useState(0.5); // 0-1
-  /*
-   * Which parts of the music are allowed through.
-   *
-   * These used to be called SPEED, DENSITY and BEATS, which described what
-   * someone hoped they would do rather than what they did — each one simply
-   * zeroed a band. Named after the band, a switch that mutes the lows is
-   * obvious, and the meter beside them shows it happening.
-   */
-  const [audioUse, setAudioUse] = useState({
-    bass: true, mid: true, high: true, beat: true,
-  });
-  const toggleAudioUse = useCallback((band: keyof typeof audioUse) => {
-    setAudioUse((prev) => ({ ...prev, [band]: !prev[band] }));
-  }, []);
   const [audioTime, setAudioTime] = useState(0); // For smooth audio-driven animation
 
   const handsPresent = handData.left !== null || handData.right !== null;
@@ -886,17 +872,20 @@ export default function App() {
     setShowPermissionRequest(false);
   };
 
-  // What the renderers get, after the band switches.
-  const rendererAudioData: AudioData = {
-    ...audioData,
-    bass: audioUse.bass ? audioData.bass : 0,
-    lowMid: audioUse.bass ? audioData.lowMid : 0,
-    mid: audioUse.mid ? audioData.mid : 0,
-    high: audioUse.high ? audioData.high : 0,
-    beat: audioUse.beat ? audioData.beat : false,
-    beatIntensity: audioUse.beat ? audioData.beatIntensity : 0,
-    onset: audioUse.beat ? audioData.onset : 0,
-  };
+  /*
+   * The whole reading, always.
+   *
+   * There were four switches here — lows, mids, highs, beat — and each simply
+   * zeroed a band. They were impossible to judge: muting the highs changes
+   * nothing on a visual that never reads them, so the switch looked broken
+   * rather than applied, and knowing which visual reads which band is not
+   * something anyone should have to hold in their head mid-set.
+   *
+   * Every band goes through now and the routing is the visuals' business.
+   * What is left is a gain and a meter: how hard to listen, and proof that it
+   * is listening.
+   */
+  const rendererAudioData: AudioData = audioData;
 
   if (view === 'library') {
     return (
@@ -1031,8 +1020,6 @@ export default function App() {
           onAudioToggle={() => setAudioEnabled(!audioEnabled)}
           audioSensitivity={audioSensitivity}
           onAudioSensitivityChange={setAudioSensitivity}
-          audioUse={audioUse}
-          onAudioUseToggle={toggleAudioUse}
           audioLevels={rendererAudioData}
           motion={motion}
           onMotionChange={setMotion}

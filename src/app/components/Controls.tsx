@@ -63,9 +63,6 @@ interface ControlsProps {
   onAudioToggle: () => void;
   audioSensitivity: number;
   onAudioSensitivityChange: (sensitivity: number) => void;
-  /** Which parts of the music are allowed to reach the visuals. */
-  audioUse: { bass: boolean; mid: boolean; high: boolean; beat: boolean };
-  onAudioUseToggle: (band: 'bass' | 'mid' | 'high' | 'beat') => void;
   /** What is coming through right now, for the meter. */
   audioLevels: AudioData;
   /** How hard the hands drive the whole set. 1 is neutral. */
@@ -92,23 +89,10 @@ interface ControlsProps {
 
 /** The meter's bars, low to high. */
 const BANDS = [
-  { key: 'bass', label: 'LOW', band: 'bass' },
-  { key: 'lowMid', label: 'L-MID', band: 'bass' },
-  { key: 'mid', label: 'MID', band: 'mid' },
-  { key: 'high', label: 'HIGH', band: 'high' },
-] as const;
-
-/**
- * The switches.
- *
- * Named after the band each one carries, because that is all any of them ever
- * did — the old SPEED, DENSITY and BEATS described a hope rather than a wire.
- */
-const TOGGLES = [
-  { band: 'bass', label: 'LOWS', hint: 'Kick and bassline drive scale, weight and push' },
-  { band: 'mid', label: 'MIDS', hint: 'Melody and voice drive speed and movement' },
-  { band: 'high', label: 'HIGHS', hint: 'Hats and air drive density and detail' },
-  { band: 'beat', label: 'BEAT', hint: 'Onsets hit the visuals, the way a clap does' },
+  { key: 'bass', label: 'LOW' },
+  { key: 'lowMid', label: 'L-MID' },
+  { key: 'mid', label: 'MID' },
+  { key: 'high', label: 'HIGH' },
 ] as const;
 
 /** m:ss, so a take's length reads at a glance instead of counting seconds. */
@@ -181,8 +165,6 @@ export function Controls({
   onAudioToggle,
   audioSensitivity,
   onAudioSensitivityChange,
-  audioUse,
-  onAudioUseToggle,
   audioLevels,
   motion,
   onMotionChange,
@@ -552,7 +534,7 @@ export function Controls({
                           </span>
                       </div>
                       <div className="flex items-end gap-1 h-10">
-                          {BANDS.map(({ key, label, band }) => (
+                          {BANDS.map(({ key, label }) => (
                               <div key={key} className="flex-1 flex flex-col items-center gap-1">
                                   <div className="relative w-full h-8 rounded-sm bg-white/10 overflow-hidden">
                                       <div
@@ -560,11 +542,7 @@ export function Controls({
                                           style={{ height: `${Math.round(audioLevels[key] * 100)}%` }}
                                       />
                                   </div>
-                                  <span
-                                      className={`text-[7px] tracking-wider ${
-                                          audioUse[band] ? 'text-white/50' : 'text-white/20'
-                                      }`}
-                                  >
+                                  <span className="text-[7px] tracking-wider text-white/50">
                                       {label}
                                   </span>
                               </div>
@@ -572,24 +550,6 @@ export function Controls({
                       </div>
                   </div>
 
-                  {/* Which parts of the music get through. */}
-                  <div className="flex flex-col gap-1.5">
-                      {TOGGLES.map(({ band, label, hint }) => (
-                          <button
-                              key={band}
-                              onClick={() => onAudioUseToggle(band)}
-                              title={hint}
-                              className={`flex justify-between items-center px-2 py-1.5 rounded-md text-[9px] font-bold transition-all border ${
-                                  audioUse[band]
-                                      ? 'bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.3)]'
-                                      : 'bg-transparent text-white/50 border-white/10 hover:bg-white/10 hover:text-white'
-                              }`}
-                          >
-                              <span>{label}</span>
-                              <div className={`w-1.5 h-1.5 rounded-full ${audioUse[band] ? 'bg-black' : 'bg-white/30'}`} />
-                          </button>
-                      ))}
-                  </div>
               </div>
           </div>
       )}

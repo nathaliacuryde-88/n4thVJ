@@ -221,6 +221,15 @@ export class PostPipeline {
     gl.useProgram(program);
     gl.uniform2f(gl.getUniformLocation(program, 'uResolution'), width, height);
     gl.uniform1f(gl.getUniformLocation(program, 'uTime'), time);
+    /*
+     * Every stage ends in mix(original, effect, uMix), and an uninitialised
+     * uniform is zero — which in that expression means "do nothing at all".
+     * Forgetting one line therefore removed an entire effect silently, with
+     * no error anywhere and a shader that tested perfectly on its own. That
+     * happened to Fluted Glass. Defaulting it here means a forgotten line
+     * shows up as too much effect rather than as none.
+     */
+    gl.uniform1f(gl.getUniformLocation(program, 'uMix'), 1);
     return program;
   }
 
@@ -385,6 +394,7 @@ export class PostPipeline {
       gl.uniform1f(gl.getUniformLocation(program, 'uBend'), c.fluted.bend);
       gl.uniform1f(gl.getUniformLocation(program, 'uShine'), c.fluted.shine);
       gl.uniform1f(gl.getUniformLocation(program, 'uVertical'), c.fluted.vertical);
+      gl.uniform1f(gl.getUniformLocation(program, 'uMix'), c.fluted.mix);
       target = this.next();
       drawFullscreen(gl, target, width, height);
       current = target.texture;

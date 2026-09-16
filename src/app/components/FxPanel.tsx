@@ -25,6 +25,18 @@ import { stageDoing } from '../pipeline/PostPipeline';
  * It sits opposite the renderer's controls rather than behind them, because
  * the two answer different questions — what this visual is, and what is being
  * done to it — and during a set you want both at a glance.
+ *
+ * ONE CLICK, NOT THREE
+ * Switching an effect on used to mean clicking its name, then finding the
+ * slider, then dragging it off zero — three actions and a few seconds, in the
+ * middle of a set. A chip is now a switch:
+ *
+ *   off            → click turns it on, at a setting you can see, and opens it
+ *   on and open    → click turns it off
+ *   on but closed  → click opens it, and leaves it on
+ *
+ * So the common thing is one click, and adjusting something already running
+ * never risks switching it off.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -110,8 +122,34 @@ export function FxPanel({
             return (
               <button
                 key={group.name}
-                onClick={() => onOpen(isOpen ? null : group.name)}
-                title={`${group.name} — ${live ? 'running' : on ? 'idle' : 'bypassed'}`}
+                onClick={() => {
+                  if (!live) {
+                    // Switch it on at something visible, and show its controls.
+                    if (group.togglePath) onChange(group.togglePath, 1);
+                    for (const [path, v] of Object.entries(group.turnOn ?? {})) {
+                      onChange(path, v);
+                    }
+                    onOpen(group.name);
+                    return;
+                  }
+                  if (!isOpen) {
+                    onOpen(group.name);
+                    return;
+                  }
+                  // Running and open: this click puts it away. Back to the
+                  // config's own value, which for every effect is its off.
+                  for (const path of Object.keys(group.turnOn ?? {})) {
+                    onChange(path, (getByPath(entry.config, path) ?? 0) as number);
+                  }
+                  onOpen(null);
+                }}
+                title={
+                  live
+                    ? isOpen
+                      ? `${group.name} — running. Click to switch it off`
+                      : `${group.name} — running. Click to show its controls`
+                    : `${group.name} — click to switch it on`
+                }
                 className={`flex items-center gap-1 rounded px-1.5 py-1 text-left text-[8.5px] leading-tight tracking-wide transition-all ${
                   isOpen
                     ? 'bg-white text-black'

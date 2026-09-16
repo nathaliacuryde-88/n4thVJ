@@ -413,8 +413,7 @@ export function VJCanvas({
   // crossfade the ones whose pattern changed, retire the ones taken off.
   useEffect(() => {
     const slots = slotsRef.current;
-    const cfg = withOverrides(PipelineConfig, layerFxRef.current?.[0] ?? {}).transition;
-    const duration = cfg.enabled >= 0.5 ? cfg.duration : 0;
+    const duration = PipelineConfig.transition.duration;
 
     const build = (pattern: VisualPattern, index: number): Deck | null => {
       const canvas = document.createElement('canvas');
