@@ -58,8 +58,8 @@ interface VJCanvasProps {
   audioData?: AudioData;
   /** Slider overrides per layer, index-matched to `layers`. */
   layerParams?: (ParamValues | undefined)[];
-  /** Effect settings per layer, index-matched to `layers`. */
-  layerFx?: (ParamValues | undefined)[];
+  /** Effect settings per visual, keyed by pattern. */
+  fxByPattern?: Record<string, ParamValues | undefined>;
   /** What the content-driven visuals show: the words, and the uploaded clip. */
   content: { text: string; clips: Clips };
   /** Tempo per layer, index-matched to `layers`. Scales that layer's clock. */
@@ -91,7 +91,7 @@ export function VJCanvas({
   videoElement,
   audioData,
   layerParams,
-  layerFx,
+  fxByPattern,
   content,
   motion,
   autoHandData,
@@ -113,19 +113,25 @@ export function VJCanvas({
     readyRef.current?.(el);
   }, []);
   /**
-   * One post chain per layer.
+   * One post chain per visual.
    *
-   * The chain used to run once over the flattened stack, which meant every
-   * effect hit every layer — kaleidoscope the type and you kaleidoscoped the
-   * footage underneath it too. A layer is a thing with its own look, so it
-   * gets its own chain, and each renders to a canvas of its own that the
-   * composite then blends in at that layer's fader.
+   * It began as one chain over the flattened stack, which meant every effect
+   * hit every layer. Making it one per layer fixed that but left a subtler
+   * version of the same fault: during a crossfade the outgoing deck was fed
+   * in at the head of the INCOMING visual's chain, so the old visual spent
+   * the whole fade wearing effects that were never its own — it changed into
+   * something else and then faded, instead of fading as it was. The reverse
+   * happened too: switching to a visual with no effects stripped the outgoing
+   * one of its own mid-fade.
    *
-   * Built lazily: a layer with no effect on it never makes a GL context, so a
-   * plain single-visual set costs exactly what it did before.
+   * Keyed by visual, both decks keep their own look all the way out, and each
+   * keeps its own feedback history — which is the part a shared chain could
+   * never have got right anyway.
+   *
+   * Built lazily and dropped when a visual leaves the screen, so a plain
+   * single-visual set with no effects costs no GL context at all.
    */
-  const pipelinesRef = useRef<(PostPipeline | null)[]>([]);
-  const pipelineCanvasesRef = useRef<HTMLCanvasElement[]>([]);
+  const pipelinesRef = useRef(new Map<string, { pipeline: PostPipeline; canvas: HTMLCanvasElement }>());
   const fallbackCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   /**
    * A canvas can only ever hold one kind of context. If the pipeline dies after
@@ -152,7 +158,7 @@ export function VJCanvas({
   const videoElementRef = useRef<HTMLVideoElement | null>(videoElement ?? null);
   const audioDataRef = useRef<AudioData | undefined>(audioData);
   const layerParamsRef = useRef<(ParamValues | undefined)[] | undefined>(layerParams);
-  const layerFxRef = useRef<(ParamValues | undefined)[] | undefined>(layerFx);
+  const fxRef = useRef(fxByPattern);
   const contentRef = useRef(content);
   const motionRef = useRef(motion);
   const autoRef = useRef({ hands: autoHandData, on: autoDrive });
@@ -167,11 +173,11 @@ export function VJCanvas({
     audioDataRef.current = audioData;
     layerParamsRef.current = layerParams;
     layersRef.current = layers;
-    layerFxRef.current = layerFx;
+    fxRef.current = fxByPattern;
     contentRef.current = content;
     motionRef.current = motion;
     autoRef.current = { hands: autoHandData, on: autoDrive };
-  }, [handData, layerColors, videoElement, audioData, layerParams, layers, layerFx, content, motion, autoHandData, autoDrive]);
+  }, [handData, layerColors, videoElement, audioData, layerParams, layers, fxByPattern, content, motion, autoHandData, autoDrive]);
 
   // Retyping the words must not rebuild the renderer, any more than a slider does.
   useEffect(() => {
@@ -191,32 +197,38 @@ export function VJCanvas({
     });
   }, [layerParams]);
 
+  /** One visual's effect settings, as the canvas reads them mid-frame. */
+  const fxFor = useCallback(
+    (pattern: string): ParamValues => fxRef.current?.[pattern] ?? {},
+    [],
+  );
+
   useEffect(() => {
-    pipelinesRef.current.forEach((pipeline, index) => {
-      pipeline?.setParams(layerFx?.[index] ?? {});
-    });
-  }, [layerFx]);
+    for (const [pattern, held] of pipelinesRef.current) {
+      held.pipeline.setParams(fxByPattern?.[pattern] ?? {});
+    }
+  }, [fxByPattern]);
 
   /**
-   * The chain for a layer, built the first time that layer needs one.
+   * The chain for a visual, built the first time that visual needs one.
    *
    * Returns null when this machine cannot give out another WebGL context, in
-   * which case that layer simply plays without effects — which is a better
-   * outcome than the whole set going down.
+   * which case that visual simply plays without effects — a better outcome
+   * than the whole set going down.
    */
-  const pipelineFor = useCallback((index: number): PostPipeline | null => {
-    const existing = pipelinesRef.current[index];
-    if (existing) return existing;
+  const pipelineFor = useCallback((pattern: string, values: ParamValues) => {
+    const held = pipelinesRef.current.get(pattern);
+    if (held) return held;
     if (pipelineFailed) return null;
     try {
       const canvas = document.createElement('canvas');
       const pipeline = new PostPipeline(canvas);
-      pipeline.setParams(layerFxRef.current?.[index] ?? {});
-      pipelinesRef.current[index] = pipeline;
-      pipelineCanvasesRef.current[index] = canvas;
-      return pipeline;
+      pipeline.setParams(values);
+      const entry = { pipeline, canvas };
+      pipelinesRef.current.set(pattern, entry);
+      return entry;
     } catch (error) {
-      console.error('Post pipeline unavailable; this layer plays without effects:', error);
+      console.error('Post pipeline unavailable; this visual plays without effects:', error);
       setPipelineFailed(true);
       return null;
     }
@@ -332,49 +344,40 @@ export function VJCanvas({
         const fade = slot.outgoing ? fadeProgress(slot.outgoing, now) : 1;
 
         /*
-         * Effects first, for this layer alone.
+         * Each deck through its own visual's chain.
          *
-         * The chain takes the crossfade too — it can blend the outgoing deck
-         * into the incoming one before anything else runs, so a transition
-         * passes through the effects as one continuous image rather than as
-         * two frames being dissolved after the fact.
+         * The outgoing one included: it keeps the effects it was playing with
+         * until it has gone, rather than being handed the incoming visual's.
+         * That is the whole point of keying chains by visual instead of by
+         * slot — a visual on its way out is still itself.
          */
-        const wantsFx = fxActive(layerFxRef.current?.[index] ?? {});
-        let source: HTMLCanvasElement | null = null;
-        if (wantsFx) {
-          const pipeline = pipelineFor(index);
-          if (pipeline) {
-            try {
-              pipeline.render(
-                slot.current.canvas,
-                now / 1000,
-                slot.outgoing?.canvas ?? null,
-                fade,
-              );
-              source = pipelineCanvasesRef.current[index] ?? null;
-            } catch (error) {
-              if (!pipelineThrew) {
-                pipelineThrew = true;
-                console.error('Post pipeline threw while presenting:', error);
-              }
+        const through = (deck: Deck): HTMLCanvasElement => {
+          const values = fxFor(deck.pattern);
+          if (!fxActive(values)) return deck.canvas;
+          const held = pipelineFor(deck.pattern, values);
+          if (!held) return deck.canvas;
+          try {
+            held.pipeline.render(deck.canvas, now / 1000);
+            return held.canvas;
+          } catch (error) {
+            if (!pipelineThrew) {
+              pipelineThrew = true;
+              console.error('Post pipeline threw while presenting:', error);
             }
+            return deck.canvas;
           }
-        }
+        };
 
         ctx.globalCompositeOperation = isBase ? 'source-over' : LAYER_BLEND;
 
-        if (source) {
-          // The chain already carries the crossfade, so this is one draw.
-          ctx.globalAlpha = opacity;
-          ctx.drawImage(source, 0, 0, ctx.canvas.width, ctx.canvas.height);
-        } else {
-          if (slot.outgoing) {
-            ctx.globalAlpha = opacity * (isBase ? 1 : 1 - fade);
-            ctx.drawImage(slot.outgoing.canvas, 0, 0);
-          }
-          ctx.globalAlpha = opacity * fade;
-          ctx.drawImage(slot.current.canvas, 0, 0);
+        const width = ctx.canvas.width;
+        const height = ctx.canvas.height;
+        if (slot.outgoing) {
+          ctx.globalAlpha = opacity * (isBase ? 1 : 1 - fade);
+          ctx.drawImage(through(slot.outgoing), 0, 0, width, height);
         }
+        ctx.globalAlpha = opacity * fade;
+        ctx.drawImage(through(slot.current), 0, 0, width, height);
       });
 
       ctx.globalAlpha = 1;
@@ -412,8 +415,23 @@ export function VJCanvas({
         drawDeck(slot.current, index);
         if (slot.outgoing) {
           if (fadeProgress(slot.outgoing, now) >= 1) {
+            const gone = slot.outgoing.pattern;
             slot.outgoing.renderer.destroy?.();
             slot.outgoing = null;
+            /*
+             * The chain goes with the visual.
+             *
+             * Chains are keyed by visual now, so without this every pattern
+             * she touched over a night would keep a WebGL context and four
+             * full-screen buffers for the rest of the set.
+             */
+            const stillUp = slotsRef.current.some(
+              (s) => s?.current.pattern === gone || s?.outgoing?.pattern === gone,
+            );
+            if (!stillUp) {
+              pipelinesRef.current.get(gone)?.pipeline.destroy();
+              pipelinesRef.current.delete(gone);
+            }
           } else {
             drawDeck(slot.outgoing, index);
           }
@@ -435,9 +453,8 @@ export function VJCanvas({
     return () => {
       window.removeEventListener('resize', resize);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      for (const pipeline of pipelinesRef.current) pipeline?.destroy();
-      pipelinesRef.current = [];
-      pipelineCanvasesRef.current = [];
+      for (const held of pipelinesRef.current.values()) held.pipeline.destroy();
+      pipelinesRef.current.clear();
       for (const slot of slotsRef.current) {
         slot?.outgoing?.renderer.destroy?.();
         slot?.current.renderer.destroy?.();

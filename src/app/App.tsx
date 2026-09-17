@@ -487,12 +487,6 @@ export default function App() {
     }));
   }, [currentPattern]);
 
-  /** Every layer's effects, in layer order, for the canvas. */
-  const layerFx = useMemo(
-    () => layers.map((l) => fxByPattern[l.pattern] ?? {}),
-    [layers, fxByPattern],
-  );
-
   // One switch over the whole chain, so a heavy look left over from an earlier
   // session is one click away from gone rather than a hunt through the panel.
   const fxEnabled = (fxParams['master.enabled'] ?? 1) >= 0.5;
@@ -951,7 +945,7 @@ export default function App() {
         motion={layers.map((l) => l.motion)}
         autoHandData={autoHands}
         autoDrive={idleDrive}
-        layerFx={layerFx}
+        fxByPattern={fxByPattern}
         onCanvasReady={(canvas) => {
           canvasRef.current = canvas;
           // The canvas is replaced rather than reused when the pipeline falls
