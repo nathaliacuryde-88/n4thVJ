@@ -201,9 +201,13 @@ export class Recorder {
   };
 
   /**
-   * The camera, where the preview sits on screen: top right, same size, same
-   * mirroring. What she lines her hands up against while playing is what ends
-   * up in the file.
+   * The camera, where the preview sits on screen: top right, same mirroring.
+   *
+   * Smaller than the preview, though. The preview is sized for a person
+   * playing to it — she needs to see her own hands well enough to aim — while
+   * in the file it is only there to show that the visuals are being played
+   * rather than run. At the preview's own share of the frame it read as a
+   * second picture competing with the work, so it takes half of that.
    */
   private drawCamera(
     ctx: CanvasRenderingContext2D,
@@ -211,7 +215,7 @@ export class Recorder {
     camera: HTMLVideoElement,
   ) {
     const margin = Math.round(frame.width * 0.014);
-    const width = Math.round(frame.width * 0.17);
+    const width = Math.round(frame.width * 0.085);
     const height = Math.round((width * camera.videoHeight) / camera.videoWidth);
     const x = frame.width - width - margin;
     const y = margin;

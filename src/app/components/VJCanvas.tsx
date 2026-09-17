@@ -3,18 +3,38 @@ import { Layer } from '../config/LayerConfig';
 import { ColorMode } from '../config/palette';
 import { AudioData, HandData, VisualPattern } from '../App';
 import { createRenderer, VJRenderer } from './renderers/create';
-import { advanceClock, useLayerClock } from '../motion/clock';
+import { advanceClock, dropClock, forkClock, useLayerClock } from '../motion/clock';
 import { createGestureState, gestureRate } from '../hands/gesture';
 import { ParamValues, withOverrides } from '../params/types';
 import { PostPipeline, fxActive } from '../pipeline/PostPipeline';
 import { PipelineConfig } from '../config/PipelineConfig';
 import { Clips } from '../config/content';
 
+/** Everything a deck is played with, as it stood on one frame. */
+interface Played {
+  hands: HandData;
+  colors: string[];
+  audio: AudioData | undefined;
+  colorMode: ColorMode;
+}
+
 /** A renderer plus the canvas it draws into. */
 interface Deck {
   renderer: VJRenderer;
   canvas: HTMLCanvasElement;
   pattern: VisualPattern;
+  /**
+   * What it was played with on its last frame.
+   *
+   * Read back when this deck starts to leave, so it leaves on exactly what it
+   * was last seen playing. Taking those from the props instead looked right
+   * and was not: colour is per visual, and React updates the props before it
+   * runs the effect that swaps the decks, so by the time a fade was set up the
+   * palette for this slot had already become the ARRIVING visual's. The
+   * leaving visual was frozen in the wrong colours for the whole fade. A deck
+   * remembering its own last frame cannot be caught out that way.
+   */
+  last?: Played;
   /** Set once a frame has thrown, so the failure is reported only once. */
   reportedError?: boolean;
 }
@@ -37,10 +57,9 @@ interface FadingDeck extends Deck {
    * input each one happens to read, rather than renderer by renderer. Its own
    * clock still runs, so it keeps moving — it just stops being played.
    */
-  heldHands: HandData;
-  heldAudio: AudioData | undefined;
-  /** And the palette, for the same reason: it is still the visual it was. */
-  heldColors: string[];
+  held: Played;
+  /** Its own lane on the clock, so it leaves at the tempo it was playing at. */
+  lane: number;
 }
 
 /** One position in the stack: what is playing there, and what it is fading from. */
@@ -217,9 +236,26 @@ export function VJCanvas({
   // its trails and, for the three.js ones, its whole scene.
   useEffect(() => {
     slotsRef.current.forEach((slot, index) => {
-      slot?.current.renderer.setParams?.(layerParams?.[index] ?? {});
+      /*
+       * Never into a deck that is about to be replaced.
+       *
+       * Settings belong to a visual, so on a switch `layerParams[index]` is
+       * already the arriving visual's — and this effect is declared above the
+       * one that swaps the decks, so it runs first, while `slot.current` is
+       * still the visual leaving. It was therefore handed another visual's
+       * settings, or, when the arriving one had none saved yet, an empty set,
+       * which resets every slider to its default: Mosaic's grid coarsened and
+       * its marks ballooned, Clip's zoom and band count jumped. All of it one
+       * frame before the crossfade began, so what she saw was a visual
+       * changing into something else and then fading.
+       *
+       * The arriving deck is given its own settings as it is built, so there
+       * is nothing to do here for a slot mid-swap.
+       */
+      if (!slot || slot.current.pattern !== layers[index]?.pattern) return;
+      slot.current.renderer.setParams?.(layerParams?.[index] ?? {});
     });
-  }, [layerParams]);
+  }, [layerParams, layers]);
 
   /** One visual's effect settings, as the canvas reads them mid-frame. */
   const fxFor = useCallback(
@@ -324,19 +360,22 @@ export function VJCanvas({
          * figure while the others see her.
          */
         const onHands = (motionRef.current?.[index] ?? 1) > 0;
-        const live = onHands || !autoRef.current.on
-          ? handDataRef.current
-          : autoRef.current.hands;
         // A deck on its way out plays on what it had, not on what she is
         // doing now — see FadingDeck.
-        deck.renderer.render(
-          held ? held.heldHands : live,
-          held
-            ? held.heldColors
-            : layerColorsRef.current[index] ?? layerColorsRef.current[0] ?? [],
-          held ? held.heldAudio : audioDataRef.current,
-          colorModesRef.current[index],
-        );
+        const played: Played = held
+          ? held.held
+          : {
+              hands: onHands || !autoRef.current.on
+                ? handDataRef.current
+                : autoRef.current.hands,
+              colors: layerColorsRef.current[index] ?? layerColorsRef.current[0] ?? [],
+              audio: audioDataRef.current,
+              colorMode: colorModesRef.current[index],
+            };
+        // Remembered before the render rather than after, so a renderer that
+        // throws still leaves behind what it was asked to play.
+        if (!held) deck.last = played;
+        deck.renderer.render(played.hands, played.colors, played.audio, played.colorMode);
       } catch (error) {
         if (!deck.reportedError) {
           deck.reportedError = true;
@@ -444,6 +483,7 @@ export function VJCanvas({
         if (slot.outgoing) {
           if (fadeProgress(slot.outgoing, now) >= 1) {
             const gone = slot.outgoing.pattern;
+            dropClock(slot.outgoing.lane);
             slot.outgoing.renderer.destroy?.();
             slot.outgoing = null;
             /*
@@ -461,6 +501,9 @@ export function VJCanvas({
               pipelinesRef.current.delete(gone);
             }
           } else {
+            // Onto its own lane first: the layer's clock is the arriving
+            // visual's now, and it runs at whatever her hands are doing.
+            useLayerClock(slot.outgoing.lane);
             drawDeck(slot.outgoing, index, slot.outgoing);
           }
         }
@@ -484,6 +527,7 @@ export function VJCanvas({
       for (const held of pipelinesRef.current.values()) held.pipeline.destroy();
       pipelinesRef.current.clear();
       for (const slot of slotsRef.current) {
+        if (slot?.outgoing) dropClock(slot.outgoing.lane);
         slot?.outgoing?.renderer.destroy?.();
         slot?.current.renderer.destroy?.();
       }
@@ -534,15 +578,22 @@ export function VJCanvas({
 
       // Only one deck can be fading per slot; a switch during a fade drops
       // whatever was already on its way out rather than stacking renderers.
+      if (slot.outgoing) dropClock(slot.outgoing.lane);
       slot.outgoing?.renderer.destroy?.();
       if (duration > 0) {
         slot.outgoing = {
           ...slot.current,
           fadeStart: performance.now(),
           duration,
-          heldHands: handDataRef.current,
-          heldAudio: audioDataRef.current,
-          heldColors: layerColorsRef.current[index] ?? layerColorsRef.current[0] ?? [],
+          lane: forkClock(index),
+          // From its own last frame, not from the props — which by now are
+          // the arriving visual's. See Deck.last.
+          held: slot.current.last ?? {
+            hands: handDataRef.current,
+            colors: layerColorsRef.current[index] ?? layerColorsRef.current[0] ?? [],
+            audio: audioDataRef.current,
+            colorMode: colorModesRef.current[index],
+          },
         };
       } else {
         slot.current.renderer.destroy?.();
@@ -552,6 +603,7 @@ export function VJCanvas({
     });
 
     for (const gone of slots.splice(layers.length)) {
+      if (gone?.outgoing) dropClock(gone.outgoing.lane);
       gone?.outgoing?.renderer.destroy?.();
       gone?.current.renderer.destroy?.();
     }
