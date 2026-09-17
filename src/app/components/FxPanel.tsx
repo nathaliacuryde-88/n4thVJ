@@ -84,9 +84,16 @@ export function FxPanel({
   const masterOn = (values['master.enabled'] ?? 1) >= 0.5;
   const anyTouched = groups.some((g) => g.params.some((p) => values[p.path] !== undefined));
 
+  /*
+   * Below the camera, not across it.
+   *
+   * The preview is 192 by 144 at 16px from the top, so it ends at 160 and this
+   * starts at 176. Bounded and scrollable as well, since ten effects plus an
+   * open one can run off the bottom of a short screen.
+   */
   return (
-    <div className="absolute right-6 top-24 z-50 w-[178px] font-mono pointer-events-auto">
-      <div className="bg-black/70 backdrop-blur-sm rounded-xl border border-white/20 flex flex-col">
+    <div className="absolute right-6 top-44 bottom-32 z-50 w-[178px] font-mono pointer-events-auto flex flex-col">
+      <div className="bg-black/70 backdrop-blur-sm rounded-xl border border-white/20 flex flex-col min-h-0 overflow-y-auto">
         {/* Whose effects these are. With one chain per layer this is not a
             detail — it is the difference between dressing the type and
             dressing the footage behind it. */}

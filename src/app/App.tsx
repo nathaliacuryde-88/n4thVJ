@@ -110,14 +110,16 @@ function saveSetting(key: string, value: unknown) {
 const isNumberIn = (min: number, max: number) => (v: unknown) =>
   typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
 
-/** The look a new layer starts from: whatever was last set on screen. */
-function loadLook() {
-  return {
-    hue: loadSetting('vj-hue', 245, isNumberIn(0, 360)),
-    saturation: loadSetting('vj-saturation', 100, isNumberIn(0, 100)),
-    colorMode: loadSetting<ColorMode>('vj-color-mode', 'contrast', (v) =>
-      v === 'black' || v === 'contrast' || v === 'grayscale'),
-  };
+/** A visual's palette. */
+export interface Look {
+  hue: number;
+  saturation: number;
+  colorMode: ColorMode;
+}
+
+/** What a visual looks like before she has said otherwise. */
+function defaultLook(): Look {
+  return { hue: 245, saturation: 100, colorMode: 'contrast' };
 }
 
 export default function App() {
@@ -128,7 +130,7 @@ export default function App() {
    * the selection is what the sliders and the colour controls act on.
    */
   const [layers, setLayers] = useState<Layer[]>(() => [
-    { pattern: 'geometric', opacity: 1, motion: MOTION_DEFAULT, ...loadLook() },
+    { pattern: 'geometric', opacity: 1, motion: MOTION_DEFAULT },
   ]);
   const [selectedLayer, setSelectedLayer] = useState(0);
   const currentPattern = (layers[selectedLayer] ?? layers[0]).pattern;
@@ -155,10 +157,7 @@ export default function App() {
     if (layers.length >= MAX_LAYERS) return;
     // A new layer starts from the look you last set, then diverges from there.
     const from = layers[selectedLayer] ?? layers[0];
-    setLayers([...layers, {
-      pattern, opacity: STACKED_OPACITY, motion: from.motion,
-      hue: from.hue, saturation: from.saturation, colorMode: from.colorMode,
-    }]);
+    setLayers([...layers, { pattern, opacity: STACKED_OPACITY, motion: from.motion }]);
     /*
      * And it becomes the selected one.
      *
@@ -198,40 +197,55 @@ export default function App() {
   const [showUI, setShowUI] = useState(true); // UI visibility toggle
   
   /*
-   * Colour belongs to a layer, not to the screen.
+   * Colour belongs to a visual.
    *
-   * The controls read and write whichever layer is selected, so two visuals can
-   * run in different palettes at once — which is most of the point of stacking
-   * them. Each setter takes a value or an updater, because the arrow keys and
-   * the auto-hue loop both nudge relative to what is already there.
+   * It lived on the layer, which made it per-layer — two stacked visuals could
+   * run in different palettes, which is most of the point of stacking them —
+   * but a layer is not a stable thing. It plays one visual and then another,
+   * so switching handed the incoming visual whatever palette the outgoing one
+   * had, and a colour she had chosen for something was gone the next time she
+   * reached for it.
+   *
+   * Keyed by visual it is both at once, exactly as the shape sliders and the
+   * effects are: a layer runs one pattern and the stack never runs the same
+   * pattern twice, so per-visual is per-layer — and it is still there tomorrow.
    */
-  const selected = layers[selectedLayer] ?? layers[0];
-  const { hue, saturation, colorMode } = selected;
+  const [looks, setLooks] = useState<Record<string, Look>>(() =>
+    loadSetting<Record<string, Look>>('vj-looks', {}, (v) => typeof v === 'object' && v !== null),
+  );
+  useEffect(() => { saveSetting('vj-looks', looks); }, [looks]);
 
-  const editSelected = useCallback((patch: Partial<Layer>) => {
-    setLayers((prev) => prev.map((l, i) => (i === selectedLayer ? { ...l, ...patch } : l)));
-  }, [selectedLayer]);
+  /** What a visual looks like, falling back to the stored default. */
+  const lookFor = useCallback(
+    (pattern: string): Look => looks[pattern] ?? defaultLook(),
+    [looks],
+  );
+
+  const { hue, saturation, colorMode } = lookFor(currentPattern);
 
   type Setter<T> = T | ((previous: T) => T);
   const resolve = <T,>(next: Setter<T>, previous: T): T =>
     typeof next === 'function' ? (next as (p: T) => T)(previous) : next;
 
-  const setHue = useCallback((v: Setter<number>) => {
-    setLayers((prev) => prev.map((l, i) => (i === selectedLayer ? { ...l, hue: resolve(v, l.hue) } : l)));
-  }, [selectedLayer]);
-  const setSaturation = useCallback((v: Setter<number>) => {
-    setLayers((prev) => prev.map((l, i) => (
-      i === selectedLayer ? { ...l, saturation: resolve(v, l.saturation) } : l)));
-  }, [selectedLayer]);
-  const setColorMode = useCallback((v: Setter<ColorMode>) => {
-    setLayers((prev) => prev.map((l, i) => (
-      i === selectedLayer ? { ...l, colorMode: resolve(v, l.colorMode) } : l)));
-  }, [selectedLayer]);
+  /** Writes one field of the selected visual's look. */
+  const editLook = useCallback(<K extends keyof Look>(key: K, v: Setter<Look[K]>) => {
+    setLooks((prev) => {
+      const mine = prev[currentPattern] ?? defaultLook();
+      return { ...prev, [currentPattern]: { ...mine, [key]: resolve(v, mine[key]) } };
+    });
+  }, [currentPattern]);
 
-  /** Every layer's palette, derived rather than stored. */
+  const setHue = useCallback((v: Setter<number>) => editLook('hue', v), [editLook]);
+  const setSaturation = useCallback((v: Setter<number>) => editLook('saturation', v), [editLook]);
+  const setColorMode = useCallback((v: Setter<ColorMode>) => editLook('colorMode', v), [editLook]);
+
+  /** Every layer's palette, derived from the visual it is playing. */
   const layerColors = useMemo(
-    () => layers.map((l) => generateColors(l.hue, l.saturation, l.colorMode)),
-    [layers],
+    () => layers.map((l) => {
+      const look = looks[l.pattern] ?? defaultLook();
+      return generateColors(look.hue, look.saturation, look.colorMode);
+    }),
+    [layers, looks],
   );
   const dominantColors = layerColors[selectedLayer] ?? layerColors[0];
 
@@ -691,7 +705,7 @@ export default function App() {
    */
   const startSet = useCallback(() => {
     if (set.length === 0) return;
-    setLayers([{ pattern: set[0], opacity: 1, motion: MOTION_DEFAULT, ...loadLook() }]);
+    setLayers([{ pattern: set[0], opacity: 1, motion: MOTION_DEFAULT }]);
     setSelectedLayer(0);
     /*
      * Every effect starts bypassed, whatever was left on last time.
@@ -943,6 +957,7 @@ export default function App() {
         layerParams={layerParams}
         content={content}
         motion={layers.map((l) => l.motion)}
+        colorModes={layers.map((l) => lookFor(l.pattern).colorMode)}
         autoHandData={autoHands}
         autoDrive={idleDrive}
         fxByPattern={fxByPattern}

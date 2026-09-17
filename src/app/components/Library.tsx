@@ -95,6 +95,18 @@ export function Library({
 }: LibraryProps) {
   const [filter, setFilter] = useState<RendererCategory | 'ALL'>('ALL');
   const [hovered, setHovered] = useState<VisualPattern | null>(null);
+  /** The pill being dragged, while the row is being reordered. */
+  const [dragging, setDragging] = useState<VisualPattern | null>(null);
+
+  /** Moves a visual to a position in the row, pushing the rest along. */
+  const moveTo = useCallback((pattern: VisualPattern, to: number) => {
+    const from = set.indexOf(pattern);
+    if (from === -1 || from === to) return;
+    const next = [...set];
+    next.splice(from, 1);
+    next.splice(to, 0, pattern);
+    onSetChange(next);
+  }, [set, onSetChange]);
 
   const tiles = useRef(new Map<VisualPattern, Tile>());
   const visible = useRef(new Set<VisualPattern>());
@@ -461,21 +473,56 @@ export function Library({
                 Nothing chosen yet — pick a visual to start building the row.
               </span>
             )}
+            {/*
+              Drag a pill to reorder the row.
+
+              The number on a pill is the key it answers to in the set, so the
+              order here IS the keyboard layout. Typing a number over a hovered
+              card still works and is faster once you know where things go, but
+              it means holding the whole arrangement in your head; dragging
+              lets you see it. The two write to the same list.
+            */}
             {set.map((pattern, i) => (
-              <button
+              <div
                 key={pattern}
-                onClick={() => toggle(pattern)}
-                title="Take off the set"
-                className="group flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] py-1 pl-1 pr-3 transition-all hover:border-white/40 hover:bg-white/10"
+                draggable
+                onDragStart={(e) => {
+                  setDragging(pattern);
+                  e.dataTransfer.effectAllowed = 'move';
+                  // Firefox refuses to start a drag without payload.
+                  e.dataTransfer.setData('text/plain', pattern);
+                }}
+                onDragEnd={() => setDragging(null)}
+                onDragOver={(e) => {
+                  if (!dragging || dragging === pattern) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragging) moveTo(dragging, i);
+                  setDragging(null);
+                }}
+                className={`group flex cursor-grab items-center gap-2 rounded-full border py-1 pl-1 pr-3 transition-all active:cursor-grabbing ${
+                  dragging === pattern
+                    ? 'border-white/60 bg-white/20 opacity-50'
+                    : 'border-white/15 bg-white/[0.06] hover:border-white/40 hover:bg-white/10'
+                }`}
               >
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[11px] font-semibold text-black">
                   {slotKey(i)}
                 </span>
-                <span className="text-[11px] text-white/80">
+                <span className="select-none text-[11px] text-white/80">
                   {RENDERER_CATEGORIES[pattern].name}
                 </span>
-                <span className="text-white/25 transition-colors group-hover:text-white/70">×</span>
-              </button>
+                <button
+                  onClick={() => toggle(pattern)}
+                  title="Take off the set"
+                  className="text-white/25 transition-colors group-hover:text-white/70 hover:!text-white"
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
 

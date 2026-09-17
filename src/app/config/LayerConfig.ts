@@ -7,7 +7,6 @@
  */
 
 import { VisualPattern } from '../App';
-import { ColorMode } from './palette';
 
 /**
  * One position in the stack.
@@ -21,9 +20,6 @@ export interface Layer {
   pattern: VisualPattern;
   /** 0-1, the layer's own fader. */
   opacity: number;
-  hue: number;
-  saturation: number;
-  colorMode: ColorMode;
   /**
    * How hard the hands drive this layer. 1 is neutral.
    *

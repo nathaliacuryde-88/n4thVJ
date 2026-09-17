@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Layer } from '../config/LayerConfig';
+import { ColorMode } from '../config/palette';
 import { AudioData, HandData, VisualPattern } from '../App';
 import { createRenderer, VJRenderer } from './renderers/create';
 import { advanceClock, useLayerClock } from '../motion/clock';
@@ -22,6 +23,24 @@ interface Deck {
 interface FadingDeck extends Deck {
   fadeStart: number;
   duration: number;
+  /**
+   * The hands and the sound as they were when the switch happened.
+   *
+   * A deck on its way out keeps drawing — it has to, or the transition would
+   * be from a frozen picture — but it stops listening. Several visuals take
+   * their shape from the hands rather than only their speed: Mosaic sizes its
+   * marks from how far apart they are, so reaching for the next key widened
+   * them right as the visual left, and what she saw was the dots ballooning
+   * and then fading rather than the visual fading as it was.
+   *
+   * Holding the inputs steady fixes that for every visual at once, whichever
+   * input each one happens to read, rather than renderer by renderer. Its own
+   * clock still runs, so it keeps moving — it just stops being played.
+   */
+  heldHands: HandData;
+  heldAudio: AudioData | undefined;
+  /** And the palette, for the same reason: it is still the visual it was. */
+  heldColors: string[];
 }
 
 /** One position in the stack: what is playing there, and what it is fading from. */
@@ -64,6 +83,8 @@ interface VJCanvasProps {
   content: { text: string; clips: Clips };
   /** Tempo per layer, index-matched to `layers`. Scales that layer's clock. */
   motion: number[];
+  /** Each layer's colour mode, index-matched. Follows the visual it plays. */
+  colorModes: ColorMode[];
   /**
    * The hands when nobody is playing — a slow figure to sit on.
    *
@@ -94,6 +115,7 @@ export function VJCanvas({
   fxByPattern,
   content,
   motion,
+  colorModes,
   autoHandData,
   autoDrive,
   onCanvasReady,
@@ -161,6 +183,7 @@ export function VJCanvas({
   const fxRef = useRef(fxByPattern);
   const contentRef = useRef(content);
   const motionRef = useRef(motion);
+  const colorModesRef = useRef(colorModes);
   const autoRef = useRef({ hands: autoHandData, on: autoDrive });
   const gestureRef = useRef(createGestureState());
   const autoGestureRef = useRef(createGestureState());
@@ -176,8 +199,9 @@ export function VJCanvas({
     fxRef.current = fxByPattern;
     contentRef.current = content;
     motionRef.current = motion;
+    colorModesRef.current = colorModes;
     autoRef.current = { hands: autoHandData, on: autoDrive };
-  }, [handData, layerColors, videoElement, audioData, layerParams, layers, fxByPattern, content, motion, autoHandData, autoDrive]);
+  }, [handData, layerColors, videoElement, audioData, layerParams, layers, fxByPattern, content, motion, colorModes, autoHandData, autoDrive]);
 
   // Retyping the words must not rebuild the renderer, any more than a slider does.
   useEffect(() => {
@@ -285,12 +309,12 @@ export function VJCanvas({
      * once, and the loop carries on. The pattern can still be switched away
      * from, which is the thing that actually recovers it.
      */
-    const drawDeck = (deck: Deck, index: number) => {
+    const drawDeck = (deck: Deck, index: number, held?: FadingDeck) => {
       try {
         if (videoElementRef.current) {
           deck.renderer.setVideoElement?.(videoElementRef.current);
         }
-        const layer = layersRef.current[index];
+
         /*
          * A layer with its hands fader at zero runs itself.
          *
@@ -300,14 +324,18 @@ export function VJCanvas({
          * figure while the others see her.
          */
         const onHands = (motionRef.current?.[index] ?? 1) > 0;
-        const hands = onHands || !autoRef.current.on
+        const live = onHands || !autoRef.current.on
           ? handDataRef.current
           : autoRef.current.hands;
+        // A deck on its way out plays on what it had, not on what she is
+        // doing now — see FadingDeck.
         deck.renderer.render(
-          hands,
-          layerColorsRef.current[index] ?? layerColorsRef.current[0] ?? [],
-          audioDataRef.current,
-          layer?.colorMode,
+          held ? held.heldHands : live,
+          held
+            ? held.heldColors
+            : layerColorsRef.current[index] ?? layerColorsRef.current[0] ?? [],
+          held ? held.heldAudio : audioDataRef.current,
+          colorModesRef.current[index],
         );
       } catch (error) {
         if (!deck.reportedError) {
@@ -433,7 +461,7 @@ export function VJCanvas({
               pipelinesRef.current.delete(gone);
             }
           } else {
-            drawDeck(slot.outgoing, index);
+            drawDeck(slot.outgoing, index, slot.outgoing);
           }
         }
       });
@@ -508,7 +536,14 @@ export function VJCanvas({
       // whatever was already on its way out rather than stacking renderers.
       slot.outgoing?.renderer.destroy?.();
       if (duration > 0) {
-        slot.outgoing = { ...slot.current, fadeStart: performance.now(), duration };
+        slot.outgoing = {
+          ...slot.current,
+          fadeStart: performance.now(),
+          duration,
+          heldHands: handDataRef.current,
+          heldAudio: audioDataRef.current,
+          heldColors: layerColorsRef.current[index] ?? layerColorsRef.current[0] ?? [],
+        };
       } else {
         slot.current.renderer.destroy?.();
         slot.outgoing = null;
