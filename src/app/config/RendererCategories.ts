@@ -289,6 +289,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '7',
     description: 'An inflated flock in the Bloom Field style, following your hand'
   },
+  dice: {
+    pattern: 'dice',
+    name: 'Dice',
+    short: 'Dice',
+    category: '3D',
+    key: '8',
+    description: 'Glossy pink glass dice: grab them with a fist, throw them by opening your hand'
+  },
   mosaic: {
     pattern: 'mosaic',
     name: 'Mosaic',

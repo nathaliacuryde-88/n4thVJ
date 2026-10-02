@@ -148,7 +148,7 @@ export const CORE = 2;
 
 // ── colour ───────────────────────────────────────────────────────────────────
 
-function hexToHsl(hex: string): [number, number, number] {
+export function hexToHsl(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
   const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
   const r = (parseInt(full.slice(0, 2), 16) || 0) / 255;
@@ -183,7 +183,7 @@ function hslCss(h: number, s: number, l: number): string {
  */
 const REFERENCE = hexToHsl(generateColors(245, 100, 'contrast')[0]);
 
-function turnFrom(colors: string[]): { hue: number; sat: number } {
+export function turnFrom(colors: string[]): { hue: number; sat: number } {
   const [h, s] = hexToHsl(colors[0] ?? '#000000');
   if (s === 0) return { hue: 0, sat: 0 };
   return { hue: h - REFERENCE[0], sat: s / (REFERENCE[1] || 1) };

@@ -36,6 +36,7 @@ import { MosaicRenderer } from './MosaicRenderer';
 import { ChromeRenderer } from './ChromeRenderer';
 import { BloomFieldRenderer } from './BloomFieldRenderer';
 import { ButterfliesRenderer } from './ButterfliesRenderer';
+import { DiceRenderer } from './DiceRenderer';
 import { AudioData, HandData, VisualPattern } from '../../App';
 import { ParamValues } from '../../params/types';
 
@@ -62,6 +63,11 @@ export interface VJRenderer {
   setText?(text: string): void;
   /** The uploaded file, for Clip and Mosaic. Mosaic also takes stills. */
   setClipUrl?(url: string | null, kind?: 'video' | 'image'): void;
+  /**
+   * False while a renderer is still loading what it draws — the Dice model.
+   * Absent means always ready.
+   */
+  isReady?(): boolean;
 }
 
 /** Build the renderer for a pattern. Unknown patterns fall back to Geometric. */
@@ -170,6 +176,9 @@ export function createRenderer(
       break;
     case 'butterflies':
       renderer = new ButterfliesRenderer(canvas, ctx);
+      break;
+    case 'dice':
+      renderer = new DiceRenderer(canvas, ctx);
       break;
     case 'ripple':
       renderer = new RippleRenderer(canvas, ctx);

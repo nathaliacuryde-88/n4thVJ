@@ -8,6 +8,7 @@ import {
 import { MAX_SET, slotKey, keySlot } from '../config/setlist';
 import { createRenderer, VJRenderer } from './renderers/create';
 import { idleHands } from '../hands/idle';
+import { advanceClock, useLayerClock } from '../motion/clock';
 import { Clips, DEFAULT_TEXT } from '../config/content';
 
 /**
@@ -183,9 +184,25 @@ export function Library({
     for (const tile of tiles.current.values()) observer.current.observe(tile.canvas);
 
     let frame = 0;
+    let last = performance.now();
     const tick = () => {
       frame = requestAnimationFrame(tick);
       if (document.hidden) return;
+
+      /*
+       * Run the clock here too.
+       *
+       * Only the VJ canvas advanced it, and it is not mounted while the
+       * library is up — so any visual that moves by the clock's elapsed time
+       * sat frozen in its preview: Chrome and Bloom Field as stills, and the
+       * dice hanging above the frame at the moment they were dropped, which
+       * read as a black card. The two never run at once, so the library
+       * keeps time at a steady 1x while it is the one on screen.
+       */
+      const now = performance.now();
+      advanceClock(Math.min(0.1, (now - last) / 1000), [1]);
+      useLayerClock(0);
+      last = now;
 
       const hands = idleHands(Date.now() / 1000);
       let gl = 0;
@@ -234,7 +251,10 @@ export function Library({
             tile.renderer = null;
             continue;
           }
-          tile.frames++;
+          // A renderer still loading its model draws black; those frames do
+          // not count towards the warm-up, or the card would hand its slot on
+          // and keep a black still.
+          if (tile.renderer.isReady?.() !== false) tile.frames++;
           if (holdsContext) gl++;
           else canvas2d++;
         } else if (tile.renderer) {

@@ -31,6 +31,7 @@ import { MosaicConfig } from '../config/MosaicRendererConfig';
 import { ChromeConfig } from '../config/ChromeRendererConfig';
 import { BloomFieldConfig } from '../config/BloomFieldRendererConfig';
 import { ButterfliesConfig } from '../config/ButterfliesRendererConfig';
+import { DiceConfig } from '../config/DiceRendererConfig';
 import { ParamGroup } from './types';
 
 export interface RendererParams {
@@ -392,6 +393,48 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.bass', label: 'Bass loops', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hat flutter', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  dice: {
+    config: DiceConfig,
+    groups: [
+      {
+        name: 'Dice',
+        params: [
+          { path: 'dice.count', label: 'Dice', min: 1, max: 8, step: 1 },
+          { path: 'dice.size', label: 'Size', min: 0.5, max: 2, step: 0.05 },
+          { path: 'dice.bounce', label: 'Bounce', min: 0, max: 0.9, step: 0.01 },
+          { path: 'dice.spin', label: 'Tumble', min: 0, max: 2.5, step: 0.05 },
+          { path: 'dice.gravity', label: 'Weight', min: 0.2, max: 2, step: 0.05, hint: 'low = floaty' },
+          { path: 'dice.hops', label: 'Idle hops', min: 0, max: 3, step: 0.1, hint: 'when nobody plays' },
+        ],
+      },
+      {
+        name: 'Glass',
+        params: [
+          { path: 'glass.clarity', label: 'Clarity', min: 0, max: 1, step: 0.02, hint: '0 = solid candy' },
+          { path: 'glass.gloss', label: 'Gloss', min: 0, max: 1, step: 0.02 },
+          { path: 'glass.glow', label: 'Glow', min: 0, max: 3, step: 0.05 },
+          { path: 'glass.depth', label: 'Depth', min: 0.3, max: 3, step: 0.05, hint: 'deeper colour in thick glass' },
+          { path: 'light.speed', label: 'Light travel', min: 0, max: 4, step: 0.05 },
+          { path: 'light.brightness', label: 'Brightness', min: 0.4, max: 2.2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hands and sound',
+        params: [
+          { path: 'hands.grab', label: 'Fist grab', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.throw', label: 'Throw', min: 0, max: 2.5, step: 0.05 },
+          { path: 'hands.swipe', label: 'Sweep knock', min: 0, max: 2.5, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap jump', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.dolly', label: 'Spread zoom', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.beat', label: 'Beat hop', min: 0, max: 2, step: 0.02 },
+          { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.mid', label: 'Melody light', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hat sparkle', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],
