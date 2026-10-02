@@ -35,6 +35,7 @@ import { VideoRenderer } from './VideoRenderer';
 import { MosaicRenderer } from './MosaicRenderer';
 import { ChromeRenderer } from './ChromeRenderer';
 import { BloomFieldRenderer } from './BloomFieldRenderer';
+import { ButterfliesRenderer } from './ButterfliesRenderer';
 import { AudioData, HandData, VisualPattern } from '../../App';
 import { ParamValues } from '../../params/types';
 
@@ -166,6 +167,9 @@ export function createRenderer(
       break;
     case 'bloom':
       renderer = new BloomFieldRenderer(canvas, ctx);
+      break;
+    case 'butterflies':
+      renderer = new ButterfliesRenderer(canvas, ctx);
       break;
     case 'ripple':
       renderer = new RippleRenderer(canvas, ctx);

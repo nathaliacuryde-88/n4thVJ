@@ -281,6 +281,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '6',
     description: 'Five inflated flowers swaying, their colour flowing round a looping palette'
   },
+  butterflies: {
+    pattern: 'butterflies',
+    name: 'Butterflies',
+    short: 'Flutter',
+    category: '3D',
+    key: '7',
+    description: 'An inflated flock in the Bloom Field style, following your hand'
+  },
   mosaic: {
     pattern: 'mosaic',
     name: 'Mosaic',
