@@ -273,6 +273,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '5',
     description: 'Liquid metal on black, splitting light into rainbow at its edges'
   },
+  bloom: {
+    pattern: 'bloom',
+    name: 'Bloom Field',
+    short: 'Bloom',
+    category: '3D',
+    key: '6',
+    description: 'Five inflated flowers swaying, their colour flowing round a looping palette'
+  },
   mosaic: {
     pattern: 'mosaic',
     name: 'Mosaic',

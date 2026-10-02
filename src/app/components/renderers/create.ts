@@ -34,6 +34,7 @@ import { TextRenderer } from './TextRenderer';
 import { VideoRenderer } from './VideoRenderer';
 import { MosaicRenderer } from './MosaicRenderer';
 import { ChromeRenderer } from './ChromeRenderer';
+import { BloomFieldRenderer } from './BloomFieldRenderer';
 import { AudioData, HandData, VisualPattern } from '../../App';
 import { ParamValues } from '../../params/types';
 
@@ -162,6 +163,9 @@ export function createRenderer(
       break;
     case 'chrome':
       renderer = new ChromeRenderer(canvas, ctx);
+      break;
+    case 'bloom':
+      renderer = new BloomFieldRenderer(canvas, ctx);
       break;
     case 'ripple':
       renderer = new RippleRenderer(canvas, ctx);

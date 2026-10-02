@@ -29,6 +29,7 @@ import { TextConfig } from '../config/TextRendererConfig';
 import { VideoConfig } from '../config/VideoRendererConfig';
 import { MosaicConfig } from '../config/MosaicRendererConfig';
 import { ChromeConfig } from '../config/ChromeRendererConfig';
+import { BloomFieldConfig } from '../config/BloomFieldRendererConfig';
 import { ParamGroup } from './types';
 
 export interface RendererParams {
@@ -288,6 +289,57 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'hands.kick', label: 'Beat throw', min: 0, max: 2, step: 0.05 },
           { path: 'look.gain', label: 'Exposure', min: 0.2, max: 2.5, step: 0.05 },
           { path: 'look.grain', label: 'Grain', min: 0, max: 0.2, step: 0.005 },
+        ],
+      },
+    ],
+  },
+
+  bloom: {
+    config: BloomFieldConfig,
+    groups: [
+      {
+        name: 'Colour',
+        params: [
+          { path: 'colour.speed', label: 'Flow', min: -3, max: 3, step: 0.05, hint: 'below 0 runs backwards' },
+          { path: 'colour.offset', label: 'Shift', min: 0, max: 1, step: 0.01, hint: 'turn the palette by hand' },
+          {
+            path: 'colour.palette', label: 'Palette', min: 0, max: 3, step: 1,
+            labels: ['Reel', 'Ember', 'Lagoon', 'Ink'],
+          },
+          { path: 'colour.depth', label: 'Shadow', min: 0, max: 0.8, step: 0.01, hint: 'more navy in the folds' },
+        ],
+      },
+      {
+        name: 'Pattern',
+        params: [
+          { path: 'pattern.sweep', label: 'Sweeps', min: 0, max: 2, step: 0.05 },
+          { path: 'pattern.bands', label: 'Bands', min: 0, max: 2, step: 0.05 },
+          { path: 'pattern.rings', label: 'Rings', min: 0, max: 2, step: 0.05 },
+          { path: 'pattern.melt', label: 'Melt', min: 0, max: 1, step: 0.05, hint: '0 holds the mix where set' },
+        ],
+      },
+      {
+        name: 'Field',
+        params: [
+          { path: 'field.count', label: 'Flowers', min: 1, max: 7, step: 1 },
+          { path: 'motion.amount', label: 'Sway', min: 0, max: 2.5, step: 0.05 },
+          { path: 'motion.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
+          { path: 'field.orbit', label: 'Orbit', min: 0, max: 1, step: 0.05, hint: 'slow camera swing' },
+          { path: 'field.distance', label: 'Distance', min: 8, max: 26, step: 0.25 },
+          { path: 'field.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+        ],
+      },
+      {
+        name: 'Hands and sound',
+        params: [
+          { path: 'hands.bloom', label: 'Fingers open', min: 0, max: 1.5, step: 0.05 },
+          { path: 'hands.orbit', label: 'Hand camera', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.dolly', label: 'Spread zoom', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap burst', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.beat', label: 'Beat bump', min: 0, max: 2, step: 0.02 },
+          { path: 'sound.bass', label: 'Bass bob', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hat sparkle', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],
