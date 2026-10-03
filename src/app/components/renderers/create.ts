@@ -38,6 +38,7 @@ import { BloomFieldRenderer } from './BloomFieldRenderer';
 import { ButterfliesRenderer } from './ButterfliesRenderer';
 import { DiceRenderer } from './DiceRenderer';
 import { AtlasRenderer } from './AtlasRenderer';
+import { CrowdRenderer } from './CrowdRenderer';
 import { AudioData, HandData, VisualPattern } from '../../App';
 import { ParamValues } from '../../params/types';
 
@@ -183,6 +184,9 @@ export function createRenderer(
       break;
     case 'atlas':
       renderer = new AtlasRenderer(canvas, ctx);
+      break;
+    case 'crowd':
+      renderer = new CrowdRenderer(canvas, ctx);
       break;
     case 'ripple':
       renderer = new RippleRenderer(canvas, ctx);

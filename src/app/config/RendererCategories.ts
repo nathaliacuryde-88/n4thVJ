@@ -265,6 +265,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '3',
     description: 'Your own footage, sheared into sliding bands'
   },
+  crowd: {
+    pattern: 'crowd',
+    name: 'Crowd',
+    short: 'Crowd',
+    category: 'TD',
+    key: '0',
+    description: 'A blurred crowd seen as heat, with flocks of arrows streaming over it'
+  },
   atlas: {
     pattern: 'atlas',
     name: 'Atlas',

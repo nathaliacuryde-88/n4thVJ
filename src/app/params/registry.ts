@@ -33,6 +33,7 @@ import { BloomFieldConfig } from '../config/BloomFieldRendererConfig';
 import { ButterfliesConfig } from '../config/ButterfliesRendererConfig';
 import { DiceConfig } from '../config/DiceRendererConfig';
 import { AtlasConfig } from '../config/AtlasRendererConfig';
+import { CrowdConfig } from '../config/CrowdRendererConfig';
 import { ParamGroup } from './types';
 import { CHARSET_NAMES, CHARSET_SAMPLES, CUSTOM } from '../config/charsets';
 
@@ -476,6 +477,55 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.bass', label: 'Bass lift', min: 0, max: 2, step: 0.05 },
           { path: 'sound.beat', label: 'Beat ring', min: 0, max: 2, step: 0.05 },
           { path: 'sound.level', label: 'Loud = more type', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  crowd: {
+    config: CrowdConfig,
+    groups: [
+      {
+        name: 'Crowd',
+        params: [
+          { path: 'crowd.figures', label: 'Figures', min: 1, max: 60, step: 1 },
+          { path: 'crowd.size', label: 'Size', min: 0, max: 1, step: 0.01 },
+          { path: 'crowd.wobble', label: 'Wobble', min: 0, max: 1, step: 0.01 },
+        ],
+      },
+      {
+        name: 'Glow',
+        params: [
+          { path: 'glow.blur', label: 'Blur', min: 0, max: 1, step: 0.01 },
+          { path: 'glow.halo', label: 'Halo', min: 0, max: 1, step: 0.01, hint: 'how wide the bands are' },
+          { path: 'glow.rim', label: 'Dark rim', min: 0, max: 1, step: 0.01 },
+        ],
+      },
+      {
+        name: 'Arrows',
+        params: [
+          { path: 'arrows.amount', label: 'Arrows', min: 0, max: 1, step: 0.01 },
+          { path: 'arrows.size', label: 'Size', min: 0, max: 1, step: 0.01 },
+        ],
+      },
+      {
+        name: 'Colour',
+        params: [
+          {
+            path: 'colour.order', label: 'Ground', min: 0, max: 3, step: 1,
+            labels: ['Beige', 'Black', 'Orange', 'Blue'],
+          },
+        ],
+      },
+      {
+        name: 'Hands and sound',
+        params: [
+          { path: 'hands.heat', label: 'Hand heat', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.grow', label: 'Spread grows', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap variation', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+          { path: 'sound.beat', label: 'Beat jump', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass heat', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.level', label: 'Loud = more arrows', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],
