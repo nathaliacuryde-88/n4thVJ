@@ -422,7 +422,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         params: [
           { path: 'field.count', label: 'Dandelions', min: 1, max: 20, step: 1 },
           { path: 'field.sway', label: 'Sway', min: 0, max: 2, step: 0.05 },
-          { path: 'field.drift', label: 'Drifting seeds', min: 0, max: 1, step: 0.01, hint: 'seeds that float off with no wind' },
+          { path: 'field.drift', label: 'Seeds flying', min: 0, max: 1, step: 0.01, hint: '0 = only a clap or an open hand' },
           { path: 'field.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
         ],
       },

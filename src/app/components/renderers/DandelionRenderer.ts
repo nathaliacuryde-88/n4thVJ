@@ -20,9 +20,10 @@ import {
  *
  * The music is the wind. The louder it plays, the further the field leans and
  * sways and the more seeds lift off; each kick is a gust that bows the stems
- * and blows a few away. Loose seeds float on a slow, curling breeze, turned
- * upright like little parachutes, and drift home again to the very spot on
- * the head they left.
+ * and blows a few away — as many as the Seeds flying slider allows. Loose
+ * seeds turn upright like little parachutes and wander the whole frame on a
+ * slow, curling breeze, each drifting from one spot to the next for a flight
+ * of several seconds, then glide home to the very spot on the head they left.
  *
  * The hands, by the rule every visual follows:
  *   - the finger count sets the tempo through the shared clock — one finger
@@ -344,6 +345,8 @@ export class DandelionRenderer {
   private hold = new Float32Array(0);   // seconds a kick or clap keeps it off
   private away = new Uint8Array(0);
   private thresh = new Float32Array(0); // how easily it lets go
+  private flight = new Float32Array(0); // seconds of flight left once it has let go
+  private dest = new Float32Array(0);   // where in the frame it is drifting to, world xyz
   private phase = new Float32Array(0);
 
   private motionTime = 0;
@@ -401,9 +404,11 @@ export class DandelionRenderer {
     this.hold = new Float32Array(n);
     this.away = new Uint8Array(n);
     this.thresh = new Float32Array(n);
+    this.flight = new Float32Array(n);
+    this.dest = new Float32Array(n * 3);
     this.phase = new Float32Array(n);
     for (let i = 0; i < n; i++) {
-      this.thresh[i] = 0.08 + hash1(i * 3.7 + 1) * 1.0;
+      this.thresh[i] = 0.12 + hash1(i * 3.7 + 1) * 1.0;
       this.phase[i] = hash1(i * 1.3 + 7) * TAU;
     }
 
@@ -450,6 +455,15 @@ export class DandelionRenderer {
       });
     }
     this.model = model;
+  }
+
+  /** Somewhere in the frame for a loose seed to drift to. */
+  private pickDestination(j: number, tanHalf: number, aspect: number) {
+    const z = -4 + Math.random() * 6;
+    const halfH = (15.5 - z) * tanHalf;
+    this.dest[j * 3] = (Math.random() * 2 - 1) * halfH * aspect * 0.92;
+    this.dest[j * 3 + 1] = 0.1 + (Math.random() * 1.75 - 0.85) * halfH;
+    this.dest[j * 3 + 2] = z;
   }
 
   private strokeWidth: { value: number } | null = null;
@@ -536,9 +550,13 @@ export class DandelionRenderer {
     // the heads bare.
     const hold = handed
       ? THREE.MathUtils.clamp((play.openness - 0.6) / 0.4, -1, 1) * cfg.hands.release : 0;
-    // However loud the room, the wind alone leaves a third of each head:
-    // stripping a head bare is for a clap.
-    const loose = Math.min(0.72, cfg.field.drift * 0.55 + level * 0.3 + hold * 0.42 * this.present);
+    // How many fly is the Seeds flying slider: it scales everything that
+    // lets seeds go by itself — their own drift, the music's wind, the kicks —
+    // so at 0 they leave only for a clap or an open hand. However loud the
+    // room, the wind alone leaves a third of each head: a bare head is for a clap.
+    const amount = cfg.field.drift;
+    const loose = Math.min(0.72, amount * (0.25 + level * 0.45) + hold * 0.42 * this.present);
+    const jitter = Math.min(1, loose * 5);
     const gathering = handed && play.openness < 0.15 && cfg.hands.release > 0;
 
     // ── palette and camera ──────────────────────────────────────────────────
@@ -585,6 +603,7 @@ export class DandelionRenderer {
         this.off.fill(0, i * seeds * 3, (i + 1) * seeds * 3);
         this.vel.fill(0, i * seeds * 3, (i + 1) * seeds * 3);
         this.away.fill(0, i * seeds, (i + 1) * seeds);
+        this.flight.fill(0, i * seeds, (i + 1) * seeds);
         return;
       }
 
@@ -634,12 +653,14 @@ export class DandelionRenderer {
         const o = j * 3;
         if (clapped && hash1(j * 1.37 + t * 7.3) < clapShare) {
           this.hold[j] = CLAP_HOLD[0] + hash1(j + t) * (CLAP_HOLD[1] - CLAP_HOLD[0]);
-        } else if (kicked && hash1(j * 0.71 + t * 13.1) < 0.05 * cfg.sound.gust) {
+        } else if (kicked && hash1(j * 0.71 + t * 13.1) < 0.008 * cfg.sound.gust * amount) {
           this.hold[j] = KICK_HOLD[0] + hash1(j + t * 3.1) * (KICK_HOLD[1] - KICK_HOLD[0]);
         }
         this.hold[j] = Math.max(0, this.hold[j] - dt);
-        const wander = 0.14 * Math.sin(t * 0.37 + this.phase[j]);
-        const free = !gathering && (this.hold[j] > 0 || loose + wander > this.thresh[j]);
+        const wander = 0.06 * jitter * Math.sin(t * 0.37 + this.phase[j]);
+        if (gathering) this.flight[j] = 0;
+        // Once off, a seed makes a proper flight before it thinks of home.
+        const free = !gathering && (this.hold[j] > 0 || this.flight[j] > 0 || loose + wander > this.thresh[j]);
 
         // The way the seed points, in world terms (the model is only turned about y).
         const px = model.pivot[k * 3];
@@ -652,8 +673,11 @@ export class DandelionRenderer {
         const awz = -axX * sinY + axZ * cosY;
 
         if (free && !this.away[j]) {
-          // Lifting off: a little pop outward along the way it points.
-          const pop = 0.6 + (clapped && this.hold[j] > 0 ? 3.2 * cfg.hands.clap * clapShare : 0);
+          // Lifting off: a little pop outward along the way it points, a
+          // flight of its own length, and somewhere in the frame to drift to.
+          this.flight[j] = 6 + Math.random() * 6;
+          this.pickDestination(j, tanHalf, aspect);
+          const pop = 0.4 + (clapped && this.hold[j] > 0 ? 3.2 * cfg.hands.clap * clapShare : 0);
           this.vel[o] += awx * pop;
           this.vel[o + 1] += axY * pop + 0.2;
           this.vel[o + 2] += awz * pop;
@@ -677,9 +701,23 @@ export class DandelionRenderer {
           const fy = Math.sin(wx0 * 0.7 - t * 0.5 + this.phase[j] * 0.5) * 0.45;
           const fz = Math.sin(wz0 * 0.8 + wx0 * 0.5 + t * 0.6) * 0.4;
           if (free) {
-            let axx = wind.x * 0.55 + fx;
-            let ayy = wind.y * 0.55 + fy + 0.12;
-            let azz = wind.z * 0.55 + fz;
+            this.flight[j] = Math.max(0, this.flight[j] - h);
+            // Drifting softly towards its spot in the frame; there, it picks
+            // another, so the loose seeds spread over the whole picture
+            // rather than hanging round the head they came from.
+            const d3 = j * 3;
+            let tx = this.dest[d3] - wx0;
+            let ty = this.dest[d3 + 1] - wy0;
+            let tz = this.dest[d3 + 2] - wz0;
+            const td = Math.hypot(tx, ty, tz);
+            if (td < 0.8) this.pickDestination(j, tanHalf, aspect);
+            const cruise = (1.2 + 0.9 * hash1(j * 2.9)) * Math.min(1, td / 2);
+            tx = (tx / Math.max(td, 1e-3)) * cruise;
+            ty = (ty / Math.max(td, 1e-3)) * cruise;
+            tz = (tz / Math.max(td, 1e-3)) * cruise;
+            let axx = (tx - vx) * 0.7 + wind.x * 0.3 + fx * 0.8;
+            let ayy = (ty - vy) * 0.7 + wind.y * 0.3 + fy * 0.8 + 0.05;
+            let azz = (tz - vz) * 0.7 + wind.z * 0.3 + fz * 0.6;
             // After the hand: drawn towards it, then round it.
             if (this.present > 0.01 && cfg.hands.follow > 0) {
               const dx = hand.x - wx0;
@@ -691,24 +729,26 @@ export class DandelionRenderer {
               ayy += (dy / dist) * pull * 2.2 + (dx / dist) * this.present * cfg.hands.follow * 1.4;
               azz += (dz / dist) * pull * 1.2;
             }
-            // A long leash: never far out of the picture.
-            const far = Math.hypot(ox, oy * 1.5, oz) - 9;
-            if (far > 0) {
-              axx -= ox * far * 0.08;
-              ayy -= oy * far * 0.12;
-              azz -= oz * far * 0.08;
-            }
+            // Kept in the picture: eased back from the edges of the frame.
+            const halfH = (15.5 - wz0) * tanHalf;
+            const halfW = halfH * aspect;
+            const overX = Math.abs(wx0) - halfW * 1.02;
+            if (overX > 0) axx -= Math.sign(wx0) * overX * 1.5;
+            const overY = Math.abs(wy0 - 0.1) - halfH * 1.02;
+            if (overY > 0) ayy -= Math.sign(wy0 - 0.1) * overY * 1.5;
+            if (wz0 > 6) azz -= (wz0 - 6) * 1.5;
+            if (wz0 < -8) azz += (-8 - wz0) * 1.5;
             vx += axx * h * 1.6;
             vy += ayy * h * 1.6;
             vz += azz * h * 1.6;
-            const drag = Math.exp(-h * 1.1);
+            const drag = Math.exp(-h * 0.5);
             vx *= drag;
             vy *= drag;
             vz *= drag;
           } else {
             // Home: a gentle glide back, still caught by the breeze on the way.
             const dist = Math.hypot(ox, oy, oz);
-            const speed = Math.min(2.4, dist * 1.1) / Math.max(dist, 1e-4);
+            const speed = Math.min(1.8, dist * 0.9) / Math.max(dist, 1e-4);
             const tx = -ox * speed + fx * Math.min(1, dist) * 0.6;
             const ty = -oy * speed + fy * Math.min(1, dist) * 0.6;
             const tz = -oz * speed + fz * Math.min(1, dist) * 0.6;

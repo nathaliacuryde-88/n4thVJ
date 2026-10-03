@@ -20,8 +20,11 @@ export const DandelionConfig = {
     count: 3,
     /** How much they sway, 0 to 2. */
     sway: 1,
-    /** How many seeds float off on their own, with no wind at all. */
-    drift: 0.25,
+    /**
+     * How many seeds fly: scales their own drift, the music's wind and the
+     * kicks alike. At 0 they leave only for a clap or an open hand.
+     */
+    drift: 0.3,
     /** The grey studio behind them. 0 is black, which stacks cleanly. */
     backdrop: 1,
   },
