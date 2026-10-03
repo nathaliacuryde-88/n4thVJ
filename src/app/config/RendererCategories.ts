@@ -305,6 +305,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '7',
     description: 'An inflated flock in the Bloom Field style, following your hand'
   },
+  dandelion: {
+    pattern: 'dandelion',
+    name: 'Dandelion',
+    short: 'Dandelion',
+    category: '3D',
+    key: '3',
+    description: 'Dandelions swaying in the music\'s wind, their seeds drifting off and floating home'
+  },
   dice: {
     pattern: 'dice',
     name: 'Dice',

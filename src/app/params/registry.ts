@@ -32,6 +32,7 @@ import { ChromeConfig } from '../config/ChromeRendererConfig';
 import { BloomFieldConfig } from '../config/BloomFieldRendererConfig';
 import { ButterfliesConfig } from '../config/ButterfliesRendererConfig';
 import { DiceConfig } from '../config/DiceRendererConfig';
+import { DandelionConfig } from '../config/DandelionRendererConfig';
 import { AtlasConfig } from '../config/AtlasRendererConfig';
 import { CrowdConfig } from '../config/CrowdRendererConfig';
 import { ParamGroup } from './types';
@@ -396,6 +397,46 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.bass', label: 'Bass loops', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hat flutter', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  dandelion: {
+    config: DandelionConfig,
+    groups: [
+      {
+        name: 'Colour',
+        params: [
+          { path: 'colour.speed', label: 'Flow', min: -3, max: 3, step: 0.05, hint: 'below 0 runs backwards' },
+          { path: 'colour.offset', label: 'Shift', min: 0, max: 1, step: 0.01, hint: 'turn the palette by hand' },
+          {
+            path: 'colour.palette', label: 'Palette', min: 0, max: 3, step: 1,
+            labels: ['Reel', 'Ember', 'Lagoon', 'Ink'],
+          },
+          { path: 'colour.depth', label: 'Shadow', min: 0, max: 0.8, step: 0.01 },
+        ],
+      },
+      {
+        name: 'Field',
+        params: [
+          { path: 'field.count', label: 'Dandelions', min: 1, max: 20, step: 1 },
+          { path: 'field.sway', label: 'Sway', min: 0, max: 2, step: 0.05 },
+          { path: 'field.drift', label: 'Drifting seeds', min: 0, max: 1, step: 0.01, hint: 'seeds that float off with no wind' },
+          { path: 'field.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+        ],
+      },
+      {
+        name: 'Hands and sound',
+        params: [
+          { path: 'hands.wind', label: 'Wave = gust', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.release', label: 'Open lets go', min: 0, max: 1.5, step: 0.05, hint: 'a fist calls the seeds home' },
+          { path: 'hands.follow', label: 'Seeds follow', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap blows', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.wind', label: 'Music wind', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.gust', label: 'Kick gust', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hat shimmer', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],

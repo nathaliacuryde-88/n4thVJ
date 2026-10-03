@@ -36,6 +36,7 @@ import { MosaicRenderer } from './MosaicRenderer';
 import { ChromeRenderer } from './ChromeRenderer';
 import { BloomFieldRenderer } from './BloomFieldRenderer';
 import { ButterfliesRenderer } from './ButterfliesRenderer';
+import { DandelionRenderer } from './DandelionRenderer';
 import { DiceRenderer } from './DiceRenderer';
 import { AtlasRenderer } from './AtlasRenderer';
 import { CrowdRenderer } from './CrowdRenderer';
@@ -178,6 +179,9 @@ export function createRenderer(
       break;
     case 'butterflies':
       renderer = new ButterfliesRenderer(canvas, ctx);
+      break;
+    case 'dandelion':
+      renderer = new DandelionRenderer(canvas, ctx);
       break;
     case 'dice':
       renderer = new DiceRenderer(canvas, ctx);
