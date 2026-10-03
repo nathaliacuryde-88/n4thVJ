@@ -3,10 +3,10 @@ import { Layer } from '../config/LayerConfig';
 import { ColorMode } from '../config/palette';
 import { AudioData, HandData, VisualPattern } from '../App';
 import { createRenderer, VJRenderer } from './renderers/create';
-import { advanceClock, dropClock, forkClock, useLayerClock } from '../motion/clock';
+import { advanceClock, dropClock, forkClock, useLayerClock, vjTime } from '../motion/clock';
 import { createGestureState, gestureRate } from '../hands/gesture';
 import { ParamValues, withOverrides } from '../params/types';
-import { PostPipeline, fxActive } from '../pipeline/PostPipeline';
+import { Drive, PostPipeline, fxActive } from '../pipeline/PostPipeline';
 import { PipelineConfig } from '../config/PipelineConfig';
 import { Clips } from '../config/content';
 
@@ -424,6 +424,7 @@ export function VJCanvas({
           const held = pipelineFor(deck.pattern, values);
           if (!held) return deck.canvas;
           try {
+            held.pipeline.setDrive(driveFor(deck, index));
             held.pipeline.render(deck.canvas, now / 1000);
             return held.canvas;
           } catch (error) {
@@ -451,6 +452,31 @@ export function VJCanvas({
       ctx.globalCompositeOperation = 'source-over';
     };
 
+    /*
+     * What a layer's effects are played with.
+     *
+     * The effects used to run on the wall clock alone, so they were the one
+     * part of a visual that ignored the hands. Atlas is the first to listen:
+     * it takes the layer's own clock — the finger count's tempo — the clap,
+     * and the music's onset, exactly as the visuals do.
+     *
+     * A deck on its way out gets its own clock lane and nothing else: it has
+     * stopped being played, its effects included.
+     */
+    const claps = { live: 0, auto: 0 };
+    const driveFor = (deck: Deck, index: number): Drive => {
+      const leaving = slotsRef.current[index]?.outgoing === deck;
+      useLayerClock(leaving ? (deck as FadingDeck).lane : index);
+      const onHands = (motionRef.current?.[index] ?? 1) > 0 || !autoRef.current.on;
+      return {
+        clock: vjTime(),
+        burst: leaving ? 0 : onHands ? claps.live : claps.auto,
+        pulse: leaving ? 0 : audioDataRef.current?.onset ?? 0,
+        level: leaving ? 0 : audioDataRef.current?.overall ?? 0,
+        words: contentRef.current.text,
+      };
+    };
+
     let lastFrame = performance.now();
     const animate = () => {
       const now = performance.now();
@@ -475,6 +501,12 @@ export function VJCanvas({
       const rates = (motionRef.current ?? []).map((m) =>
         m > 0 ? m * gesture : (autoRef.current.on ? autoGesture : 1));
       advanceClock(delta, rates.length ? rates : [gesture]);
+
+      // A clap, as a burst that jumps and falls away over about a second —
+      // one for her hands and one for the automatic drive.
+      const clapOf = (hands: HandData) => (hands.clapping ? (hands.clapIntensity ?? 1) : 0);
+      claps.live = Math.max(claps.live * Math.exp(-delta * 2.2), clapOf(handDataRef.current));
+      claps.auto = Math.max(claps.auto * Math.exp(-delta * 2.2), clapOf(autoRef.current.hands));
 
       slotsRef.current.forEach((slot, index) => {
         if (!slot) return;

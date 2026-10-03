@@ -8,7 +8,7 @@ import { stageDoing } from '../pipeline/PostPipeline';
  * ═══════════════════════════════════════════════════════════════════════════
  * THE EFFECTS PANEL
  * ═══════════════════════════════════════════════════════════════════════════
- * Nine effects, and never more than three sliders on screen.
+ * Ten effects, and never more than three sliders on screen.
  *
  * They used to live in a tab behind the renderer's own controls, every stage
  * stacked one under another with its parameters open — around thirty sliders

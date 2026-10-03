@@ -32,7 +32,9 @@ export const MosaicConfig = {
   },
 
   letters: {
-    /** 0 a density ramp, 1 the word typed for Kinetic Type. */
+    /** Which character set — see config/charsets.ts. Standard is the old density ramp. */
+    set: 0,
+    /** Superseded by `set`; kept so a saved "your word" still reads as words. */
     ramp: 0,
     /** Stroke weight of the glyphs. */
     weight: 600,

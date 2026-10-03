@@ -28,6 +28,25 @@ export interface ParamSpec {
    */
   labels?: string[];
   /**
+   * Shows the choice as a menu rather than a slider, each option with a
+   * sample beside its name.
+   *
+   * For choices you pick by how they look — a character set is chosen by its
+   * characters, and dragging a slider through ten names to find the one that
+   * looks right is guessing. The value is still the option's index, so it is
+   * stored, reset and kept per visual exactly like any other setting.
+   */
+  menu?: boolean;
+  /** What each option looks like, index-matched to `labels`. Drawn in monospace. */
+  samples?: string[];
+  /**
+   * The option that opens a "Your characters" field under the menu — the
+   * Custom character set. The characters typed there are one string for the
+   * whole tool rather than a number per visual, so they live in
+   * config/charsets.ts, not in the stored settings.
+   */
+  customAt?: number;
+  /**
    * Path to another parameter this one does nothing without.
    *
    * The feedback stage's transforms all act on the history, so with Amount at

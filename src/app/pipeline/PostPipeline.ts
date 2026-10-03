@@ -21,7 +21,26 @@ import {
   NOISE_TILE,
   INWARD_ECHO,
   FLUTED_GLASS,
+  ATLAS,
 } from './shaders';
+import { CUSTOM, GLYPH_FONT, WORDS, getCustomChars, rampFor, wordsFrom } from '../config/charsets';
+
+/**
+ * What a layer is being played with this frame, for the stages that move with
+ * it rather than with the wall clock.
+ */
+export interface Drive {
+  /** The layer's own clock, in seconds — it runs at the hands' tempo. */
+  clock: number;
+  /** A clap: jumps towards 1 and falls away over about a second. */
+  burst: number;
+  /** The music's onset: jumps on a kick and fades over a third of a second. */
+  pulse: number;
+  /** How loud the music is, 0 to 1. */
+  level: number;
+  /** The words typed for Kinetic Type, for the "Your words" character set. */
+  words: string;
+}
 
 type Cfg = typeof PipelineConfig;
 
@@ -51,6 +70,7 @@ export function stageDoing(stage: string, values: ParamValues): boolean {
     case 'noiseTile': return stageLive(c.noiseTile, c.noiseTile.size > 1);
     case 'echo': return stageLive(c.echo, c.echo.count >= 1);
     case 'fluted': return stageLive(c.fluted, c.fluted.ribs >= 1);
+    case 'atlas': return stageLive(c.atlas, c.atlas.columns >= 8);
     // The crossfade is always doing its job; it has no "off".
     case 'transition': return c.transition.enabled >= 0.5;
     default: return false;
@@ -73,7 +93,8 @@ export function fxActive(values: ParamValues): boolean {
     stageLive(c.pixelate, c.pixelate.pixel > 1 || c.pixelate.levels >= 2) ||
     stageLive(c.noiseTile, c.noiseTile.size > 1) ||
     stageLive(c.echo, c.echo.count >= 1) ||
-    stageLive(c.fluted, c.fluted.ribs >= 1)
+    stageLive(c.fluted, c.fluted.ribs >= 1) ||
+    stageLive(c.atlas, c.atlas.columns >= 8)
   );
 }
 
@@ -90,7 +111,7 @@ export function fxActive(values: ParamValues): boolean {
  * on their own history rather than being re-applied to a fresh image.
  *
  *   source ─▶ feedback ─▶ displace ─▶ rgb split ─▶ kaleido ─▶ pixelate
- *          ─▶ noise tile ─▶ inward echo ─▶ fluted glass
+ *          ─▶ noise tile ─▶ atlas ─▶ inward echo ─▶ fluted glass
  *                 ▲                                                        │
  *                 └──────────────── kept for next frame ◀──────────────────┘
  *
@@ -145,6 +166,7 @@ export class PostPipeline {
       noiseTile: createProgram(gl, NOISE_TILE),
       echo: createProgram(gl, INWARD_ECHO),
       fluted: createProgram(gl, FLUTED_GLASS),
+      atlas: createProgram(gl, ATLAS),
     };
 
     /*
@@ -180,6 +202,75 @@ export class PostPipeline {
     this.cfg = withOverrides(PipelineConfig, values);
   }
 
+  /** What the layer is being played with this frame. */
+  private drive: Drive = { clock: 0, burst: 0, pulse: 0, level: 0, words: '' };
+  setDrive(drive: Drive) {
+    // A missing number reaches the shader as NaN, and NaN switches a stage off
+    // without a word — density went to nothing that way. Anything not a
+    // number is taken as zero.
+    const n = (v: number) => (Number.isFinite(v) ? v : 0);
+    this.drive = {
+      clock: n(drive.clock), burst: n(drive.burst), pulse: n(drive.pulse),
+      level: n(drive.level), words: drive.words ?? '',
+    };
+  }
+
+  /** The strip of glyphs the Atlas stage reads, rebuilt when its set or size changes. */
+  private atlas: { key: string; texture: WebGLTexture | null; count: number; sequence: boolean } = {
+    key: '', texture: null, count: 1, sequence: false,
+  };
+
+  /**
+   * Draws the chosen set's characters into one strip, light to heavy (or a
+   * word in order), and uploads it.
+   *
+   * Drawn at twice the size the cells will show them, so they come out crisp
+   * when the GPU scales them down, and redrawn when the size changes enough
+   * to matter rather than every frame.
+   */
+  private atlasFor(set: number, cellHeight: number) {
+    const sequence = Math.round(set) === WORDS;
+    const glyphs = sequence ? wordsFrom(this.drive.words) : rampFor(set);
+    const h = Math.max(16, Math.min(96, Math.round(cellHeight * 2 / 8) * 8));
+    const w = Math.round(h * 0.6);
+    const custom = Math.round(set) === CUSTOM ? getCustomChars() : '';
+    const key = `${Math.round(set)}|${h}|${sequence ? glyphs.join('') : ''}|${custom}`;
+    if (key === this.atlas.key && this.atlas.texture) return this.atlas;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w * glyphs.length;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff';
+    // Bold: at a dozen pixels a hairline glyph barely lights its cell.
+    ctx.font = `600 ${Math.round(h * 0.82)}px ${GLYPH_FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    glyphs.forEach((c, i) => {
+      // A wide glyph — katakana, a block — is squeezed into the cell rather
+      // than spilling into its neighbours.
+      const fit = Math.min(1, (w * 0.96) / Math.max(1, ctx.measureText(c).width));
+      ctx.save();
+      ctx.translate(i * w + w / 2, h * 0.53);
+      ctx.scale(fit, 1);
+      ctx.fillText(c, 0, 0);
+      ctx.restore();
+    });
+
+    const gl = this.gl;
+    if (!this.atlas.texture) this.atlas.texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.atlas.texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    this.atlas = { key, texture: this.atlas.texture, count: glyphs.length, sequence };
+    return this.atlas;
+  }
+
   private live(stage: { enabled: number; mix: number }, doingSomething: boolean): boolean {
     return this.cfg.master.enabled >= 0.5 && stageLive(stage, doingSomething);
   }
@@ -197,7 +288,8 @@ export class PostPipeline {
       this.live(c.pixelate, c.pixelate.pixel > 1 || c.pixelate.levels >= 2) ||
       this.live(c.noiseTile, c.noiseTile.size > 1) ||
       this.live(c.echo, c.echo.count >= 1) ||
-      this.live(c.fluted, c.fluted.ribs >= 1)
+      this.live(c.fluted, c.fluted.ribs >= 1) ||
+      this.live(c.atlas, c.atlas.columns >= 8)
     );
   }
 
@@ -374,6 +466,26 @@ export class PostPipeline {
       current = target.texture;
     }
 
+    if (this.live(c.atlas, c.atlas.columns >= 8)) {
+      const cellHeight = width / Math.max(8, c.atlas.columns) / 0.6;
+      const atlas = this.atlasFor(c.atlas.set, cellHeight);
+      const program = this.use('atlas', width, height, time);
+      bindTexture(gl, program, 'uTex', current, 0);
+      bindTexture(gl, program, 'uAtlas', atlas.texture!, 1);
+      gl.uniform1f(gl.getUniformLocation(program, 'uCount'), atlas.count);
+      gl.uniform1f(gl.getUniformLocation(program, 'uColumns'), c.atlas.columns);
+      gl.uniform1f(gl.getUniformLocation(program, 'uTerraces'), c.atlas.terraces);
+      gl.uniform1f(gl.getUniformLocation(program, 'uClock'), this.drive.clock);
+      gl.uniform1f(gl.getUniformLocation(program, 'uBurst'), this.drive.burst);
+      gl.uniform1f(gl.getUniformLocation(program, 'uPulse'), this.drive.pulse);
+      gl.uniform1f(gl.getUniformLocation(program, 'uLevel'), this.drive.level);
+      gl.uniform1f(gl.getUniformLocation(program, 'uSequence'), atlas.sequence ? 1 : 0);
+      gl.uniform1f(gl.getUniformLocation(program, 'uMix'), c.atlas.mix);
+      target = this.next();
+      drawFullscreen(gl, target, width, height);
+      current = target.texture;
+    }
+
     if (this.live(c.echo, c.echo.count >= 1)) {
       const program = this.use('echo', width, height, time);
       bindTexture(gl, program, 'uTex', current, 0);
@@ -415,6 +527,7 @@ export class PostPipeline {
     for (const program of Object.values(this.programs)) gl.deleteProgram(program);
     gl.deleteTexture(this.sourceTexture);
     gl.deleteTexture(this.previousTexture);
+    if (this.atlas.texture) gl.deleteTexture(this.atlas.texture);
     deleteTarget(gl, this.blendTarget);
     deleteTarget(gl, this.targets[0]);
     deleteTarget(gl, this.targets[1]);

@@ -3,6 +3,7 @@ import { MosaicConfig } from '../../config/MosaicRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { alphaHex } from './alpha';
 import { timeScale, vjTime } from '../../motion/clock';
+import { WORDS, rampFor } from '../../config/charsets';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -35,7 +36,6 @@ const FONT_STACK =
   "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
 
 /** Light to heavy. Index into it with a cell's brightness. */
-const RAMP = ' .:-=+*#%@';
 
 /** Ceiling on cells per frame, so a slider cannot stall the loop. */
 const MAX_CELLS = 6000;
@@ -258,6 +258,13 @@ export class MosaicRenderer {
     const swell = 1 + bass * cfg.audio.bassScale + kick;
     const mode = Math.round(cfg.mode);
     const word = this.text;
+    /*
+     * Which characters: a set from the shared menu, light to heavy, or her
+     * words spelled across the grid. A setting saved before the menu existed
+     * said "your word" with the old Glyphs switch, so that still means words.
+     */
+    const spell = cfg.letters.set === WORDS || (cfg.letters.ramp >= 0.5 && cfg.letters.set === 0);
+    const ramp = rampFor(cfg.letters.set);
 
     const drawnW = width / cols;
     const drawnH = height / rows;
@@ -349,9 +356,9 @@ export class MosaicRenderer {
             break;
           }
           default: { // Letters
-            const glyph = cfg.letters.ramp >= 0.5
+            const glyph = spell
               ? word[index % word.length]
-              : RAMP[Math.min(RAMP.length - 1, Math.round(weight * (RAMP.length - 1)))];
+              : ramp[Math.min(ramp.length - 1, Math.round(weight * (ramp.length - 1)))];
             if (!glyph || glyph === ' ') break;
             if (cfg.letters.outline >= 0.5) {
               ctx.strokeStyle = colour;
@@ -359,7 +366,7 @@ export class MosaicRenderer {
             } else {
               // The word ramp has no light and heavy glyphs of its own, so the
               // brightness has to ride on the alpha instead.
-              ctx.globalAlpha = cfg.letters.ramp >= 0.5 ? weight : 1;
+              ctx.globalAlpha = spell ? weight : 1;
               ctx.fillStyle = colour;
               ctx.fillText(glyph, x, y);
               ctx.globalAlpha = 1;

@@ -339,3 +339,112 @@ void main() {
 
   fragColor = vec4(mix(texture(uTex, uv).rgb, glass, uMix), refracted.a);
 }`;
+
+/**
+ * ATLAS — text-mode terrain.
+ *
+ * The frame is cut into cells the shape of a monospace character. Each cell
+ * samples the picture at its centre and becomes one flat ink: the picture's
+ * hue, snapped to a few steps, at the brightness of its terrace. That is the
+ * blocky, posterised terrain. On top goes a character in a low-contrast shade
+ * of the same ink — darker on bright cells, lighter on dark ones — chosen from
+ * the stretch of the set that belongs to its terrace, so each level of the
+ * picture reads as a region of its own kind of type.
+ *
+ * Moving by the tool's rules:
+ *   uClock  the layer's own clock, so the finger count sets how often each
+ *           cell reshuffles its character — the "new variation" of the
+ *           original, made continuous;
+ *   uBurst  a clap: every cell reshuffles at once, and every cell carries one;
+ *   uPulse  the music's onset: a ring of reshuffling leaves the middle on each
+ *           kick and spreads as it fades;
+ *   uLevel  how loud the music is: louder, more cells carry a character.
+ *
+ * With uSequence set the strip is a word, spelled along the rows in order.
+ */
+export const ATLAS = `${COMMON}
+uniform sampler2D uAtlas;
+uniform float uCount;
+uniform float uColumns;
+uniform float uTerraces;
+uniform float uClock;
+uniform float uBurst;
+uniform float uPulse;
+uniform float uLevel;
+uniform float uSequence;
+uniform float uMix;
+
+vec3 rgb2hsv(vec3 c) {
+  vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+  float d = q.x - min(q.w, q.y);
+  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + 1e-10)), d / (q.x + 1e-10), q.x);
+}
+
+vec3 hsv2rgb(vec3 c) {
+  vec3 p = abs(fract(c.xxx + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
+  return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);
+}
+
+void main() {
+  // Character-shaped cells: a monospace glyph is about 0.6 as wide as tall.
+  float cw = uResolution.x / max(8.0, uColumns);
+  vec2 cellPx = vec2(cw, cw / 0.6);
+  vec2 frag = vUv * uResolution;
+  vec2 cell = floor(frag / cellPx);
+  vec2 centre = (cell + 0.5) * cellPx / uResolution;
+  vec3 src = texture(uTex, clamp(centre, 0.0, 1.0)).rgb;
+  vec3 here = texture(uTex, vUv).rgb;
+
+  // The terrain: one flat ink per cell, stepped into terraces.
+  vec3 hsv = rgb2hsv(src);
+  float t = max(2.0, floor(uTerraces + 0.5));
+  float terrace = floor(clamp(hsv.z, 0.0, 0.999) * t);
+  float height = terrace / (t - 1.0);
+  vec3 inkHsv = vec3(floor(hsv.x * 12.0 + 0.5) / 12.0, floor(hsv.y * 3.0 + 0.5) / 3.0, height);
+  vec3 ink = hsv2rgb(inkHsv);
+
+  // A ring that leaves the middle on each kick and spreads as the onset fades.
+  vec2 d = (centre - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
+  float radius = (1.0 - uPulse) * 1.1;
+  float wave = uPulse * exp(-pow((length(d) - radius) * 9.0, 2.0));
+
+  // Each cell reshuffles on its own beat, so the grid churns rather than
+  // flashing all at once — unless a clap or a kick makes it.
+  float rate = 0.35 + 1.4 * hash(cell);
+  float churn = clamp(uBurst + wave, 0.0, 1.0);
+  float tick = floor(uClock * rate + hash(cell + 7.13) * 11.0)
+             + floor(uClock * 24.0) * step(hash(cell + 3.7), churn);
+  float roll = hash(cell + vec2(tick * 0.618, tick * 0.317));
+
+  // How many cells carry a character: most of them, more as the music lifts.
+  float density = clamp(0.55 + uLevel * 0.4 + uBurst, 0.0, 1.0);
+  float carries = step(hash(cell * 1.31 + tick * 0.73), density);
+
+  float n = max(1.0, uCount);
+  float idx;
+  if (uSequence > 0.5) {
+    float cols = floor(uResolution.x / cellPx.x) + 1.0;
+    idx = mod(cell.x + cell.y * cols, n);
+  } else {
+    // Each terrace has its own stretch of the set, half of it wide, so a
+    // level of the picture reads as a region of one kind of character.
+    float span = max(1.0, floor(n * 0.5));
+    float start = floor(height * (n - span));
+    idx = clamp(start + floor(roll * span), 0.0, n - 1.0);
+    // The empty character only ever belongs to the darkest ground.
+    if (idx < 0.5 && terrace > 0.5) idx = 1.0;
+  }
+
+  vec2 f = fract(frag / cellPx);
+  float glyph = texture(uAtlas, vec2((idx + f.x) / n, f.y)).r * carries;
+
+  // Low contrast, as in the original: the character is the cell's own ink,
+  // pushed towards black on a bright cell and towards white on a dark one.
+  float lum = dot(ink, vec3(0.299, 0.587, 0.114));
+  vec3 type = lum > 0.42 ? ink * 0.38 : mix(ink, vec3(1.0), 0.32);
+  vec3 col = mix(ink, type, glyph);
+
+  fragColor = vec4(mix(here, col, uMix), 1.0);
+}`;

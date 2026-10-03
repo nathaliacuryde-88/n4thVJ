@@ -211,4 +211,33 @@ export const PipelineConfig = {
     /** 1 for vertical ribs, 0 for horizontal. */
     vertical: 1,
   },
+
+  /**
+   * ATLAS — text-mode terrain.
+   *
+   * The frame is cut into a grid of character cells. Each cell takes one flat
+   * colour — the picture's, stepped into a few terraces of brightness — and
+   * carries a character in a darker or lighter shade of that same colour.
+   * Each terrace draws from its own stretch of the character set, so the
+   * levels of the picture read as regions of different type.
+   *
+   * It moves by the tool's rules, not on its own: characters reshuffle at the
+   * hands' tempo, a clap reshuffles the whole grid at once, each kick sends a
+   * ring of reshuffling out from the middle, and the louder the music the more
+   * cells carry a character.
+   */
+  atlas: {
+    /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
+    enabled: 1,
+
+    /** Stage opacity: blends between this stage's input and its output. */
+    mix: 1,
+
+    /** Which character set — see config/charsets.ts. */
+    set: 0,
+    /** Character cells across the frame. Below 8 = off. */
+    columns: 0,
+    /** Brightness levels the picture is stepped into. */
+    terraces: 6,
+  },
 };

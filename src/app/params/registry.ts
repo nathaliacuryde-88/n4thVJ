@@ -33,6 +33,7 @@ import { BloomFieldConfig } from '../config/BloomFieldRendererConfig';
 import { ButterfliesConfig } from '../config/ButterfliesRendererConfig';
 import { DiceConfig } from '../config/DiceRendererConfig';
 import { ParamGroup } from './types';
+import { CHARSET_NAMES, CHARSET_SAMPLES, CUSTOM } from '../config/charsets';
 
 export interface RendererParams {
   /** The defaults object. Slider defaults are read from it by path. */
@@ -470,8 +471,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         visibleWhen: { path: 'mode', equals: [0] },
         params: [
           {
-            path: 'letters.ramp', label: 'Glyphs', min: 0, max: 1, step: 1,
-            labels: ['Density ramp', 'Your word'],
+            path: 'letters.set', label: 'Character set', min: 0, max: CHARSET_NAMES.length - 1, step: 1,
+            labels: CHARSET_NAMES, samples: CHARSET_SAMPLES, menu: true, customAt: CUSTOM,
           },
           { path: 'letters.weight', label: 'Weight', min: 100, max: 900, step: 100 },
           { path: 'letters.outline', label: 'Hollow', min: 0, max: 1, step: 1 },
@@ -700,6 +701,20 @@ export const PIPELINE_PARAMS: RendererParams = {
         { path: 'echo.count', label: 'Echoes', min: 0, max: 6, step: 1, hint: '0 = off' },
         { needs: 'echo.count', path: 'echo.depth', label: 'Depth', min: 0.02, max: 0.6, step: 0.01 },
         { needs: 'echo.count', path: 'echo.speed', label: 'Travel', min: 0, max: 1.5, step: 0.01, hint: 'loops seamlessly' },
+      ],
+    },
+    {
+      name: 'Atlas',
+      stage: 'atlas',
+      turnOn: { 'atlas.columns': 90 },
+      togglePath: 'atlas.enabled',
+      params: [
+        {
+          path: 'atlas.set', label: 'Character set', min: 0, max: CHARSET_NAMES.length - 1, step: 1,
+          labels: CHARSET_NAMES, samples: CHARSET_SAMPLES, menu: true, customAt: CUSTOM,
+        },
+        { path: 'atlas.columns', label: 'Columns', min: 0, max: 200, step: 1, hint: 'characters across · 0 = off' },
+        { needs: 'atlas.columns', path: 'atlas.terraces', label: 'Terraces', min: 2, max: 12, step: 1, hint: 'levels of the terrain' },
       ],
     },
     {

@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { RendererParams } from '../params/registry';
 import { getByPath, ParamSpec, ParamValues } from '../params/types';
+import { useCustomChars } from '../config/charsets';
 
 /** One tab: a set of sliders with its own values and handlers. */
 export interface ParamSection {
@@ -17,6 +18,133 @@ export interface ParamSection {
 function format(value: number, step: number): string {
   const decimals = Math.max(0, Math.ceil(-Math.log10(step)));
   return value.toFixed(Math.min(decimals, 4));
+}
+
+/** The glyph samples' font: the same monospace the visuals draw them in. */
+const SAMPLE_FONT = 'ui-monospace, SFMono-Regular, Menlo, "DejaVu Sans Mono", monospace';
+
+/**
+ * A choice picked by how it looks.
+ *
+ * Closed, it is a plain box with the choice's name and a chevron, as in
+ * Atlas. Open, every option shows its name and a sample of what it draws,
+ * so a character set is chosen by its characters rather than by reading
+ * names. The list opens in place, pushing the controls below it down,
+ * rather than floating: the panels scroll, and a floating list inside a
+ * scrolling panel gets cut off at its edge.
+ *
+ * Where an option is "Custom", choosing it opens a field for typing your own.
+ */
+function ChoiceMenu({
+  spec,
+  value,
+  isDefault,
+  onChange,
+  onReset,
+}: {
+  spec: ParamSpec;
+  value: number;
+  isDefault: boolean;
+  onChange: (value: number) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [custom, setCustom] = useCustomChars();
+  const box = useRef<HTMLDivElement | null>(null);
+  const labels = spec.labels ?? [];
+  const current = Math.max(0, Math.min(labels.length - 1, Math.round(value)));
+  const sampleOf = (i: number) => (i === spec.customAt ? custom.trim() : spec.samples?.[i] ?? '');
+
+  // Closes on a click anywhere else, or Escape.
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (box.current && !box.current.contains(e.target as Node)) setOpen(false);
+    };
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [open]);
+
+  return (
+    <div ref={box} className="mb-2">
+      <button
+        onClick={onReset}
+        title={isDefault ? spec.hint ?? spec.path : `${spec.path} — click to reset`}
+        className={`text-left text-[8.5px] uppercase tracking-[0.18em] transition-colors ${
+          isDefault ? 'text-white/50 hover:text-white/70' : 'text-cyan-300 hover:text-cyan-200'
+        }`}
+      >
+        {spec.label}
+        {!isDefault && <span className="ml-1 opacity-60">•</span>}
+      </button>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        title={`${spec.label}: ${labels[current]} — click to choose`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`mt-1 flex w-full items-center justify-between rounded-md border px-2.5 py-1.5 text-left transition-colors ${
+          open ? 'border-white/70 bg-white/10' : 'border-white/30 hover:border-white/60'
+        }`}
+      >
+        <span className="min-w-0 truncate text-[9.5px] font-semibold uppercase tracking-[0.16em] text-white">
+          {labels[current]}
+        </span>
+        <ChevronDown className={`h-3 w-3 shrink-0 text-white/70 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div
+          // Brought into view as it opens: the panels scroll, and a list that
+          // opens below the fold looks like a menu that did nothing.
+          ref={(el) => el?.scrollIntoView({ block: 'nearest' })}
+          className="mt-1 max-h-48 overflow-y-auto rounded-md border border-white/20 bg-black/85 py-0.5"
+          role="listbox"
+        >
+          {labels.map((name, i) => (
+            <button
+              key={name}
+              role="option"
+              aria-selected={i === current}
+              onClick={() => {
+                onChange(i);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center gap-2 px-2.5 py-[3px] text-left transition-colors ${
+                i === current ? 'bg-white text-black' : 'text-white/75 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <span className="w-[62px] shrink-0 truncate text-[8.5px] uppercase tracking-[0.12em]">{name}</span>
+              <span className="min-w-0 flex-1 truncate text-[11px] leading-none" style={{ fontFamily: SAMPLE_FONT }}>
+                {sampleOf(i)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {spec.customAt !== undefined && current === spec.customAt && (
+        <label className="mt-2 block">
+          <span className="text-[8.5px] uppercase tracking-[0.18em] text-white/50">Your characters</span>
+          <input
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            // Typing digits or letters here must not switch visuals or effects.
+            onKeyDown={(e) => e.stopPropagation()}
+            onKeyUp={(e) => e.stopPropagation()}
+            spellCheck={false}
+            placeholder=".:-=+*#%@"
+            className="mt-1 w-full border-b border-white/30 bg-transparent pb-1 text-[12px] text-white outline-none focus:border-white/70"
+            style={{ fontFamily: SAMPLE_FONT }}
+          />
+        </label>
+      )}
+    </div>
+  );
 }
 
 export function Slider({
@@ -35,6 +163,9 @@ export function Slider({
   onChange: (value: number) => void;
   onReset: () => void;
 }) {
+  if (spec.menu && spec.labels) {
+    return <ChoiceMenu spec={spec} value={value} isDefault={isDefault} onChange={onChange} onReset={onReset} />;
+  }
   const fraction = ((value - spec.min) / (spec.max - spec.min)) * 100;
 
   return (
