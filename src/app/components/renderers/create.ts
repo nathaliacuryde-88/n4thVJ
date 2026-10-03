@@ -37,6 +37,7 @@ import { ChromeRenderer } from './ChromeRenderer';
 import { BloomFieldRenderer } from './BloomFieldRenderer';
 import { ButterfliesRenderer } from './ButterfliesRenderer';
 import { DiceRenderer } from './DiceRenderer';
+import { AtlasRenderer } from './AtlasRenderer';
 import { AudioData, HandData, VisualPattern } from '../../App';
 import { ParamValues } from '../../params/types';
 
@@ -179,6 +180,9 @@ export function createRenderer(
       break;
     case 'dice':
       renderer = new DiceRenderer(canvas, ctx);
+      break;
+    case 'atlas':
+      renderer = new AtlasRenderer(canvas, ctx);
       break;
     case 'ripple':
       renderer = new RippleRenderer(canvas, ctx);

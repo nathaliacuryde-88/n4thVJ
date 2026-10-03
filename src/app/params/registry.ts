@@ -32,6 +32,7 @@ import { ChromeConfig } from '../config/ChromeRendererConfig';
 import { BloomFieldConfig } from '../config/BloomFieldRendererConfig';
 import { ButterfliesConfig } from '../config/ButterfliesRendererConfig';
 import { DiceConfig } from '../config/DiceRendererConfig';
+import { AtlasConfig } from '../config/AtlasRendererConfig';
 import { ParamGroup } from './types';
 import { CHARSET_NAMES, CHARSET_SAMPLES, CUSTOM } from '../config/charsets';
 
@@ -436,6 +437,45 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody light', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hat sparkle', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  atlas: {
+    config: AtlasConfig,
+    groups: [
+      {
+        name: 'Terrain',
+        params: [
+          { path: 'terrain.scale', label: 'Scale', min: 1, max: 16, step: 0.1, hint: 'hills across the frame' },
+          { path: 'terrain.warp', label: 'Warp', min: 0, max: 1, step: 0.01 },
+          { path: 'terrain.terraces', label: 'Terraces', min: 2, max: 16, step: 1 },
+          { path: 'terrain.contrast', label: 'Contrast', min: 0, max: 1, step: 0.01 },
+          { path: 'terrain.flow', label: 'Flow', min: 0, max: 4, step: 0.05, hint: 'how fast the land drifts' },
+        ],
+      },
+      {
+        name: 'Type',
+        params: [
+          {
+            path: 'type.set', label: 'Character set', min: 0, max: CHARSET_NAMES.length - 1, step: 1,
+            labels: CHARSET_NAMES, samples: CHARSET_SAMPLES, menu: true, customAt: CUSTOM,
+          },
+          { path: 'type.columns', label: 'Columns', min: 20, max: 220, step: 1 },
+          { path: 'type.density', label: 'Density', min: 0, max: 1, step: 0.01, hint: 'the music adds more' },
+          { path: 'type.variety', label: 'Variety', min: 0, max: 1, step: 0.01 },
+        ],
+      },
+      {
+        name: 'Hands and sound',
+        params: [
+          { path: 'hands.push', label: 'Hand raise', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.zoom', label: 'Spread zoom', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap variation', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+          { path: 'sound.bass', label: 'Bass lift', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.beat', label: 'Beat ring', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.level', label: 'Loud = more type', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],

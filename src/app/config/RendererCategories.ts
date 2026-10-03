@@ -265,6 +265,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '3',
     description: 'Your own footage, sheared into sliding bands'
   },
+  atlas: {
+    pattern: 'atlas',
+    name: 'Atlas',
+    short: 'Atlas',
+    category: 'TD',
+    key: '9',
+    description: 'Text-mode terrain: folded land in flat inks, written over in characters'
+  },
   chrome: {
     pattern: 'chrome',
     name: 'Chrome',

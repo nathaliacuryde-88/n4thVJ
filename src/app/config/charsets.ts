@@ -164,3 +164,44 @@ function measure(chars: string[]): string[] {
   weighed.sort((a, b) => a.ink - b.ink || a.order - b.order);
   return weighed.map((w) => w.c);
 }
+
+/**
+ * The glyphs a text-mode stage reads, drawn into one strip: white on black, each
+ * in a cell 0.6 as wide as it is tall, the shape of a monospace character.
+ *
+ * Shared by the Atlas effect and the Atlas visual, so the same set looks the
+ * same in both. Bold, because at a dozen pixels a hairline glyph barely lights
+ * its cell; and a wide glyph — katakana, a block — is squeezed into its cell
+ * rather than spilling into its neighbours.
+ */
+export function glyphStrip(glyphs: string[], height: number): HTMLCanvasElement {
+  const h = height;
+  const w = Math.round(h * 0.6);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, w * glyphs.length);
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#fff';
+  ctx.font = `600 ${Math.round(h * 0.82)}px ${GLYPH_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  glyphs.forEach((c, i) => {
+    const fit = Math.min(1, (w * 0.96) / Math.max(1, ctx.measureText(c).width));
+    ctx.save();
+    ctx.translate(i * w + w / 2, h * 0.53);
+    ctx.scale(fit, 1);
+    ctx.fillText(c, 0, 0);
+    ctx.restore();
+  });
+  return canvas;
+}
+
+/** The glyphs for a set as a text-mode stage draws them: a ramp, or a word to spell. */
+export function glyphsFor(set: number, words: string): { glyphs: string[]; sequence: boolean; key: string } {
+  const index = Math.round(set);
+  const sequence = index === WORDS;
+  const glyphs = sequence ? wordsFrom(words) : rampFor(index);
+  return { glyphs, sequence, key: `${index}|${glyphs.join('')}` };
+}

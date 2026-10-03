@@ -23,7 +23,7 @@ import {
   FLUTED_GLASS,
   ATLAS,
 } from './shaders';
-import { CUSTOM, GLYPH_FONT, WORDS, getCustomChars, rampFor, wordsFrom } from '../config/charsets';
+import { glyphStrip, glyphsFor } from '../config/charsets';
 
 /**
  * What a layer is being played with this frame, for the stages that move with
@@ -229,35 +229,11 @@ export class PostPipeline {
    * to matter rather than every frame.
    */
   private atlasFor(set: number, cellHeight: number) {
-    const sequence = Math.round(set) === WORDS;
-    const glyphs = sequence ? wordsFrom(this.drive.words) : rampFor(set);
+    const { glyphs, sequence, key: chars } = glyphsFor(set, this.drive.words);
     const h = Math.max(16, Math.min(96, Math.round(cellHeight * 2 / 8) * 8));
-    const w = Math.round(h * 0.6);
-    const custom = Math.round(set) === CUSTOM ? getCustomChars() : '';
-    const key = `${Math.round(set)}|${h}|${sequence ? glyphs.join('') : ''}|${custom}`;
+    const key = `${chars}|${h}`;
     if (key === this.atlas.key && this.atlas.texture) return this.atlas;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = w * glyphs.length;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fff';
-    // Bold: at a dozen pixels a hairline glyph barely lights its cell.
-    ctx.font = `600 ${Math.round(h * 0.82)}px ${GLYPH_FONT}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    glyphs.forEach((c, i) => {
-      // A wide glyph — katakana, a block — is squeezed into the cell rather
-      // than spilling into its neighbours.
-      const fit = Math.min(1, (w * 0.96) / Math.max(1, ctx.measureText(c).width));
-      ctx.save();
-      ctx.translate(i * w + w / 2, h * 0.53);
-      ctx.scale(fit, 1);
-      ctx.fillText(c, 0, 0);
-      ctx.restore();
-    });
+    const canvas = glyphStrip(glyphs, h);
 
     const gl = this.gl;
     if (!this.atlas.texture) this.atlas.texture = gl.createTexture();
