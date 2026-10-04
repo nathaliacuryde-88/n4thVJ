@@ -6,7 +6,7 @@ import { PermissionRequest } from './components/PermissionRequest';
 import { VJCanvas } from './components/VJCanvas';
 import { AudioAnalyzer } from './components/AudioAnalyzer';
 import { Library } from './components/Library';
-import { keySlot, loadSetList, saveSetList } from './config/setlist';
+import { MAX_SET, keySlot, loadSetList, saveSetList, slotKey } from './config/setlist';
 import { ParamPanel, ParamSection } from './components/ParamPanel';
 import { FxPanel } from './components/FxPanel';
 import { RENDERER_CATEGORIES } from './config/RendererCategories';
@@ -22,6 +22,12 @@ import { Recorder, canRecord, save } from './record/Recorder';
 import { SoundSource, nextSound, openTakeAudio } from './record/audio';
 import { OutputWindow } from './output/OutputWindow';
 import { SavedSet, loadSavedSets, pick, storeSavedSets } from './config/savedSets';
+import { StatusBar, PILOT_BARS } from './components/StatusBar';
+import { beatPosition, clearTempo, currentBpm, tap } from './motion/tempo';
+import { MidiTarget, setMidiHandler } from './control/midi';
+import { stageDoing } from './pipeline/PostPipeline';
+import { getByPath } from './params/types';
+import { Hand, AudioLines } from 'lucide-react';
 import {
   Clips,
   clearClip,
@@ -819,6 +825,122 @@ export default function App() {
     setCurrentPattern(set[next]);
   }, [currentPattern, set, setCurrentPattern]);
 
+  /*
+   * Auto-pilot: while it is on, the selected layer moves to the next visual
+   * of the set every so many bars — on the downbeat once a tempo is tapped,
+   * every two seconds a bar until then. A visual she picks herself restarts
+   * the count, so it never cuts away from something she has just chosen.
+   * Visuals already up on another layer are stepped over.
+   */
+  const [pilotOn, setPilotOn] = useState(false);
+  const [pilotBars, setPilotBars] = useState(() =>
+    loadSetting('vj-pilot-bars', 16, (v) => PILOT_BARS.includes(v as number)),
+  );
+  useEffect(() => { saveSetting('vj-pilot-bars', pilotBars); }, [pilotBars]);
+  const [pilotSince, setPilotSince] = useState(() => performance.now());
+  useEffect(() => { setPilotSince(performance.now()); }, [currentPattern, pilotOn, pilotBars]);
+
+  const pilotStep = useRef<() => void>(() => {});
+  pilotStep.current = () => {
+    if (set.length < 2) return;
+    const at = set.indexOf(currentPattern);
+    for (let k = 1; k < set.length; k++) {
+      const next = set[(at + k + set.length) % set.length];
+      if (layers.some((l) => l.pattern === next)) continue;
+      setLayers((prev) => prev.map((l, i) => (i === selectedLayer ? { ...l, pattern: next } : l)));
+      return;
+    }
+  };
+
+  useEffect(() => {
+    if (!pilotOn || view !== 'vj') return;
+    const id = window.setInterval(() => {
+      const now = performance.now();
+      const bpm = currentBpm();
+      const bar = bpm ? (4 * 60000) / bpm : 2000;
+      // Half a beat early counts, so the change can land on the one itself.
+      if (now - pilotSince < bar * pilotBars - bar / 8) return;
+      if (bpm) {
+        const at = beatPosition(now);
+        if (!at || ((at.beat % 4) + 4) % 4 !== 0 || at.phase > 0.5) return;
+      }
+      pilotStep.current();
+      setPilotSince(now);
+    }, 25);
+    return () => window.clearInterval(id);
+  }, [pilotOn, pilotBars, pilotSince, view]);
+
+  /** One effect on or off on the selected visual, as its chip does it. */
+  const toggleFxStage = useCallback((name: string) => {
+    const group = PIPELINE_PARAMS.groups.find((g) => g.name === name);
+    if (!group?.togglePath) return;
+    setFxByPattern((prev) => {
+      const mine = prev[currentPattern] ?? {};
+      const live = group.stage ? stageDoing(group.stage, mine) : (mine[group.togglePath!] ?? 0) >= 0.5;
+      const next = { ...mine };
+      if (live) {
+        next[group.togglePath!] = 0;
+      } else {
+        next[group.togglePath!] = 1;
+        for (const [path, v] of Object.entries(group.turnOn ?? {})) {
+          const stored = mine[path];
+          const off = (getByPath(PIPELINE_PARAMS.config, path) ?? 0) as number;
+          next[path] = stored !== undefined && stored !== off ? stored : v;
+        }
+      }
+      return { ...prev, [currentPattern]: next };
+    });
+  }, [currentPattern]);
+
+  /** Everything a MIDI control can be put on. */
+  const midiTargets = useMemo<MidiTarget[]>(() => [
+    ...Array.from({ length: MAX_LAYERS }, (_, i) => ({
+      id: `layer${i + 1}`, label: `Layer ${i + 1} fader`, group: 'Layers', continuous: true,
+    })),
+    { id: 'layer.next', label: 'Select next layer', group: 'Layers', continuous: false },
+    { id: 'hands', label: 'Hands drive', group: 'Drive', continuous: true },
+    { id: 'gain', label: 'Audio gain', group: 'Drive', continuous: true },
+    { id: 'tap', label: 'Tap tempo', group: 'Tempo & set', continuous: false },
+    { id: 'pilot', label: 'Auto-pilot on/off', group: 'Tempo & set', continuous: false },
+    { id: 'next', label: 'Next visual', group: 'Tempo & set', continuous: false },
+    { id: 'prev', label: 'Previous visual', group: 'Tempo & set', continuous: false },
+    ...Array.from({ length: MAX_SET }, (_, i) => ({
+      id: `slot${i + 1}`, label: `Visual ${slotKey(i)}`, group: 'Visuals', continuous: false,
+    })),
+    { id: 'fx', label: 'All effects on/off', group: 'Effects', continuous: false },
+    ...PIPELINE_PARAMS.groups.filter((g) => g.togglePath).map((g) => ({
+      id: `fx:${g.name}`, label: g.name, group: 'Effects', continuous: false,
+    })),
+  ], []);
+
+  // What each control does, against the state of this render.
+  const midiAct = useRef<(target: string, value: number) => void>(() => {});
+  midiAct.current = (target, value) => {
+    if (target.endsWith('#press')) {
+      const id = target.slice(0, -6);
+      if (id === 'tap') tap();
+      else if (id === 'pilot') setPilotOn((p) => !p);
+      else if (id === 'next') cyclePattern('next');
+      else if (id === 'prev') cyclePattern('prev');
+      else if (id === 'layer.next') cycleLayer();
+      else if (id === 'fx') toggleFx();
+      else if (id.startsWith('fx:')) toggleFxStage(id.slice(3));
+      else if (id.startsWith('slot')) {
+        const pattern = set[Number(id.slice(4)) - 1];
+        if (pattern) setCurrentPattern(pattern);
+      }
+      return;
+    }
+    const layer = /^layer(\d)$/.exec(target);
+    if (layer) setLayerOpacity(Number(layer[1]) - 1, Math.round(value * 100) / 100);
+    else if (target === 'hands') setMotion(Math.round((MOTION_MIN + value * (MOTION_MAX - MOTION_MIN)) * 100) / 100);
+    else if (target === 'gain') setAudioSensitivity(Math.round(value * 100) / 100);
+  };
+  useEffect(() => {
+    setMidiHandler((target, value) => midiAct.current(target, value));
+    return () => setMidiHandler(null);
+  }, []);
+
   /** The number currently held down, if any, while we wait to see if it is a hold. */
   const holdRef = useRef<{ key: string; timer: number; fired: boolean } | null>(null);
 
@@ -880,6 +1002,18 @@ export default function App() {
       // Global Flow Field (D)
       if (e.key.toLowerCase() === 'd') {
         setCurrentPattern('flowfield');
+        return;
+      }
+
+      // Tap tempo (B), Shift+B forgets it
+      if (e.key.toLowerCase() === 'b') {
+        if (e.shiftKey) clearTempo(); else tap();
+        return;
+      }
+
+      // Auto-pilot (P)
+      if (e.key.toLowerCase() === 'p') {
+        setPilotOn((p) => !p);
         return;
       }
 
@@ -1010,7 +1144,16 @@ export default function App() {
     };
     return [
       { key: 'shape', label: 'SHAPE', entry: look, values, onChange: setParam, onReset: scoped(pathsOf(look)) },
-      { key: 'play', label: 'HANDS·SOUND', entry: play, values, onChange: setParam, onReset: scoped(pathsOf(play)) },
+      {
+        key: 'play',
+        label: 'Hands & sound',
+        icon: (
+          <span className="flex items-center gap-0.5">
+            <Hand className="h-3 w-3" />
+            <AudioLines className="h-3 w-3" />
+          </span>
+        ),
+        entry: play, values, onChange: setParam, onReset: scoped(pathsOf(play)) },
     ];
   }, [currentPattern, paramValues, setParam, resetParam]);
 
@@ -1116,6 +1259,18 @@ export default function App() {
               ? `L${selectedLayer + 1} ${RENDERER_CATEGORIES[currentPattern].short}`
               : RENDERER_CATEGORIES[currentPattern].short
           }
+        />
+      )}
+
+      {/* Tempo, auto-pilot, health and MIDI: what runs the set over time. */}
+      {showUI && (
+        <StatusBar
+          pilotOn={pilotOn}
+          pilotBars={pilotBars}
+          pilotSince={pilotSince}
+          onPilotToggle={() => setPilotOn((p) => !p)}
+          onPilotBars={setPilotBars}
+          midiTargets={midiTargets}
         />
       )}
 

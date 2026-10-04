@@ -4,6 +4,7 @@ import { ColorMode } from '../config/palette';
 import { AudioData, HandData, VisualPattern } from '../App';
 import { createRenderer, VJRenderer } from './renderers/create';
 import { advanceClock, dropClock, forkClock, useLayerClock, vjTime } from '../motion/clock';
+import { tickTempo } from '../motion/tempo';
 import { createGestureState, gestureRate } from '../hands/gesture';
 import { ParamValues, withOverrides } from '../params/types';
 import { Drive, PostPipeline, fxActive } from '../pipeline/PostPipeline';
@@ -198,6 +199,11 @@ export function VJCanvas({
   const layerColorsRef = useRef<string[][]>(layerColors);
   const videoElementRef = useRef<HTMLVideoElement | null>(videoElement ?? null);
   const audioDataRef = useRef<AudioData | undefined>(audioData);
+  /**
+   * This frame's audio as the visuals see it: the music's levels, and — with
+   * a tapped tempo — the kick from the tempo's grid rather than the detector.
+   */
+  const frameAudioRef = useRef<AudioData | undefined>(audioData);
   const layerParamsRef = useRef<(ParamValues | undefined)[] | undefined>(layerParams);
   const fxRef = useRef(fxByPattern);
   const contentRef = useRef(content);
@@ -369,7 +375,7 @@ export function VJCanvas({
                 ? handDataRef.current
                 : autoRef.current.hands,
               colors: layerColorsRef.current[index] ?? layerColorsRef.current[0] ?? [],
-              audio: audioDataRef.current,
+              audio: frameAudioRef.current,
               colorMode: colorModesRef.current[index],
             };
         // Remembered before the render rather than after, so a renderer that
@@ -471,8 +477,8 @@ export function VJCanvas({
       return {
         clock: vjTime(),
         burst: leaving ? 0 : onHands ? claps.live : claps.auto,
-        pulse: leaving ? 0 : audioDataRef.current?.onset ?? 0,
-        level: leaving ? 0 : audioDataRef.current?.overall ?? 0,
+        pulse: leaving ? 0 : frameAudioRef.current?.onset ?? 0,
+        level: leaving ? 0 : frameAudioRef.current?.overall ?? 0,
         words: contentRef.current.text,
       };
     };
@@ -501,6 +507,23 @@ export function VJCanvas({
       const rates = (motionRef.current ?? []).map((m) =>
         m > 0 ? m * gesture : (autoRef.current.on ? autoGesture : 1));
       advanceClock(delta, rates.length ? rates : [gesture]);
+
+      // With a tapped tempo, the beat is the grid's: on time, every time, mic
+      // or not. The levels are still the music's.
+      const grid = tickTempo(now);
+      const heard = audioDataRef.current;
+      frameAudioRef.current = grid
+        ? {
+            bass: heard?.bass ?? 0,
+            lowMid: heard?.lowMid ?? 0,
+            mid: heard?.mid ?? 0,
+            high: heard?.high ?? 0,
+            overall: heard?.overall ?? 0,
+            beat: grid.beat,
+            beatIntensity: grid.beat ? Math.max(0.8, heard?.beatIntensity ?? 0) : 0,
+            onset: Math.max(grid.pulse, heard?.onset ?? 0),
+          }
+        : heard;
 
       // A clap, as a burst that jumps and falls away over about a second —
       // one for her hands and one for the automatic drive.

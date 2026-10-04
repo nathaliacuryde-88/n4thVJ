@@ -8,6 +8,8 @@ import { useCustomChars } from '../config/charsets';
 export interface ParamSection {
   key: string;
   label: string;
+  /** Shown in the tab instead of the label, which becomes its tooltip. */
+  icon?: React.ReactNode;
   entry: RendererParams;
   values: ParamValues;
   onChange: (path: string, value: number) => void;
@@ -261,13 +263,15 @@ export function ParamPanel({
                     setActiveKey(section.key);
                     setCollapsed(false);
                   }}
-                  className={`whitespace-nowrap px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider transition-all ${
+                  title={section.icon ? section.label : undefined}
+                  aria-label={section.label}
+                  className={`flex items-center whitespace-nowrap px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider transition-all ${
                     section.key === active.key
                       ? 'bg-white/20 text-white'
                       : 'text-white/40 hover:text-white/70'
                   }`}
                 >
-                  {section.label}
+                  {section.icon ?? section.label}
                   {dirty && <span className="ml-1 text-cyan-300">•</span>}
                 </button>
               );
