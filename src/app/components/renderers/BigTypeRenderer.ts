@@ -673,22 +673,32 @@ export class BigTypeRenderer {
       for (const b of boxes) { b.w *= fit; b.h *= fit; b.s *= fit; }
       rowsOut.push({ boxes, width: total * fit, height: Math.max(...boxes.map((b) => b.h)) });
     }
-    const totalH = rowsOut.reduce((a, r) => a + r.height, 0);
+    // Rows in pairs meeting on one line: the first hangs its boxes from the
+    // bottom, standing on the line, the second from the top, hanging below
+    // it. A row left over on its own sits centred.
+    const bands: { rows: typeof rowsOut; height: number }[] = [];
+    for (let r = 0; r < rowsOut.length; r += 2) {
+      const pair = rowsOut.slice(r, r + 2);
+      bands.push({ rows: pair, height: pair.reduce((a, row) => a + row.height, 0) });
+    }
+    const totalH = bands.reduce((a, b) => a + b.height, 0);
     y = (this.canvas.height - totalH) / 2;
-    for (const row of rowsOut) {
-      let x = (width - row.width) / 2;
-      const mid = y + row.height / 2;
-      for (const b of row.boxes) {
-        const by = mid - b.h / 2 + Math.sin(b.L.k * 1.9 + this.waveTime) * row.height * 0.06 * Math.min(1, b.s);
-        ctx.fillStyle = box;
-        ctx.fillRect(x, by, b.w, b.h);
-        ctx.fillStyle = boxInk;
-        ctx.font = font(F * b.s);
-        ctx.textAlign = 'center';
-        ctx.fillText(b.L.ch, x + b.w / 2, by + b.h - pad * b.s);
-        x += b.w;
-      }
-      y += row.height;
+    for (const band of bands) {
+      const axis = band.rows.length === 2 ? y + band.rows[0].height : y + band.height / 2;
+      band.rows.forEach((row, i) => {
+        let x = (width - row.width) / 2;
+        for (const b of row.boxes) {
+          const by = band.rows.length === 1 ? axis - b.h / 2 : i === 0 ? axis - b.h : axis;
+          ctx.fillStyle = box;
+          ctx.fillRect(x, by, b.w, b.h);
+          ctx.fillStyle = boxInk;
+          ctx.font = font(F * b.s);
+          ctx.textAlign = 'center';
+          ctx.fillText(b.L.ch, x + b.w / 2, by + b.h - pad * b.s);
+          x += b.w;
+        }
+      });
+      y += band.height;
     }
     ctx.textAlign = 'left';
   }
@@ -703,53 +713,104 @@ export class BigTypeRenderer {
   ) {
     const { ctx, cfg } = this;
     const t = this.waveTime;
-    if (kicked) this.ripples.push({ at: t, from: focus > 0.2 ? hx : Math.random() });
-    if (clapped) this.ripples.push({ at: t, from: 0.5 });
-    this.ripples = this.ripples.filter((r) => t - r.at < 3);
     ctx.fillStyle = ground;
     ctx.fillRect(0, 0, width, height);
     ctx.fillStyle = ink;
     const byWord = cfg.dance.words >= 0.5;
-    // Words turn about their own middles; letters about theirs.
-    const words = new Map<number, { x0: number; x1: number }>();
-    if (byWord) {
-      for (const L of letters) {
-        const w = words.get(L.word) ?? { x0: Infinity, x1: -Infinity };
-        w.x0 = Math.min(w.x0, left(L));
-        w.x1 = Math.max(w.x1, left(L) + L.w);
-        words.set(L.word, w);
-      }
-    }
+
+    // The rows, and the units in each that turn as one: letters, or words.
+    const rows = new Map<string, Letter[]>();
     for (const L of letters) {
-      const unit = byWord ? L.word : L.k;
-      const span = byWord ? words.get(L.word)! : { x0: left(L), x1: left(L) + L.w };
-      const cx = (span.x0 + span.x1) / 2;
-      const u = cx / width;
-      // A turn rolls through the words on the clock, and each kick sends a
-      // ripple out from where it landed.
-      const wave = Math.sin(TAU * t * 0.25 - unit * (byWord ? 1.3 : 0.55) - L.line * 0.9);
-      let phi = dance * 1.35 * Math.pow(Math.max(0, wave), 4);
-      for (const r of this.ripples) {
-        const front = (t - r.at) * 1.1;
-        const d = Math.abs(u - r.from);
-        phi += 1.4 * Math.exp(-(((d - front) * 7) ** 2)) * Math.exp(-(t - r.at) * 0.8) * Math.min(1.2, dance + 0.4);
-      }
-      phi += burst * 1.3;
-      phi = Math.min(1.5, phi);
-      const dir = (unit % 2 === 0 ? 1 : -1);
-      const flat = Math.max(0.05, Math.cos(phi));
-      const slant = -Math.sin(phi) * 1.7 * dir;
-      const wide = (1 + Math.abs(Math.sin(phi)) * 1.1) * L.sx;
-      const F = L.size;
-      const by = baseline(L) - (F * capH) / 2;
-      ctx.font = font(F);
-      ctx.save();
-      ctx.translate(cx, by);
-      // Flattened toward its middle line, slanted, and pulled wider: a plane
-      // turned away from the eye.
-      ctx.transform(wide, 0, slant * flat, flat, 0, 0);
-      ctx.fillText(L.ch, (left(L) - cx) / L.sx, (F * capH) / 2);
-      ctx.restore();
+      const key = `${L.copy}|${L.line}`;
+      if (!rows.has(key)) rows.set(key, []);
+      rows.get(key)!.push(L);
     }
+    const rowKeys = [...rows.keys()];
+    // A kick turns one unit somewhere — the one under the hand, with a hand
+    // up; a clap turns every one.
+    if (kicked) {
+      const r = Math.floor(Math.random() * rowKeys.length);
+      this.ripples.push({ at: t, from: r + (focus > 0.2 ? hx : Math.random()) * 0.999 });
+    }
+    this.ripples = this.ripples.filter((r) => t - r.at < 1.2);
+
+    rowKeys.forEach((key, r) => {
+      const row = rows.get(key)!;
+      // Units: runs of letters sharing a word, or each letter alone.
+      const units: Letter[][] = [];
+      for (const L of row) {
+        const last = units[units.length - 1];
+        if (byWord && last && last[0].word === L.word) last.push(L);
+        else units.push([L]);
+      }
+      // Only one unit in a row turns at a time, and not in every row: on the
+      // clock, each row's turn passes from unit to unit, out and back again.
+      const rate = 0.42;
+      const slot = Math.floor(t * rate + r * 0.37);
+      const phase = t * rate + r * 0.37 - slot;
+      const pickRow = hash01(slot * 7.1 + r * 3.3);
+      const active = pickRow < 0.78 ? Math.floor(hash01(slot * 1.9 + r * 5.7) * units.length) : -1;
+      const env = Math.pow(Math.sin(Math.PI * phase), 2);
+      const turns = units.map((_, u) => {
+        let phi = u === active ? env * 1.25 * Math.min(1.2, dance) : 0;
+        for (const rip of this.ripples) {
+          if (Math.floor(rip.from) !== r) continue;
+          const which = Math.min(units.length - 1, Math.floor((rip.from % 1) * units.length));
+          if (which !== u) continue;
+          const age = t - rip.at;
+          phi += 1.2 * Math.sin(Math.PI * Math.min(1, age / 1.1));
+        }
+        phi += burst * 1.15;
+        return Math.min(1.3, phi);
+      });
+
+      // How much wider each turned unit has become — pulled wider, and
+      // slanted across its height — so its neighbours make room for it.
+      const F = row[0].size;
+      const H = F * capH;
+      const extra = units.map((unit, u) => {
+        const phi = turns[u];
+        const w0 = left(unit[unit.length - 1]) + unit[unit.length - 1].w - left(unit[0]);
+        const flat = Math.max(0.24, Math.cos(phi));
+        return w0 * Math.abs(Math.sin(phi)) * 1.5 + Math.abs(Math.sin(phi) * 2.2 * flat) * H;
+      });
+      const total = extra.reduce((a, b) => a + b, 0);
+      const rowW = left(row[row.length - 1]) + row[row.length - 1].w - left(row[0]);
+      // The whole row eased smaller if the turns would push it off the frame.
+      const fit = Math.min(1, (width * 0.98) / (rowW + total));
+      const midX = width / 2;
+      let before = 0;
+      units.forEach((unit, u) => {
+        const phi = turns[u];
+        const dir = (u + r) % 2 === 0 ? 1 : -1;
+        // Turned, a piece stays readable: a long slanted band with some
+        // height to it, as in the posters, rather than a hairline.
+        const flat = Math.max(0.24, Math.cos(phi));
+        const slant = -Math.sin(phi) * 2.2 * dir;
+        const cx0 = (left(unit[0]) + left(unit[unit.length - 1]) + unit[unit.length - 1].w) / 2;
+        // Its place: where it was, moved by the room the units before it took
+        // and half its own, the row kept centred.
+        const cx = midX + (cx0 + before + extra[u] / 2 - total / 2 - midX) * fit;
+        before += extra[u];
+        for (const L of unit) {
+          const by = baseline(L) - H / 2;
+          const wide = (1 + Math.abs(Math.sin(phi)) * 1.5) * L.sx * fit;
+          ctx.font = font(L.size);
+          ctx.save();
+          ctx.translate(cx, by);
+          // Flattened toward its middle line, slanted, pulled wider: a plane
+          // turned away from the eye.
+          ctx.transform(wide, 0, slant * flat * fit, flat * fit, 0, 0);
+          ctx.fillText(L.ch, (left(L) - cx0) / L.sx, H / 2);
+          ctx.restore();
+        }
+      });
+    });
   }
+}
+
+/** A steady pseudo-random number in 0..1 for a seed. */
+function hash01(n: number): number {
+  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
 }
