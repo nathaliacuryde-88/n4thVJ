@@ -82,12 +82,10 @@ export class NatureWorldRenderer {
   private place() {
     // The flowers lower, in front: a bed at the bottom of the frame.
     this.flowers!.group.position.set(0, -2.5, 1.2);
-    this.flowers!.group.scale.setScalar(0.68);
     // The dandelions further back, still reaching below the frame.
     this.dandelions!.depth = -5;
     // The jellyfish up in the sky, small and far, like slow balloons.
     this.jellyfish!.group.position.set(0, 2.4, -7);
-    this.jellyfish!.group.scale.setScalar(0.95);
   }
 
   /** The library waits for the dandelions to load before it counts frames. */
@@ -102,7 +100,13 @@ export class NatureWorldRenderer {
   setParams(values: ParamValues) {
     const cfg = withOverrides(NatureWorldConfig, values);
     this.cfg = cfg;
-    const { colour, hands, sound, world } = cfg;
+    const { colour, hands, sound, world, sizes } = cfg;
+    // Sizes: each kind scaled about where it stands — the flowers from their
+    // bed, so bigger ones reach higher; the dandelions with their stems
+    // still running below the frame.
+    if (this.flowers) this.flowers.group.scale.setScalar(0.68 * sizes.flowers);
+    if (this.jellyfish) this.jellyfish.group.scale.setScalar(0.95 * sizes.jellyfish);
+    if (this.dandelions) this.dandelions.scale = sizes.dandelions;
     const palette = {
       'colour.speed': colour.speed, 'colour.offset': colour.offset,
       'colour.palette': colour.palette, 'colour.depth': colour.depth,
@@ -116,7 +120,7 @@ export class NatureWorldRenderer {
     });
     this.butterflies?.setParams({
       ...palette, ...music,
-      'flight.count': world.butterflies, 'flight.size': 0.45, 'flight.backdrop': 0,
+      'flight.count': world.butterflies, 'flight.size': 0.45 * sizes.butterflies, 'flight.backdrop': 0,
       'hands.follow': hands.follow, 'hands.clap': hands.clap,
     });
     this.dandelions?.setParams({

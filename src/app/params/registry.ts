@@ -452,6 +452,15 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
+        name: 'Sizes',
+        params: [
+          { path: 'sizes.flowers', label: 'Flowers', min: 0.3, max: 2, step: 0.05 },
+          { path: 'sizes.butterflies', label: 'Butterflies', min: 0.3, max: 2.5, step: 0.05 },
+          { path: 'sizes.dandelions', label: 'Dandelions', min: 0.3, max: 2, step: 0.05 },
+          { path: 'sizes.jellyfish', label: 'Jellyfish', min: 0.3, max: 2.5, step: 0.05 },
+        ],
+      },
+      {
         name: 'Hands',
         params: [
           { path: 'hands.camera', label: 'Hand moves world', min: 0, max: 2, step: 0.05 },

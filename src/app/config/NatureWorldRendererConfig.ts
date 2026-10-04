@@ -33,6 +33,14 @@ export const NatureWorldConfig = {
     visits: 0.6,
   },
 
+  sizes: {
+    /** How big each kind is, 1 as placed. */
+    flowers: 1,
+    butterflies: 1,
+    dandelions: 1,
+    jellyfish: 1,
+  },
+
   hands: {
     /** How far moving a hand carries the whole world with it. */
     camera: 0.6,

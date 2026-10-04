@@ -351,6 +351,8 @@ export class DandelionRenderer {
    * behind whatever is in front; the stems still reach below the frame.
    */
   depth = 0;
+  /** How big the dandelions are, on top of their own sizing for the count. Set by a host. */
+  scale = 1;
   private look: InflatedLook | null = null;
   private playing = new Playing(0.5);
   private failed = false;
@@ -629,7 +631,7 @@ export class DandelionRenderer {
     // ── the field ───────────────────────────────────────────────────────────
     const count = Math.max(1, Math.min(MAX, Math.round(cfg.field.count)));
     // Sizes fall as the field fills, so twenty still fit.
-    const size = 2.2 * Math.pow(count, -0.42);
+    const size = 2.2 * Math.pow(count, -0.42) * this.scale;
     let meanX = 0;
     for (let i = 0; i < count; i++) meanX += SLOTS[i].x;
     meanX /= count;
