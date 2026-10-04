@@ -37,6 +37,7 @@ import { JellyfishConfig } from '../config/JellyfishRendererConfig';
 import { AuroraConfig } from '../config/AuroraRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
+import { BigTypeConfig } from '../config/BigTypeRendererConfig';
 import { AtlasConfig } from '../config/AtlasRendererConfig';
 import { CrowdConfig } from '../config/CrowdRendererConfig';
 import { ParamGroup } from './types';
@@ -416,6 +417,57 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.bass', label: 'Bass loops', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hat flutter', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  bigtype: {
+    config: BigTypeConfig,
+    groups: [
+      {
+        name: 'Type',
+        params: [
+          {
+            path: 'type.style', label: 'Style', min: 0, max: 3, step: 1,
+            labels: ['Lines', 'Stretch', 'Blocks', 'Shear'],
+          },
+          { path: 'type.size', label: 'Size', min: 0.3, max: 1.6, step: 0.01 },
+          { path: 'type.repeat', label: 'Repeat', min: 1, max: 6, step: 1, hint: 'stack the words down the frame' },
+          { path: 'type.justify', label: 'Fit', min: 0, max: 1, step: 1, labels: ['Even', 'Justified'] },
+          { path: 'type.weight', label: 'Weight', min: 0, max: 1, step: 1, labels: ['Bold', 'Black'] },
+          {
+            path: 'type.colourway', label: 'Colours', min: 0, max: 2, step: 1,
+            labels: ['Ink on black', 'Black on paper', 'Black on colour'],
+          },
+        ],
+      },
+      {
+        name: 'Dance',
+        params: [
+          { path: 'dance.amount', label: 'Dance', min: 0, max: 2, step: 0.05, hint: '0 holds the words still' },
+          { path: 'dance.words', label: 'Shear by', min: 0, max: 1, step: 1, labels: ['Letter', 'Word'] },
+          { path: 'lines.density', label: 'Lines', min: 0, max: 1, step: 0.01, hint: 'Lines: how many' },
+          { path: 'lines.thickness', label: 'Line weight', min: 0.2, max: 1.4, step: 0.01, hint: 'Lines: inside the letters' },
+          { path: 'stretch.smear', label: 'Smear', min: 0, max: 1.5, step: 0.01, hint: 'Stretch: how far' },
+          { path: 'stretch.bands', label: 'Bands', min: 0, max: 1, step: 0.01, hint: 'Stretch: how many at once' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.open', label: 'Open = dance', min: 0, max: 1.5, step: 0.05, hint: 'a fist holds the words still' },
+          { path: 'hands.focus', label: 'Hand focus', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap burst', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.mid', label: 'Melody speed', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hat shiver', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],

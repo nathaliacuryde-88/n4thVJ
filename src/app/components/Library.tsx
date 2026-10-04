@@ -366,7 +366,7 @@ export function Library({
             // control. That is why a card is a div with a button inside rather
             // than one big button — an input cannot live inside a button.
             const supply =
-              info.pattern === 'text'
+              info.pattern === 'text' || info.pattern === 'bigtype'
                 ? 'text'
                 : info.pattern === 'video' || info.pattern === 'mosaic'
                   ? 'file'
@@ -440,7 +440,7 @@ export function Library({
                       onKeyDown={(e) => e.stopPropagation()}
                       placeholder={DEFAULT_TEXT}
                       maxLength={48}
-                      aria-label="Words for Kinetic Type"
+                      aria-label="Your words"
                       className="w-full rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-[12px] tracking-wide text-white placeholder:text-white/25 focus:border-white/45 focus:outline-none"
                     />
                   </div>

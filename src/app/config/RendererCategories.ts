@@ -305,6 +305,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '7',
     description: 'An inflated flock in the Bloom Field style, following your hand'
   },
+  bigtype: {
+    pattern: 'bigtype',
+    name: 'Big Type',
+    short: 'Big Type',
+    category: 'TD',
+    key: 'B',
+    description: 'Your words huge and dancing: through lines, stretched, boxed or sheared'
+  },
   world: {
     pattern: 'world',
     name: 'Nature World',

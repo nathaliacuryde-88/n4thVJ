@@ -41,6 +41,7 @@ import { JellyfishRenderer } from './JellyfishRenderer';
 import { AuroraRenderer } from './AuroraRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
 import { NatureWorldRenderer } from './NatureWorldRenderer';
+import { BigTypeRenderer } from './BigTypeRenderer';
 import { DiceRenderer } from './DiceRenderer';
 import { AtlasRenderer } from './AtlasRenderer';
 import { CrowdRenderer } from './CrowdRenderer';
@@ -183,6 +184,9 @@ export function createRenderer(
       break;
     case 'butterflies':
       renderer = new ButterfliesRenderer(canvas, ctx);
+      break;
+    case 'bigtype':
+      renderer = new BigTypeRenderer(canvas, ctx);
       break;
     case 'world':
       renderer = new NatureWorldRenderer(canvas, ctx);

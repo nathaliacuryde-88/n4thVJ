@@ -31,7 +31,7 @@ import {
   saveText,
 } from './config/content';
 
-export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple' | 'text' | 'video' | 'mosaic' | 'chrome' | 'bloom' | 'butterflies' | 'dice' | 'atlas' | 'crowd' | 'dandelion' | 'jellyfish' | 'aurora' | 'watercolour' | 'world';
+export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple' | 'text' | 'video' | 'mosaic' | 'chrome' | 'bloom' | 'butterflies' | 'dice' | 'atlas' | 'crowd' | 'dandelion' | 'jellyfish' | 'aurora' | 'watercolour' | 'world' | 'bigtype';
 
 export interface AudioData {
   /** Kick and sub, 20–160Hz. Scale, weight, push. */
