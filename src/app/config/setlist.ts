@@ -2,20 +2,24 @@
  * The set: which visuals are on the keyboard tonight, and in what order.
  *
  * The library picks them; the VJ page plays them. Slot order *is* the key
- * order, so slot 0 answers to 1 and the tenth answers to 0 — one keyboard row,
- * nothing to memorise beyond what you chose.
+ * order: the number row first (1 to 9, then 0), and past ten the letters just
+ * under it — Q W E T Y. R is skipped because R records.
  */
 
 import { VisualPattern } from '../App';
 import { RENDERER_CATEGORIES } from './RendererCategories';
 
-/** 1-9 then 0. Ten is the row, and the row is the limit. */
-export const MAX_SET = 10;
+/** Fifteen: enough for an hour, a visual every four minutes or so. */
+export const MAX_SET = 15;
+
+/** The keys past the number row, in order. */
+const LETTERS = ['Q', 'W', 'E', 'T', 'Y'];
 
 const STORAGE_KEY = 'vj-setlist';
 
 /** The key a slot answers to. */
 export function slotKey(index: number): string {
+  if (index >= 10) return LETTERS[index - 10] ?? '';
   return index === 9 ? '0' : String(index + 1);
 }
 
@@ -23,7 +27,8 @@ export function slotKey(index: number): string {
 export function keySlot(key: string): number {
   if (key === '0') return 9;
   if (key >= '1' && key <= '9') return Number(key) - 1;
-  return -1;
+  const letter = LETTERS.indexOf(key.toUpperCase());
+  return letter === -1 ? -1 : 10 + letter;
 }
 
 /** Enough to play with on a first visit, spread across the three families. */

@@ -218,17 +218,28 @@ export function ParamPanel({
   const [activeKey, setActiveKey] = useState(sections[0]?.key);
 
   const available = sections.filter((s) => s.entry.groups.length > 0);
-  if (available.length === 0) return null;
-
-  const active = available.find((s) => s.key === activeKey) ?? available[0];
-  const touched = active.entry.groups.some((g) =>
+  /*
+   * The layers stay up whatever the visual has, in the same place in the
+   * tree.
+   *
+   * With no sliders the whole panel used to vanish — layer strip and all — so
+   * pressing on another layer's fader, which selects that layer first, pulled
+   * the fader out from under the pointer whenever that layer was one of the
+   * visuals without sliders. And the strip has to stay the very same element
+   * either way: rebuilt between the two layouts, the fader being dragged is
+   * replaced mid-drag and the drag goes nowhere.
+   */
+  if (available.length === 0 && !header) return null;
+  const active = available.find((s) => s.key === activeKey) ?? available[0] ?? null;
+  const touched = !!active && active.entry.groups.some((g) =>
     g.params.some((p) => active.values[p.path] !== undefined),
   );
 
   return (
-    <div className="absolute left-6 top-24 bottom-32 z-50 w-[168px] flex flex-col font-mono pointer-events-auto">
+    <div className={`absolute left-6 top-24 z-50 w-[168px] flex flex-col font-mono pointer-events-auto ${active ? 'bottom-32' : ''}`}>
       <div className="bg-black/70 backdrop-blur-sm rounded-xl border border-white/20 flex flex-col min-h-0">
         {header && <div className="border-b border-white/10">{header}</div>}
+        {active && (<>
         <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/10">
           <button
             onClick={() => setCollapsed((c) => !c)}
@@ -250,7 +261,7 @@ export function ParamPanel({
                     setActiveKey(section.key);
                     setCollapsed(false);
                   }}
-                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider transition-all ${
+                  className={`whitespace-nowrap px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider transition-all ${
                     section.key === active.key
                       ? 'bg-white/20 text-white'
                       : 'text-white/40 hover:text-white/70'
@@ -265,7 +276,7 @@ export function ParamPanel({
 
           {touched && (
             <button
-              onClick={() => active.onReset()}
+              onClick={() => active!.onReset()}
               title={`Reset every ${active.label} parameter`}
               className="text-white/40 hover:text-white transition-colors shrink-0"
             >
@@ -345,6 +356,7 @@ export function ParamPanel({
             })}
           </div>
         )}
+        </>)}
       </div>
     </div>
   );

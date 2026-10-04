@@ -195,14 +195,14 @@ export function analyse(
   let variance = 0;
   for (const f of state.flux) variance += (f - average) ** 2;
   const spread = Math.sqrt(variance / Math.max(1, state.flux.length));
-  const margin = FLUX_K * (1.4 - sensitivity * 0.8);
+  const margin = FLUX_K * (1.5 - sensitivity * 1.0);
   const threshold = average + spread * margin;
 
   const enoughHistory = state.flux.length >= 20;
   const beat =
     enoughHistory &&
     flux > threshold &&
-    flux > 0.35 &&
+    flux > 0.35 * (1.3 - sensitivity * 0.8) &&
     now - state.lastBeat > REFRACTORY_MS;
   if (beat) state.lastBeat = now;
 
@@ -211,8 +211,16 @@ export function analyse(
   const strength = threshold > 0 ? Math.min(1, (flux - threshold) / (threshold + 0.6)) : 0;
   state.onset = Math.max(state.onset * 0.9, beat ? Math.max(0.35, strength) : 0);
 
-  const gain = 0.55 + sensitivity * 0.9;
-  const lift = (v: number) => Math.min(1, v * gain);
+  /*
+   * Gain is a curve, not just a multiplier. Turned up, it lifts the quiet
+   * end far more than the loud — a soft passage, a sparse groove, a room
+   * with the music low still moves things — while the loud end only reaches
+   * the top sooner. Half way it is close to straight; at zero it calms
+   * everything but the biggest moments.
+   */
+  const gain = 0.6 + sensitivity * 1.2;
+  const curve = 1.5 - sensitivity;
+  const lift = (v: number) => Math.min(1, gain * Math.pow(Math.max(0, v), curve));
 
   return {
     bass: lift(levels.bass),

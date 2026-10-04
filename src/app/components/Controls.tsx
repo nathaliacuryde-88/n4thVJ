@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useThumbs } from '../config/thumbs';
 import { AudioData, Hand, HandData, VisualPattern } from '../App';
 import { HOLD_MS, Layer } from '../config/LayerConfig';
 import {
@@ -59,6 +60,9 @@ interface ControlsProps {
   /** Tonight's visuals in key order, as chosen in the library. */
   set: VisualPattern[];
   onOpenLibrary: () => void;
+  /** The saved set she is in, and saving to it — or naming a new one. */
+  setName: string | null;
+  onSaveSet: (name: string) => void;
   audioEnabled: boolean;
   onAudioToggle: () => void;
   audioSensitivity: number;
@@ -161,6 +165,8 @@ export function Controls({
   onAutoHueToggle,
   set,
   onOpenLibrary,
+  setName,
+  onSaveSet,
   audioEnabled,
   onAudioToggle,
   audioSensitivity,
@@ -213,6 +219,22 @@ export function Controls({
     if (!hold.fired) onPatternChange(pattern);
   };
 
+  const thumbs = useThumbs();
+  // Quick save: straight to the set she is in, or ask for a name the first time.
+  const [naming, setNaming] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    if (!saved) return;
+    const id = setTimeout(() => setSaved(false), 1400);
+    return () => clearTimeout(id);
+  }, [saved]);
+  const quickSave = () => {
+    if (setName) { onSaveSet(setName); setSaved(true); return; }
+    setDraft('');
+    setNaming(true);
+  };
+
   return (
     <>
       {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -229,6 +251,45 @@ export function Controls({
             >
               SET
             </button>
+            <div className="relative">
+              <button
+                onClick={quickSave}
+                title={setName
+                  ? `Save everything as it is now to "${setName}"`
+                  : 'Save this set — its visuals and all their settings — under a name'}
+                className={`px-2 py-1 rounded text-[10px] tracking-wider transition-all ${
+                  saved ? 'bg-emerald-400 text-black' : 'text-white/40 hover:bg-white/10 hover:text-white/80'
+                }`}
+              >
+                {saved ? 'SAVED' : 'SAVE'}
+              </button>
+              {naming && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (draft.trim()) { onSaveSet(draft); setSaved(true); }
+                    setNaming(false);
+                  }}
+                  className="absolute left-0 top-9 z-50 flex items-center gap-1 rounded-lg border border-white/20 bg-black/90 p-1.5"
+                >
+                  <input
+                    autoFocus
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setNaming(false); }}
+                    onKeyUp={(e) => e.stopPropagation()}
+                    onBlur={() => setNaming(false)}
+                    placeholder="Name this set"
+                    maxLength={40}
+                    className="w-36 bg-transparent px-1 text-[11px] text-white placeholder:text-white/30 outline-none"
+                  />
+                  <button type="submit" onMouseDown={(e) => e.preventDefault()} className="rounded bg-white px-2 py-0.5 text-[10px] font-semibold text-black">SAVE</button>
+                </form>
+              )}
+            </div>
+            {setName && (
+              <span className="max-w-[90px] truncate text-[9px] text-white/35" title="The saved set you are in">{setName}</span>
+            )}
 
             <div className="w-px h-6 bg-white/20" />
 
@@ -244,23 +305,30 @@ export function Controls({
                     onPointerDown={() => startHold(pattern)}
                     onPointerUp={() => endHold(pattern)}
                     onPointerLeave={cancelHold}
-                    className="relative flex w-[46px] shrink-0 flex-col items-center gap-0.5 group/set"
+                    className="relative flex w-[44px] shrink-0 flex-col items-center gap-0.5 group/set"
                     title={`${RENDERER_CATEGORIES[pattern].name} (${slotKey(index)})${
                       layerIndex !== -1 ? ` — layer ${layerIndex + 1}` : ''
                     } · hold to stack`}
                   >
+                    {/* A still of the visual, so the key is recognised by what it
+                        plays, its key in the corner. */}
                     <span
-                      className={`relative flex h-7 w-7 items-center justify-center rounded-full text-xs transition-all ${
+                      className={`relative flex h-[26px] w-[40px] items-center justify-center overflow-hidden rounded-md text-xs transition-all ${
                         isSelected
-                          ? 'bg-white text-black shadow-lg shadow-white/50'
+                          ? 'ring-2 ring-white shadow-lg shadow-white/40'
                           : isStacked
-                            ? 'bg-white/25 text-white ring-1 ring-emerald-400/70'
-                            : 'bg-white/10 text-white/60 group-hover/set:bg-white/20 group-hover/set:text-white/90'
-                      }`}
+                            ? 'ring-2 ring-emerald-400/80'
+                            : 'opacity-70 ring-1 ring-white/15 group-hover/set:opacity-100'
+                      } ${thumbs[pattern] ? 'bg-black' : isSelected ? 'bg-white text-black' : 'bg-white/10 text-white/60'}`}
                     >
-                      {slotKey(index)}
+                      {thumbs[pattern] && (
+                        <img src={thumbs[pattern]} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
+                      )}
+                      <span className={thumbs[pattern] ? 'absolute bottom-0 left-0 rounded-tr bg-black/75 px-1 text-[8px] leading-[11px] text-white' : 'relative'}>
+                        {slotKey(index)}
+                      </span>
                       {layerIndex !== -1 && layers.length > 1 && (
-                        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-emerald-400 text-center text-[7px] leading-3 text-black">
+                        <span className="absolute right-0 top-0 h-3 w-3 rounded-bl bg-emerald-400 text-center text-[7px] leading-3 text-black">
                           {layerIndex + 1}
                         </span>
                       )}
@@ -495,7 +563,7 @@ export function Controls({
                   <div className="space-y-1 group">
                       <div className="flex justify-between text-[9px] text-white/50 font-medium">
                           <span className="group-hover:text-white/80 transition-colors">GAIN</span>
-                          <span className="text-white">{Math.round(audioSensitivity * 100)}%</span>
+                          <span className="text-white">{Math.round(audioSensitivity * 200)}%</span>
                       </div>
                       <div className="relative h-4 flex items-center">
                           <input

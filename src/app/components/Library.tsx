@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { VisualPattern } from '../App';
+import type { Look, VisualPattern } from '../App';
+import { generateColors } from '../config/palette';
+import type { AllParamValues, ParamValues } from '../params/types';
+import type { SavedSet } from '../config/savedSets';
+import { captureThumb, useThumbs } from '../config/thumbs';
 import {
   RENDERER_CATEGORIES,
   RendererCategory,
@@ -48,11 +52,11 @@ const PREVIEW_W = 480;
 const PREVIEW_H = 300;
 
 /**
- * Previews run in black and white, whatever the VJ page is set to. Colour is
- * something you choose per layer during a set; here it would only get in the
- * way of comparing one visual's shape and motion against another's.
+ * Previews run in each visual's own colours and with its own sliders — as she
+ * last left them — so the library shows what she will actually get, and the
+ * stills it takes for the set bar look like the visual she knows.
  */
-const PREVIEW_COLORS = ['#ffffff', '#d4d4d4', '#ffffff', '#a3a3a3'];
+const DEFAULT_LOOK: Look = { hue: 245, saturation: 100, colorMode: 'contrast' };
 
 const CATEGORY_STYLE: Record<RendererCategory, string> = {
   '2D': 'text-cyan-300 border-cyan-400/30 bg-cyan-400/10',
@@ -70,6 +74,10 @@ interface Tile {
   /** Frames drawn so far, which decides who gets a slot next. */
   frames: number;
   failed?: boolean;
+  /** The slider values last handed to the renderer, so they are only applied when they change. */
+  applied?: ParamValues | undefined;
+  /** Whether a still has been taken for the set bar this visit. */
+  captured?: boolean;
 }
 
 interface LibraryProps {
@@ -83,6 +91,15 @@ interface LibraryProps {
   /** Each file-driven visual's own file, keyed by pattern. */
   clips: Clips;
   onClipChange: (pattern: VisualPattern, file: File | null) => void;
+  /** Sets saved by name, and the one she is in. */
+  savedSets: SavedSet[];
+  setName: string | null;
+  onSaveSet: (name: string) => void;
+  onLoadSet: (name: string) => void;
+  onDeleteSet: (name: string) => void;
+  /** Each visual's colours and sliders, for the previews. */
+  looks: Record<string, Look>;
+  params: AllParamValues;
 }
 
 export function Library({
@@ -93,7 +110,19 @@ export function Library({
   onTextChange,
   clips,
   onClipChange,
+  savedSets,
+  setName,
+  onSaveSet,
+  onLoadSet,
+  onDeleteSet,
+  looks,
+  params,
 }: LibraryProps) {
+  const thumbs = useThumbs();
+  const [saveName, setSaveName] = useState(setName ?? '');
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const lookRef = useRef({ looks, params });
+  lookRef.current = { looks, params };
   const [filter, setFilter] = useState<RendererCategory | 'ALL'>('ALL');
   const [hovered, setHovered] = useState<VisualPattern | null>(null);
   /** The pill being dragged, while the row is being reordered. */
@@ -244,7 +273,15 @@ export function Library({
             tile.renderer.setText?.(contentRef.current.text);
             const clip = contentRef.current.clips[pattern];
             tile.renderer.setClipUrl?.(clip?.url ?? null, clip?.kind);
-            tile.renderer.render(hands, PREVIEW_COLORS, undefined, 'contrast');
+            const own = lookRef.current.params[pattern];
+            if (tile.applied !== own) {
+              tile.renderer.setParams?.(own ?? {});
+              tile.applied = own;
+            }
+            const look = lookRef.current.looks[pattern] ?? DEFAULT_LOOK;
+            tile.renderer.render(
+              hands, generateColors(look.hue, look.saturation, look.colorMode), undefined, look.colorMode,
+            );
           } catch {
             tile.failed = true;
             tile.renderer.destroy?.();
@@ -255,11 +292,17 @@ export function Library({
           // not count towards the warm-up, or the card would hand its slot on
           // and keep a black still.
           if (tile.renderer.isReady?.() !== false) tile.frames++;
+          // Once warmed up, a still for the set bar.
+          if (!tile.captured && tile.frames >= WARMUP_FRAMES) {
+            tile.captured = true;
+            captureThumb(pattern, tile.canvas);
+          }
           if (holdsContext) gl++;
           else canvas2d++;
         } else if (tile.renderer) {
           tile.renderer.destroy?.();
           tile.renderer = null; // the canvas keeps its last frame
+          tile.applied = undefined;
         }
       }
     };
@@ -353,6 +396,84 @@ export function Library({
                 </button>
               ))}
             </nav>
+          </div>
+
+          {/* ── saved sets ─────────────────────────────────────────────── */}
+          {/* Sets saved by name: the row, and everything dialled into each of
+              its visuals. One click puts a whole set back. */}
+          <div className="mt-8 flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-[10px] tracking-widest text-white/35">SAVED SETS</span>
+            {savedSets.length === 0 && (
+              <span className="text-[11px] text-white/30">
+                None yet — build a set, tune its visuals, then save it here with a name.
+              </span>
+            )}
+            {savedSets.map((saved) => {
+              const current = saved.name === setName;
+              return (
+                <div
+                  key={saved.name}
+                  className={`group flex items-center gap-2 rounded-full border py-1 pl-1 pr-2.5 transition-all ${
+                    current ? 'border-white/70 bg-white/15' : 'border-white/15 bg-white/[0.04] hover:border-white/40'
+                  }`}
+                >
+                  <button
+                    onClick={() => { onLoadSet(saved.name); setSaveName(saved.name); }}
+                    title={`Load "${saved.name}" — ${saved.set.length} visuals, with their settings`}
+                    className="flex items-center gap-2"
+                  >
+                    <span className="flex -space-x-2">
+                      {saved.set.slice(0, 4).map((p) => (
+                        thumbs[p]
+                          ? <img key={p} src={thumbs[p]} alt="" className="h-6 w-6 rounded-full border border-black object-cover" />
+                          : <span key={p} className="h-6 w-6 rounded-full border border-black bg-white/20" />
+                      ))}
+                    </span>
+                    <span className={`text-[11px] ${current ? 'text-white' : 'text-white/75'}`}>{saved.name}</span>
+                    <span className="text-[9px] text-white/35">{saved.set.length}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirmDelete === saved.name) { onDeleteSet(saved.name); setConfirmDelete(null); }
+                      else setConfirmDelete(saved.name);
+                    }}
+                    onMouseLeave={() => setConfirmDelete((c) => (c === saved.name ? null : c))}
+                    title={confirmDelete === saved.name ? 'Click again to delete' : 'Delete this saved set'}
+                    className={`text-[11px] transition-colors ${
+                      confirmDelete === saved.name ? 'text-red-400' : 'text-white/25 group-hover:text-white/60 hover:!text-white'
+                    }`}
+                  >
+                    {confirmDelete === saved.name ? 'delete?' : '×'}
+                  </button>
+                </div>
+              );
+            })}
+            <form
+              onSubmit={(e) => { e.preventDefault(); onSaveSet(saveName); }}
+              className="ml-auto flex items-center gap-2"
+            >
+              <input
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                // Typing a name must not assign slots or start the set.
+                onKeyDown={(e) => e.stopPropagation()}
+                placeholder="Name this set"
+                maxLength={40}
+                className="w-44 rounded-full border border-white/15 bg-black/60 px-3 py-1.5 text-[11px] text-white placeholder:text-white/25 focus:border-white/45 focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={!saveName.trim() || set.length === 0}
+                title={savedSets.some((x) => x.name === saveName.trim()) ? 'Save over the set with this name' : 'Save this set and every visual\'s settings under this name'}
+                className={`rounded-full px-4 py-1.5 text-[11px] font-semibold tracking-wider transition-all ${
+                  !saveName.trim() || set.length === 0
+                    ? 'cursor-not-allowed bg-white/10 text-white/25'
+                    : 'bg-white text-black hover:scale-[1.03]'
+                }`}
+              >
+                {savedSets.some((x) => x.name === saveName.trim()) ? 'UPDATE' : 'SAVE'}
+              </button>
+            </form>
           </div>
         </header>
 
@@ -536,8 +657,9 @@ export function Library({
                     : 'border-white/15 bg-white/[0.06] hover:border-white/40 hover:bg-white/10'
                 }`}
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[11px] font-semibold text-black">
-                  {slotKey(i)}
+                <span className="relative flex h-6 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-[11px] font-semibold text-black">
+                  {thumbs[pattern] && <img src={thumbs[pattern]} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+                  <span className={`relative ${thumbs[pattern] ? 'rounded bg-black/70 px-1 text-[10px] text-white' : ''}`}>{slotKey(i)}</span>
                 </span>
                 <span className="select-none text-[11px] text-white/80">
                   {RENDERER_CATEGORIES[pattern].name}

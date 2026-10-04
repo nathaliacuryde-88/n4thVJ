@@ -26,17 +26,12 @@ import { stageDoing } from '../pipeline/PostPipeline';
  * the two answer different questions — what this visual is, and what is being
  * done to it — and during a set you want both at a glance.
  *
- * ONE CLICK, NOT THREE
- * Switching an effect on used to mean clicking its name, then finding the
- * slider, then dragging it off zero — three actions and a few seconds, in the
- * middle of a set. A chip is now a switch:
- *
- *   off            → click turns it on, at a setting you can see, and opens it
- *   on and open    → click turns it off
- *   on but closed  → click opens it, and leaves it on
- *
- * So the common thing is one click, and adjusting something already running
- * never risks switching it off.
+ * ONE CLICK, EITHER WAY
+ * A chip is a switch: one click turns an effect on — at her own setting, or
+ * a visible preset the first time — and opens its sliders; one click turns it
+ * off again, whatever is open. The little arrow at the chip's end shows or
+ * hides its sliders without switching anything, for adjusting something
+ * already running.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -124,52 +119,21 @@ export function FxPanel({
         {/* The map. */}
         <div className={`grid grid-cols-2 gap-1 p-2 ${masterOn ? '' : 'opacity-35'}`}>
           {groups.map((group) => {
-            const { on, live, touched } = stageState(group, entry, values);
+            const { live, touched } = stageState(group, entry, values);
             const isOpen = group.name === open?.name;
+            /** On: her setting if she has one, the preset only if she does not. */
+            const switchOn = () => {
+              if (group.togglePath) onChange(group.togglePath, 1);
+              for (const [path, v] of Object.entries(group.turnOn ?? {})) {
+                const stored = values[path];
+                const off = (getByPath(entry.config, path) ?? 0) as number;
+                onChange(path, stored !== undefined && stored !== off ? stored : v);
+              }
+            };
             return (
-              <button
+              <div
                 key={group.name}
-                onClick={() => {
-                  if (!live) {
-                    if (group.togglePath) onChange(group.togglePath, 1);
-                    /*
-                     * Her setting if she has one, the preset only if she does
-                     * not. A set begins with every effect bypassed but with
-                     * the amounts intact, so switching one on has to bring
-                     * back what she built rather than overwrite it.
-                     */
-                    for (const [path, v] of Object.entries(group.turnOn ?? {})) {
-                      const stored = values[path];
-                      const off = (getByPath(entry.config, path) ?? 0) as number;
-                      onChange(path, stored !== undefined && stored !== off ? stored : v);
-                    }
-                    onOpen(group.name);
-                    return;
-                  }
-                  if (!isOpen) {
-                    onOpen(group.name);
-                    return;
-                  }
-                  /*
-                   * Running and open: this click puts it away — by bypassing
-                   * it, not by zeroing it.
-                   *
-                   * Turning the amount back to its off value threw the setting
-                   * away, so an effect she had dialled in came back at a
-                   * default the next time she reached for it. The bypass flag
-                   * is the off switch; what she built stays underneath.
-                   */
-                  if (group.togglePath) onChange(group.togglePath, 0);
-                  onOpen(null);
-                }}
-                title={
-                  live
-                    ? isOpen
-                      ? `${group.name} — running. Click to switch it off`
-                      : `${group.name} — running. Click to show its controls`
-                    : `${group.name} — click to switch it on`
-                }
-                className={`flex items-center gap-1 rounded px-1.5 py-1 text-left text-[8.5px] leading-tight tracking-wide transition-all ${
+                className={`flex items-stretch rounded text-[8.5px] leading-tight tracking-wide transition-all ${
                   isOpen
                     ? 'bg-white text-black'
                     : live
@@ -177,14 +141,38 @@ export function FxPanel({
                       : 'text-white/40 hover:bg-white/10 hover:text-white/70'
                 }`}
               >
-                <span
-                  className={`w-1 h-1 shrink-0 rounded-full ${
-                    live ? (isOpen ? 'bg-black' : 'bg-cyan-300') : isOpen ? 'bg-black/30' : 'bg-white/20'
-                  }`}
-                />
-                <span className="min-w-0 truncate">{group.name}</span>
-                {touched && !isOpen && <span className="text-cyan-300">·</span>}
-              </button>
+                {/* The chip is a switch: one click on, one click off. Off is a
+                    bypass, so what she dialled in is still there next time. */}
+                <button
+                  onClick={() => {
+                    if (live) {
+                      if (group.togglePath) onChange(group.togglePath, 0);
+                      if (isOpen) onOpen(null);
+                    } else {
+                      switchOn();
+                      onOpen(group.name);
+                    }
+                  }}
+                  title={live ? `${group.name} — on. Click to switch it off` : `${group.name} — click to switch it on`}
+                  className="flex min-w-0 flex-1 items-center gap-1 px-1.5 py-1 text-left"
+                >
+                  <span
+                    className={`w-1.5 h-1.5 shrink-0 rounded-full ${
+                      live ? (isOpen ? 'bg-black' : 'bg-cyan-300') : isOpen ? 'bg-black/30' : 'bg-white/20'
+                    }`}
+                  />
+                  <span className="min-w-0 truncate">{group.name}</span>
+                  {touched && !isOpen && <span className="text-cyan-300">·</span>}
+                </button>
+                {/* Its sliders, without touching whether it is on. */}
+                <button
+                  onClick={() => onOpen(isOpen ? null : group.name)}
+                  title={isOpen ? `Hide ${group.name}'s sliders` : `Show ${group.name}'s sliders`}
+                  className={`shrink-0 px-1 transition-opacity ${isOpen ? 'opacity-70' : 'opacity-35 hover:opacity-90'}`}
+                >
+                  {isOpen ? '‹' : '›'}
+                </button>
+              </div>
             );
           })}
         </div>

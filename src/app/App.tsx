@@ -11,7 +11,7 @@ import { ParamPanel, ParamSection } from './components/ParamPanel';
 import { FxPanel } from './components/FxPanel';
 import { RENDERER_CATEGORIES } from './config/RendererCategories';
 import { LayerStrip } from './components/LayerStrip';
-import { PIPELINE_PARAMS, RENDERER_PARAMS } from './params/registry';
+import { PIPELINE_PARAMS, RENDERER_PARAMS, splitPlay } from './params/registry';
 import { AllParamValues, ParamValues, sanitizeAllParams } from './params/types';
 import { HOLD_MS, Layer, MAX_LAYERS, STACKED_OPACITY } from './config/LayerConfig';
 import { fxActive } from './pipeline/PostPipeline';
@@ -21,6 +21,7 @@ import { ColorMode, generateColors } from './config/palette';
 import { Recorder, canRecord, save } from './record/Recorder';
 import { SoundSource, nextSound, openTakeAudio } from './record/audio';
 import { OutputWindow } from './output/OutputWindow';
+import { SavedSet, loadSavedSets, pick, storeSavedSets } from './config/savedSets';
 import {
   Clips,
   clearClip,
@@ -167,6 +168,15 @@ export default function App() {
      * The layer you just brought up is the one you are working on.
      */
     setSelectedLayer(layers.length);
+  }, [layers, selectedLayer]);
+
+  /*
+   * The stack is remembered — which visuals are up, their faders and which one
+   * the controls are on — so leaving for the library and coming back, or
+   * reloading the page mid-rehearsal, picks up exactly where she was.
+   */
+  useEffect(() => {
+    saveSetting('vj-stack', { layers, selected: selectedLayer });
   }, [layers, selectedLayer]);
 
   const cycleLayer = useCallback(() => {
@@ -467,7 +477,8 @@ export default function App() {
   // dark room where tracking drops — they show nothing at all and every slider
   // looks broken. When nothing is tracked, drive them from a slow figure
   // instead. Real hands always take over the moment they appear.
-  const [idleDrive, setIdleDrive] = useState(true);
+  const [idleDrive, setIdleDrive] = useState(() => loadSetting('vj-auto', true, (v) => typeof v === 'boolean'));
+  useEffect(() => { saveSetting('vj-auto', idleDrive); }, [idleDrive]);
 
   // Slider overrides, per renderer, so switching away and back keeps your tweaks.
   const [paramValues, setParamValues] = useState<AllParamValues>(() =>
@@ -577,7 +588,8 @@ export default function App() {
   // Audio reactive state
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [audioData, setAudioData] = useState<AudioData>({ bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 });
-  const [audioSensitivity, setAudioSensitivity] = useState(0.5); // 0-1
+  const [audioSensitivity, setAudioSensitivity] = useState(() => loadSetting('vj-gain', 0.5, isNumberIn(0, 1)));
+  useEffect(() => { saveSetting('vj-gain', audioSensitivity); }, [audioSensitivity]);
   const [audioTime, setAudioTime] = useState(0); // For smooth audio-driven animation
 
   const handsPresent = handData.left !== null || handData.right !== null;
@@ -705,31 +717,95 @@ export default function App() {
    */
   const startSet = useCallback(() => {
     if (set.length === 0) return;
-    setLayers([{ pattern: set[0], opacity: 1, motion: MOTION_DEFAULT }]);
-    setSelectedLayer(0);
     /*
-     * Every effect starts bypassed, whatever was left on last time.
+     * Back in, exactly as she left it.
      *
-     * Walking into a set already wearing last night's effects is not a start,
-     * it is the middle of something — and there is no way to bring a look up
-     * by hand if it is already there. Only the bypass flags are touched, so
-     * every setting underneath survives: switching an effect on brings it
-     * back exactly as she left it rather than at some default.
+     * The stack she had — layers, faders, which one the controls were on —
+     * comes back as long as its visuals are still in the set, and the effects
+     * stay as they were, on or off. Rehearsing means going to the library and
+     * back over and over; setting everything up again each time was the cost.
+     * A visual taken out of the set in the meantime simply drops out of the
+     * stack, and with nothing left it starts on key 1.
      */
-    setFxByPattern((prev) => {
-      const next: AllParamValues = {};
-      for (const [pattern, values] of Object.entries(prev)) {
-        next[pattern] = { ...values };
-        for (const group of PIPELINE_PARAMS.groups) {
-          if (group.togglePath) next[pattern][group.togglePath] = 0;
-        }
-        next[pattern]['master.enabled'] = 1;
-      }
-      return next;
-    });
-    setOpenFx(null);
+    const saved = loadSetting<{ layers: Layer[]; selected: number } | null>(
+      'vj-stack', null,
+      (v) => typeof v === 'object' && v !== null && Array.isArray((v as { layers?: unknown }).layers),
+    );
+    const kept = (saved?.layers ?? [])
+      .filter((l) => set.includes(l.pattern) && typeof l.opacity === 'number')
+      .slice(0, MAX_LAYERS)
+      .map((l) => ({ pattern: l.pattern, opacity: l.opacity, motion: typeof l.motion === 'number' ? l.motion : MOTION_DEFAULT }));
+    if (kept.length) {
+      setLayers(kept);
+      const sel = saved?.layers[saved.selected]?.pattern;
+      setSelectedLayer(Math.max(0, kept.findIndex((l) => l.pattern === sel)));
+    } else {
+      setLayers([{ pattern: set[0], opacity: 1, motion: MOTION_DEFAULT }]);
+      setSelectedLayer(0);
+    }
     setView('vj');
   }, [set]);
+
+  // ── saved sets ──────────────────────────────────────────────────────────
+  const [savedSets, setSavedSets] = useState<SavedSet[]>(loadSavedSets);
+  useEffect(() => { storeSavedSets(savedSets); }, [savedSets]);
+  /** The saved set she is working in, if any — what a quick save writes to. */
+  const [setName, setSetName] = useState<string | null>(() =>
+    loadSetting<string | null>('vj-set-name', null, (v) => typeof v === 'string' || v === null));
+  useEffect(() => { saveSetting('vj-set-name', setName); }, [setName]);
+
+  /** Saves the set as it stands — visuals, their sliders, effects, colours, stack — under a name. */
+  const saveNamedSet = useCallback((name: string) => {
+    const clean = name.trim();
+    if (!clean || set.length === 0) return;
+    const entry: SavedSet = {
+      name: clean,
+      savedAt: Date.now(),
+      set,
+      params: pick(paramValues, set),
+      fx: pick(fxByPattern, set),
+      looks: pick(looks, set),
+      stack: view === 'vj' ? { layers, selected: selectedLayer }
+        : loadSetting('vj-stack', null, (v) => typeof v === 'object'),
+    };
+    setSavedSets((prev) => [...prev.filter((s) => s.name !== clean), entry]
+      .sort((a, b) => a.name.localeCompare(b.name)));
+    setSetName(clean);
+  }, [set, paramValues, fxByPattern, looks, layers, selectedLayer, view]);
+
+  /** Puts a saved set back: the row, every visual's settings, and its stack. */
+  const loadNamedSet = useCallback((name: string) => {
+    const entry = savedSets.find((s) => s.name === name);
+    if (!entry || entry.set.length === 0) return;
+    const replace = <T,>(prev: Record<string, T>, saved: Record<string, T>) => {
+      const next = { ...prev };
+      for (const p of entry.set) {
+        if (saved[p] !== undefined) next[p] = saved[p];
+        else delete next[p];
+      }
+      return next;
+    };
+    setSet(entry.set);
+    setParamValues((prev) => replace(prev, entry.params));
+    setFxByPattern((prev) => replace(prev, entry.fx));
+    setLooks((prev) => replace(prev, entry.looks));
+    if (entry.stack) {
+      saveSetting('vj-stack', entry.stack);
+      if (view === 'vj') {
+        const kept = entry.stack.layers.filter((l) => entry.set.includes(l.pattern)).slice(0, MAX_LAYERS);
+        if (kept.length) {
+          setLayers(kept);
+          setSelectedLayer(Math.min(entry.stack.selected, kept.length - 1));
+        }
+      }
+    }
+    setSetName(entry.name);
+  }, [savedSets, view]);
+
+  const deleteNamedSet = useCallback((name: string) => {
+    setSavedSets((prev) => prev.filter((s) => s.name !== name));
+    setSetName((n) => (n === name ? null : n));
+  }, []);
 
   /** Arrow keys walk the set, in the order it was built. */
   const cyclePattern = useCallback((direction: 'next' | 'prev') => {
@@ -890,15 +966,9 @@ export default function App() {
     return () => window.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
-  // Auto-enable camera ONLY for Face Mesh pattern
-  useEffect(() => {
-    if (currentPattern === 'face' || currentPattern.startsWith('smokehand')) {
-      setShowCamera(true);
-    } else {
-      // Optionally, you can auto-disable camera when switching away
-      // setShowCamera(false);
-    }
-  }, [currentPattern]);
+  // The camera preview only ever comes up when she asks for it — the CAM
+  // button or C. It used to switch itself on for Face Mesh and Smoke Hand,
+  // which put her own face on the wall in the middle of a set.
 
   const handlePermissionsGranted = () => {
     setShowPermissionRequest(false);
@@ -923,11 +993,39 @@ export default function App() {
    */
   const rendererAudioData: AudioData = audioData;
 
+  /*
+   * The panel's two tabs: what the visual looks like, and how the hands and
+   * the music move it — split so the second is one click away mid-set rather
+   * than buried among the look's sliders.
+   */
+  const panelSections = useMemo<ParamSection[]>(() => {
+    const entry = RENDERER_PARAMS[currentPattern];
+    if (!entry) return [];
+    const { look, play } = splitPlay(entry);
+    const values = paramValues[currentPattern] ?? {};
+    const pathsOf = (e: typeof look) => new Set(e.groups.flatMap((g) => g.params.map((p) => p.path)));
+    const scoped = (paths: Set<string>) => (path?: string) => {
+      if (path !== undefined) { resetParam(path); return; }
+      for (const p of paths) resetParam(p);
+    };
+    return [
+      { key: 'shape', label: 'SHAPE', entry: look, values, onChange: setParam, onReset: scoped(pathsOf(look)) },
+      { key: 'play', label: 'HANDS·SOUND', entry: play, values, onChange: setParam, onReset: scoped(pathsOf(play)) },
+    ];
+  }, [currentPattern, paramValues, setParam, resetParam]);
+
   if (view === 'library') {
     return (
       <Library
         set={set}
         onSetChange={setSet}
+        savedSets={savedSets}
+        setName={setName}
+        onSaveSet={saveNamedSet}
+        onLoadSet={loadNamedSet}
+        onDeleteSet={deleteNamedSet}
+        looks={looks}
+        params={paramValues}
         onStart={startSet}
         text={text}
         onTextChange={setText}
@@ -1000,18 +1098,7 @@ export default function App() {
               onRemove={removeLayer}
             />
           }
-          sections={
-            RENDERER_PARAMS[currentPattern]
-              ? [{
-                  key: 'shape',
-                  label: 'SHAPE',
-                  entry: RENDERER_PARAMS[currentPattern]!,
-                  values: paramValues[currentPattern] ?? {},
-                  onChange: setParam,
-                  onReset: resetParam,
-                } satisfies ParamSection]
-              : []
-          }
+          sections={panelSections}
         />
       )}
 
@@ -1055,6 +1142,8 @@ export default function App() {
           onAutoHueToggle={() => setAutoHueEnabled(prev => !prev)}
           set={set}
           onOpenLibrary={() => setView('library')}
+          setName={setName}
+          onSaveSet={saveNamedSet}
           audioEnabled={audioEnabled}
           onAudioToggle={() => setAudioEnabled(!audioEnabled)}
           audioSensitivity={audioSensitivity}

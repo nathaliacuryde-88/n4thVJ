@@ -32,10 +32,10 @@ export interface Layer {
 }
 
 /**
- * Visuals that can be stacked at once. Three is enough to build a look and
- * still tell the parts apart; past that the blend just reads as white.
+ * Visuals that can be stacked at once. Four: a background, two motifs and a
+ * typographic layer over them, which is about as much as still reads as parts.
  */
-export const MAX_LAYERS = 3;
+export const MAX_LAYERS = 4;
 
 /** How long a number has to be held before it stacks rather than switches. */
 export const HOLD_MS = 400;

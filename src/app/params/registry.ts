@@ -1178,3 +1178,43 @@ export const PIPELINE_PARAMS: RendererParams = {
     },
   ],
 };
+
+// ── what the hands and the music do ─────────────────────────────────────────
+
+/** Groups that are wholly about the hands or the music, by name. */
+const PLAY_GROUP = /^(hands?|sound|audio|clap|beat|music|bridge & clap|hands & focus)\b/i;
+/** Single sliders about them, wherever they sit: by path, or by a sound word in the label. */
+const PLAY_PATH = /^(hands?|sound|audio|handInfluence|explosion|vibration|chaos|clap|beat)\./;
+const PLAY_LABEL = /^(bass|kick|hat|hats|melody|beat|loud)\b|audio|music/i;
+
+/**
+ * A visual's sliders split in two: what it looks like, and how the hands and
+ * the music move it.
+ *
+ * Mid-set those are different questions asked at different times — the look
+ * is set before, the response is played during — and having them in one
+ * column meant hunting for "Clap burst" between "Petals" and "Palette". The
+ * split is worked out here from the registry rather than written per visual,
+ * so every visual gets it, the older ones with their own group names
+ * included: a group named for the hands or the sound goes over whole, and a
+ * hand or sound slider sitting in some other group goes over on its own.
+ */
+export function splitPlay(entry: RendererParams): { look: RendererParams; play: RendererParams } {
+  const look: ParamGroup[] = [];
+  const play: ParamGroup[] = [];
+  for (const group of entry.groups) {
+    if (PLAY_GROUP.test(group.name)) {
+      play.push(group);
+      continue;
+    }
+    const moved = group.params.filter((p) => PLAY_PATH.test(p.path) || PLAY_LABEL.test(p.label));
+    if (moved.length === 0) {
+      look.push(group);
+      continue;
+    }
+    const kept = group.params.filter((p) => !moved.includes(p));
+    if (kept.length) look.push({ ...group, params: kept });
+    play.push({ ...group, params: moved });
+  }
+  return { look: { config: entry.config, groups: look }, play: { config: entry.config, groups: play } };
+}
