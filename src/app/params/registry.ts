@@ -38,6 +38,7 @@ import { AuroraConfig } from '../config/AuroraRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
 import { BigTypeConfig } from '../config/BigTypeRendererConfig';
+import { ParticleImageConfig } from '../config/ParticleImageRendererConfig';
 import { AtlasConfig } from '../config/AtlasRendererConfig';
 import { CrowdConfig } from '../config/CrowdRendererConfig';
 import { ParamGroup } from './types';
@@ -417,6 +418,51 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.bass', label: 'Bass loops', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hat flutter', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  particleimage: {
+    config: ParticleImageConfig,
+    groups: [
+      {
+        name: 'Points',
+        params: [
+          { path: 'points.count', label: 'Points', min: 0, max: 1, step: 0.01, hint: 'a few thousand to eighty thousand' },
+          { path: 'points.size', label: 'Size', min: 0.3, max: 3, step: 0.05 },
+          {
+            path: 'points.keep', label: 'Keep', min: 0, max: 3, step: 1,
+            labels: ['Subject', 'Dark parts', 'Light parts', 'All of it'],
+          },
+          { path: 'points.cutout', label: 'Cutout', min: 0, max: 0.95, step: 0.01, hint: 'higher keeps only what stands out' },
+          { path: 'points.colour', label: 'Colours', min: 0, max: 2, step: 1, labels: ['Picture', 'Colour panel', 'White'] },
+          { path: 'points.depth', label: 'Relief', min: 0, max: 2, step: 0.05, hint: 'the hand tilts it' },
+        ],
+      },
+      {
+        name: 'Motion',
+        params: [
+          { path: 'motion.hold', label: 'Hold', min: 0.1, max: 2, step: 0.05, hint: 'how tightly they keep the picture' },
+          { path: 'motion.drift', label: 'Drift', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.scatter', label: 'Open scatters', min: 0, max: 1, step: 0.05, hint: 'a fist pulls it back together' },
+          { path: 'hands.brush', label: 'Hand brushes', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap blows apart', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.zoom', label: 'Spread zooms', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick ripple', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass swell', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.mid', label: 'Melody drift', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hat twinkle', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],

@@ -368,7 +368,7 @@ export function Library({
             const supply =
               info.pattern === 'text' || info.pattern === 'bigtype'
                 ? 'text'
-                : info.pattern === 'video' || info.pattern === 'mosaic'
+                : info.pattern === 'video' || info.pattern === 'mosaic' || info.pattern === 'particleimage'
                   ? 'file'
                   : null;
 
@@ -377,6 +377,13 @@ export function Library({
                 key={info.pattern}
                 onMouseEnter={() => setHovered(info.pattern)}
                 onMouseLeave={() => setHovered((h) => (h === info.pattern ? null : h))}
+                // A visual that plays a file takes one dropped straight onto its card.
+                onDragOver={supply === 'file' ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } : undefined}
+                onDrop={supply === 'file' ? (e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file && /^(image|video)\//.test(file.type)) onClipChange(info.pattern, file);
+                } : undefined}
                 className={`group relative overflow-hidden rounded-2xl border text-left transition-all duration-200 ${
                   chosen
                     ? 'border-white/70 bg-white/[0.06] shadow-[0_0_0_1px_rgba(255,255,255,0.35),0_18px_50px_-20px_rgba(255,255,255,0.35)]'
@@ -462,7 +469,7 @@ export function Library({
                       />
                     </label>
                     <span className="min-w-0 flex-1 truncate text-[10px] text-white/35">
-                      {clips[info.pattern]?.name ?? 'no file yet'}
+                      {clips[info.pattern]?.name ?? 'no file yet — or drop one here'}
                     </span>
                     {clips[info.pattern] && (
                       <button

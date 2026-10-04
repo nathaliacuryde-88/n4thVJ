@@ -42,6 +42,7 @@ import { AuroraRenderer } from './AuroraRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
 import { NatureWorldRenderer } from './NatureWorldRenderer';
 import { BigTypeRenderer } from './BigTypeRenderer';
+import { ParticleImageRenderer } from './ParticleImageRenderer';
 import { DiceRenderer } from './DiceRenderer';
 import { AtlasRenderer } from './AtlasRenderer';
 import { CrowdRenderer } from './CrowdRenderer';
@@ -184,6 +185,9 @@ export function createRenderer(
       break;
     case 'butterflies':
       renderer = new ButterfliesRenderer(canvas, ctx);
+      break;
+    case 'particleimage':
+      renderer = new ParticleImageRenderer(canvas, ctx);
       break;
     case 'bigtype':
       renderer = new BigTypeRenderer(canvas, ctx);

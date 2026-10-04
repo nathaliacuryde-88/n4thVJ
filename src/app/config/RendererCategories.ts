@@ -305,6 +305,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '7',
     description: 'An inflated flock in the Bloom Field style, following your hand'
   },
+  particleimage: {
+    pattern: 'particleimage',
+    name: 'Particle Image',
+    short: 'Particles',
+    category: 'TD',
+    key: 'P',
+    description: 'Drop in any photo, drawing or video: it becomes thousands of points that scatter and re-form with your hands'
+  },
   bigtype: {
     pattern: 'bigtype',
     name: 'Big Type',
