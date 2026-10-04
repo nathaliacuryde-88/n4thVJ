@@ -288,11 +288,16 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
-        name: 'Hands and sound',
+        name: 'Hands',
         params: [
           { path: 'hands.push', label: 'Hand push', min: 0, max: 2, step: 0.05 },
           { path: 'hands.spread', label: 'Hand spread', min: 0, max: 1.5, step: 0.05 },
           { path: 'hands.kick', label: 'Beat throw', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
           { path: 'look.gain', label: 'Exposure', min: 0.2, max: 2.5, step: 0.05 },
           { path: 'look.grain', label: 'Grain', min: 0, max: 0.2, step: 0.005 },
         ],
@@ -336,12 +341,17 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
-        name: 'Hands and sound',
+        name: 'Hands',
         params: [
           { path: 'hands.bloom', label: 'Fingers open', min: 0, max: 1.5, step: 0.05 },
           { path: 'hands.orbit', label: 'Hand camera', min: 0, max: 2, step: 0.05 },
           { path: 'hands.dolly', label: 'Spread zoom', min: 0, max: 2, step: 0.05 },
           { path: 'hands.clap', label: 'Clap burst', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
           { path: 'sound.beat', label: 'Beat bump', min: 0, max: 2, step: 0.02 },
           { path: 'sound.bass', label: 'Bass bob', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
@@ -387,12 +397,17 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
-        name: 'Hands and sound',
+        name: 'Hands',
         params: [
           { path: 'hands.follow', label: 'Follow hand', min: 0, max: 1.5, step: 0.05 },
           { path: 'hands.stroke', label: 'Finger stroke', min: 0, max: 1.5, step: 0.05 },
           { path: 'hands.spread', label: 'Spread scatter', min: 0, max: 2, step: 0.05 },
           { path: 'hands.clap', label: 'Clap burst', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
           { path: 'sound.beat', label: 'Beat flick', min: 0, max: 2, step: 0.02 },
           { path: 'sound.bass', label: 'Bass loops', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
@@ -422,17 +437,23 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         params: [
           { path: 'field.count', label: 'Dandelions', min: 1, max: 20, step: 1 },
           { path: 'field.sway', label: 'Sway', min: 0, max: 2, step: 0.05 },
-          { path: 'field.drift', label: 'Seeds flying', min: 0, max: 1, step: 0.01, hint: '0 = only a clap or an open hand' },
+          { path: 'field.bounce', label: 'Bounce', min: 0, max: 2, step: 0.05, hint: 'up and down; deeper with the music' },
+          { path: 'field.drift', label: 'Seeds flying', min: 0, max: 1, step: 0.01, hint: '0 = the heads stay whole' },
           { path: 'field.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
         ],
       },
       {
-        name: 'Hands and sound',
+        name: 'Hands',
         params: [
           { path: 'hands.wind', label: 'Wave = gust', min: 0, max: 2, step: 0.05 },
           { path: 'hands.release', label: 'Open lets go', min: 0, max: 1.5, step: 0.05, hint: 'a fist calls the seeds home' },
           { path: 'hands.follow', label: 'Seeds follow', min: 0, max: 2, step: 0.05 },
           { path: 'hands.clap', label: 'Clap blows', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
           { path: 'sound.wind', label: 'Music wind', min: 0, max: 2, step: 0.05 },
           { path: 'sound.gust', label: 'Kick gust', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
@@ -468,13 +489,18 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
-        name: 'Hands and sound',
+        name: 'Hands',
         params: [
           { path: 'hands.grab', label: 'Fist grab', min: 0, max: 2, step: 0.05 },
           { path: 'hands.throw', label: 'Throw', min: 0, max: 2.5, step: 0.05 },
           { path: 'hands.swipe', label: 'Sweep knock', min: 0, max: 2.5, step: 0.05 },
           { path: 'hands.clap', label: 'Clap jump', min: 0, max: 2, step: 0.05 },
           { path: 'hands.dolly', label: 'Spread zoom', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
           { path: 'sound.beat', label: 'Beat hop', min: 0, max: 2, step: 0.02 },
           { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody light', min: 0, max: 2, step: 0.05 },
@@ -510,11 +536,16 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
-        name: 'Hands and sound',
+        name: 'Hands',
         params: [
           { path: 'hands.push', label: 'Hand raise', min: 0, max: 2, step: 0.05 },
           { path: 'hands.zoom', label: 'Spread zoom', min: 0, max: 2, step: 0.05 },
           { path: 'hands.clap', label: 'Clap variation', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
           { path: 'sound.bass', label: 'Bass lift', min: 0, max: 2, step: 0.05 },
           { path: 'sound.beat', label: 'Beat ring', min: 0, max: 2, step: 0.05 },
           { path: 'sound.level', label: 'Loud = more type', min: 0, max: 2, step: 0.05 },
@@ -559,11 +590,16 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         ],
       },
       {
-        name: 'Hands and sound',
+        name: 'Hands',
         params: [
           { path: 'hands.heat', label: 'Hand heat', min: 0, max: 2, step: 0.05 },
           { path: 'hands.grow', label: 'Spread grows', min: 0, max: 2, step: 0.05 },
           { path: 'hands.clap', label: 'Clap variation', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
           { path: 'sound.beat', label: 'Beat jump', min: 0, max: 2, step: 0.05 },
           { path: 'sound.bass', label: 'Bass heat', min: 0, max: 2, step: 0.05 },
           { path: 'sound.level', label: 'Loud = more arrows', min: 0, max: 2, step: 0.05 },

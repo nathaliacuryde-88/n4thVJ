@@ -18,13 +18,16 @@ export const DandelionConfig = {
   field: {
     /** Dandelions, 1 to 20. They grow in and sink away when this changes. */
     count: 3,
-    /** How much they sway, 0 to 2. */
+    /** How much they sway and wave, 0 to 2. */
     sway: 1,
+    /** How much they bounce up and down — deeper with the music, a hop on each kick. */
+    bounce: 1,
     /**
-     * How many seeds fly: scales their own drift, the music's wind and the
-     * kicks alike. At 0 they leave only for a clap or an open hand.
+     * How many seeds fly: the master for every way a seed leaves — its own
+     * drift, the music's wind, the kicks, a clap, an open hand. At 0 the
+     * heads stay whole.
      */
-    drift: 0.3,
+    drift: 0.2,
     /** The grey studio behind them. 0 is black, which stacks cleanly. */
     backdrop: 1,
   },

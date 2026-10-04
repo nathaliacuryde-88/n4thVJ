@@ -60,6 +60,8 @@ uniform float uPalMix;
 uniform float uT, uOff, uDepth, uSpec, uShimmer, uTime;
 uniform vec2 uViewport;
 uniform vec3 uBend;
+uniform vec2 uWave;
+uniform float uWavePhase;
 uniform float uFoot, uRow;
 uniform sampler2D uSeeds;
 
@@ -90,14 +92,25 @@ vec3 grain(vec3 col, vec2 fc) {
 
 vec3 qrot(vec4 q, vec3 v) { return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v); }
 
-/* The stem bends like a rod held at its foot: none there, all of it at the head. */
+/*
+ * The stem bends like a rod held at its foot — none there, all of it at the
+ * head — and a wave runs up it on top, like a whip, so it dances rather than
+ * only leaning. All in the model's units, along h: 0 at the foot, 1 at the head.
+ */
+const float WAVE_K = 4.5;
+vec3 stemDisp(float h) {
+  return vec3(uBend.x, 0.0, uBend.z) * h * h
+    + vec3(uWave.x, 0.0, uWave.y) * h * sin(WAVE_K * h - uWavePhase);
+}
 vec3 bendStem(vec3 p) {
   float h = clamp((p.y - uFoot) / -uFoot, 0.0, 1.0);
-  return p + vec3(uBend.x, 0.0, uBend.z) * h * h;
+  return p + stemDisp(h);
 }
 /* The head rides the top of the stem, tipped to the stem's slope there. */
 mat3 headTilt() {
-  vec3 up = normalize(vec3(2.0 * uBend.x / -uFoot, 1.0, 2.0 * uBend.z / -uFoot));
+  vec2 slope = 2.0 * uBend.xz
+    + uWave * (sin(WAVE_K - uWavePhase) + WAVE_K * cos(WAVE_K - uWavePhase));
+  vec3 up = normalize(vec3(slope.x / -uFoot, 1.0, slope.y / -uFoot));
   vec3 ax = vec3(up.z, 0.0, -up.x);
   float s = length(ax);
   if (s < 1e-5) return mat3(1.0);
@@ -109,7 +122,7 @@ mat3 headTilt() {
     t * ax.x * ax.y - s * ax.z, t * ax.y * ax.y + c,        t * ax.y * ax.z + s * ax.x,
     t * ax.x * ax.z + s * ax.y, t * ax.y * ax.z - s * ax.x, t * ax.z * ax.z + c);
 }
-vec3 bendHead(vec3 p) { return headTilt() * p + vec3(uBend.x, 0.0, uBend.z); }
+vec3 bendHead(vec3 p) { return headTilt() * p + stemDisp(1.0); }
 
 /*
  * A seed: turned about where it joins the head, carried off by its flight,
@@ -307,6 +320,8 @@ interface Flower {
   shared: Shared;
   u: {
     uBend: { value: THREE.Vector3 };
+    uWave: { value: THREE.Vector2 };
+    uWavePhase: { value: number };
     uRow: { value: number };
     uShimmer: { value: number };
   };
@@ -354,6 +369,9 @@ export class DandelionRenderer {
   private gust = 0;
   private lastBeat = false;
   private lastClap = false;
+  /** A kick's hop, jumping to 1 and settling over a third of a second. */
+  private hop = 0;
+  private dance = 0;
   private sinceClap = 99;
   private lastAim = { x: 0, y: 0 };
   private swipe = new THREE.Vector2();
@@ -425,6 +443,8 @@ export class DandelionRenderer {
       const shared = look.shared();
       const u = {
         uBend: { value: new THREE.Vector3() },
+        uWave: { value: new THREE.Vector2() },
+        uWavePhase: { value: 0 },
         uRow: { value: i },
         uShimmer: { value: 0 },
       };
@@ -513,7 +533,11 @@ export class DandelionRenderer {
 
     // A kick: a gust that bows the stems and takes a few seeds.
     const beat = !!audioData?.beat;
-    const kicked = beat && !this.lastBeat && cfg.sound.gust > 0;
+    const beatRise = beat && !this.lastBeat;
+    const kicked = beatRise && cfg.sound.gust > 0;
+    this.hop = Math.max(this.hop * Math.exp(-dt * 5), beatRise ? (audioData?.beatIntensity || 1) : 0);
+    // The dance runs on the shared clock, so the fingers set its tempo too.
+    this.dance += step;
     this.lastBeat = beat;
     if (kicked) this.gust = Math.max(this.gust, (audioData?.beatIntensity || 1) * cfg.sound.gust);
     this.gust *= Math.exp(-dt * 2.5);
@@ -525,7 +549,7 @@ export class DandelionRenderer {
     // take only a share — or a run of them (the automatic hands clap on
     // every kick) would keep every head bare.
     this.sinceClap += dt;
-    const clapShare = Math.min(1, this.sinceClap / 3) ** 2;
+    const clapShare = Math.min(1, this.sinceClap / 4) ** 3;
     if (clapped) this.sinceClap = 0;
 
     // A wave of the hand: how fast the hand moved, as a gust that way.
@@ -554,8 +578,14 @@ export class DandelionRenderer {
     // lets seeds go by itself — their own drift, the music's wind, the kicks —
     // so at 0 they leave only for a clap or an open hand. However loud the
     // room, the wind alone leaves a third of each head: a bare head is for a clap.
+    // It is the master for every way a seed leaves — a clap and an open hand
+    // too — so at 0 the heads stay whole whatever plays. A full field has many
+    // more seeds, so each head gives up fewer as the count goes up.
     const amount = cfg.field.drift;
-    const loose = Math.min(0.72, amount * (0.25 + level * 0.45) + hold * 0.42 * this.present);
+    const master = Math.min(1, amount * 2);
+    const crowd = Math.sqrt(Math.min(1, 3 / Math.max(1, Math.round(cfg.field.count))));
+    const loose = Math.min(0.72, crowd * (amount * (0.25 + level * 0.45) + hold * 0.3 * this.present * master));
+    const clapTake = clapShare * Math.min(1, cfg.hands.clap) * master * crowd;
     const jitter = Math.min(1, loose * 5);
     const gathering = handed && play.openness < 0.15 && cfg.hands.release > 0;
 
@@ -630,18 +660,30 @@ export class DandelionRenderer {
       const cosY = Math.cos(slot.yaw);
       const sinY = Math.sin(slot.yaw);
 
-      // Its sway: two slow swings of its own, wider in a louder room, leaning
-      // with the wind, bowed by a gust.
-      const sway = cfg.field.sway * (0.18 + level * 0.5);
-      const bx = sway * (0.7 * Math.sin((TAU * t) / 5.3 + slot.ph) + 0.3 * Math.sin((TAU * t) / 2.1 + slot.ph * 1.7))
+      // Its dance. A sway that travels across the field, so neighbours lean
+      // one after another; a wave running up the stem like a whip; a bounce
+      // up and down that the music deepens and each kick turns into a hop.
+      // All wider in a louder room, leaning with the wind, bowed by a gust.
+      const d = this.dance;
+      const across = f.at.x * 0.35;
+      const sway = cfg.field.sway * (0.3 + level * 0.8);
+      const bx = sway * (0.7 * Math.sin((TAU * d) / 4.2 - across + slot.ph * 0.3)
+        + 0.3 * Math.sin((TAU * d) / 1.9 + slot.ph * 1.7))
         + wind.x * 0.22 + this.gust * 0.5;
-      const bz = sway * 0.5 * Math.sin((TAU * t) / 6.7 + slot.ph * 2.3) + wind.z * 0.22;
+      const bz = sway * 0.5 * Math.sin((TAU * d) / 5.6 + slot.ph * 2.3) + wind.z * 0.22;
       f.bend.x += (bx - f.bend.x) * (1 - Math.exp(-dt * 3));
       f.bend.y += (bz - f.bend.y) * (1 - Math.exp(-dt * 3));
       // World bend, in head radii, into the dandelion's own turned frame.
       const wx = f.bend.x;
       const wz = f.bend.y;
       f.u.uBend.value.set((wx * cosY - wz * sinY), 0, (wx * sinY + wz * cosY));
+      const wave = cfg.field.sway * (0.12 + level * 0.3);
+      f.u.uWave.value.set(wave * cosY, wave * sinY);
+      f.u.uWavePhase.value = (TAU * d) / 1.6 - across * 2 + slot.ph;
+      const bounce = cfg.field.bounce * f.size * (
+        (0.08 + level * 0.22) * Math.sin((TAU * d) / 1.2 - across + slot.ph)
+        + 0.3 * this.hop * (0.6 + 0.4 * hash1(i + 7)));
+      f.root.position.y += bounce;
       f.u.uShimmer.value = play.high * cfg.sound.high * 2;
 
       // ── its seeds ─────────────────────────────────────────────────────────
@@ -651,9 +693,9 @@ export class DandelionRenderer {
       for (let k = 0; k < seeds; k++) {
         const j = i * seeds + k;
         const o = j * 3;
-        if (clapped && hash1(j * 1.37 + t * 7.3) < clapShare) {
+        if (clapped && hash1(j * 1.37 + t * 7.3) < clapTake) {
           this.hold[j] = CLAP_HOLD[0] + hash1(j + t) * (CLAP_HOLD[1] - CLAP_HOLD[0]);
-        } else if (kicked && hash1(j * 0.71 + t * 13.1) < 0.008 * cfg.sound.gust * amount) {
+        } else if (kicked && hash1(j * 0.71 + t * 13.1) < 0.008 * cfg.sound.gust * amount * crowd) {
           this.hold[j] = KICK_HOLD[0] + hash1(j + t * 3.1) * (KICK_HOLD[1] - KICK_HOLD[0]);
         }
         this.hold[j] = Math.max(0, this.hold[j] - dt);
