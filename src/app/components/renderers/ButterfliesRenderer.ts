@@ -4,7 +4,7 @@ import { ButterfliesConfig } from '../../config/ButterfliesRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { disposeThree } from './disposeThree';
 import {
-  CORE, InflatedLook, LOBE, LOOP, Playing, Shared, TAU,
+  CORE, InflatedLook, LOBE, LOOP, MotifHost, Playing, Shared, TAU,
   drawBackdrop, drawUnavailable, frameCamera, makeRenderer,
 } from './inflated/style';
 
@@ -103,7 +103,18 @@ interface Butterfly {
   heading: THREE.Vector3;
   bank: number;
   last: THREE.Vector3 | null;
+  /** In a shared world: the flower it is visiting, how far it has settled on it (0 to 1), and for how long. */
+  perch: number;
+  settle: number;
+  stay: number;
+  /** Seconds until it next thinks of landing. */
+  restless: number;
+  /** Where it last sat, kept as it takes off again. */
+  landing?: THREE.Vector3;
 }
+
+/** A place a butterfly can land, given by the host: a flower head's top. */
+export interface Perch { at: THREE.Vector3; up: THREE.Vector3; size: number }
 
 export class ButterfliesRenderer {
   private canvas: HTMLCanvasElement;
@@ -112,8 +123,18 @@ export class ButterfliesRenderer {
 
   private surface: HTMLCanvasElement;
   private renderer: THREE.WebGLRenderer | null = null;
-  private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera(30, 16 / 9, 0.1, 100);
+  private readonly host: MotifHost | null;
+  private scene: THREE.Scene;
+  private camera: THREE.PerspectiveCamera;
+  /** Everything of the flock, so a host can place it in its world. */
+  readonly group = new THREE.Group();
+  /**
+   * In a shared world, where the flowers are: the host fills this each
+   * frame, and now and then a butterfly flies down to one and settles there.
+   */
+  perches: Perch[] = [];
+  /** How often they visit the flowers, 0 never to 1 often. Set by the host. */
+  visiting = 0;
   private flock: Butterfly[] = [];
   private geometries: THREE.BufferGeometry[] = [];
   private failed = false;
@@ -126,9 +147,12 @@ export class ButterfliesRenderer {
   private present = 0;
   private started = false;
 
-  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, host: MotifHost | null = null) {
     this.canvas = canvas;
     this.ctx = ctx;
+    this.host = host;
+    this.scene = host ? host.scene : new THREE.Scene();
+    this.camera = host ? host.camera : new THREE.PerspectiveCamera(30, 16 / 9, 0.1, 100);
     this.surface = document.createElement('canvas');
     try {
       this.init();
@@ -143,9 +167,10 @@ export class ButterfliesRenderer {
   }
 
   private init() {
-    this.renderer = makeRenderer(this.surface);
-    const look = new InflatedLook();
+    if (!this.host) this.renderer = makeRenderer(this.surface);
+    const look = this.host ? this.host.look : new InflatedLook();
     this.look = look;
+    this.scene.add(this.group);
 
     const lobeGeo = new THREE.SphereGeometry(1, 48, 32);
     const beadGeo = new THREE.SphereGeometry(1, 28, 20);
@@ -214,20 +239,29 @@ export class ButterfliesRenderer {
         root.add(tip);
       }
 
-      this.scene.add(root);
+      this.group.add(root);
       this.flock.push({
         spec, root, fore, hind, thorax, shared: common,
         presence: 0, phase: spec.ph, pull: new THREE.Vector3(),
         heading: new THREE.Vector3(1, 0, 0), bank: 0, last: null,
+        perch: -1, settle: 0, stay: 0, restless: 3 + spec.ph * 2,
       });
     }
   }
 
   destroy() {
-    this.look?.dispose();
+    if (!this.host) this.look?.dispose();
     this.look = null;
     for (const geometry of this.geometries) geometry.dispose();
-    if (this.renderer) disposeThree(this.scene, this.renderer);
+    if (this.host) {
+      this.scene.remove(this.group);
+      this.group.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh) (mesh.material as THREE.Material).dispose();
+      });
+    } else if (this.renderer) {
+      disposeThree(this.scene, this.renderer);
+    }
     this.renderer = null;
   }
 
@@ -238,11 +272,74 @@ export class ButterfliesRenderer {
     if (width === 0 || height === 0) return;
 
     const renderer = this.renderer;
-    const look = this.look;
-    if (this.failed || !renderer || !look) {
+    if (this.failed || !renderer || !this.look) {
       drawUnavailable(ctx, width, height, 'BUTTERFLIES');
       return;
     }
+    frameCamera(this.camera, width, height);
+    this.camera.position.set(0, 0.5, 15.5);
+    this.camera.lookAt(0, 0.1, 0);
+    this.update(handData, colors, audioData);
+
+    if (this.surface.width !== width || this.surface.height !== height) {
+      renderer.setSize(width, height, false);
+    }
+    renderer.render(this.scene, this.camera);
+
+    drawBackdrop(ctx, width, height, cfg.flight.backdrop);
+    ctx.drawImage(this.surface, 0, 0, width, height);
+  }
+
+  /**
+   * A butterfly's visits to the flowers, in a shared world. Returns how far
+   * it has settled on one (0 in the air, 1 sitting), and where it sits.
+   */
+  private visit(b: Butterfly, dt: number, burst: number, at: THREE.Vector3): number {
+    const perches = this.perches;
+    if (b.perch >= perches.length) b.perch = -1;
+    b.restless -= dt;
+    if (b.perch < 0 && b.restless <= 0) {
+      b.restless = 3 + Math.random() * 5;
+      if (this.visiting > 0 && perches.length && burst < 0.05 && Math.random() < this.visiting) {
+        const taken = new Set(this.flock.map((o) => o.perch));
+        const free = perches.map((_, i) => i).filter((i) => !taken.has(i));
+        if (free.length) {
+          b.perch = free[Math.floor(Math.random() * free.length)];
+          b.stay = 4 + Math.random() * 6;
+        }
+      }
+    }
+    if (b.perch >= 0) {
+      b.stay -= dt;
+      if (b.stay <= 0 || burst > 0.25) {
+        b.perch = -1;
+        b.restless = 5 + Math.random() * 6;
+      }
+    }
+    const to = b.perch >= 0 ? 1 : 0;
+    // Down slowly, a glide in; off quicker, a flutter away.
+    b.settle += (to - b.settle) * (1 - Math.exp(-dt * (to ? 0.8 : 1.5)));
+    if (b.settle < 0.001) { b.settle = 0; return 0; }
+    if (b.perch >= 0) {
+      const perch = perches[b.perch];
+      // Sat on the head's top, a little above it, in the flock's own frame.
+      b.landing = (b.landing ?? new THREE.Vector3())
+        .copy(perch.at).addScaledVector(perch.up, perch.size * 0.32);
+      this.group.worldToLocal(b.landing);
+    }
+    if (!b.landing) return 0;
+    at.copy(b.landing);
+    return b.settle;
+  }
+
+  /**
+   * One frame of the flock: everything moved and coloured, nothing drawn. A
+   * host calls this with its camera already placed, then draws its scene.
+   */
+  update(handData: HandData, colors: string[], audioData?: AudioData) {
+    const { cfg } = this;
+    const look = this.look;
+    if (!look || this.failed) return;
 
     // ── the hands and the music ─────────────────────────────────────────────
     const play = this.playing;
@@ -264,7 +361,7 @@ export class ButterfliesRenderer {
     // ── palette ──────────────────────────────────────────────────────────────
     const shown = new Set(SHOWN[Math.max(0, Math.min(8, Math.round(cfg.flight.count)))]);
     const first = !this.started;
-    look.update(colors, cfg.colour.palette, dt, first);
+    if (!this.host) look.update(colors, cfg.colour.palette, dt, first);
     if (first) {
       this.started = true;
       this.flock.forEach((b, i) => { b.presence = shown.has(i) ? 1 : 0; });
@@ -297,6 +394,7 @@ export class ButterfliesRenderer {
     const lean = new THREE.Vector3(0, 0.45, 1);
     const basis = new THREE.Matrix4();
     const centre = new THREE.Vector3();
+    const perchAt = new THREE.Vector3();
 
     this.flock.forEach((b, index) => {
       const want = shown.has(index) ? 1 : 0;
@@ -328,10 +426,17 @@ export class ButterfliesRenderer {
       const away = 1 - Math.pow(1 - b.presence, 3);
       p.x = (fl.c[0] >= 0 ? 12 : -12) + (p.x - (fl.c[0] >= 0 ? 12 : -12)) * away;
 
+      // In a shared world: now and then it flies down to a flower and
+      // settles on it for a while, wings slowing, then takes off again. A
+      // clap puts every one of them back in the air.
+      const settled = this.visit(b, dt, burst, perchAt);
+      if (settled > 0.001) p.lerp(perchAt, settled * settled * (3 - 2 * settled));
+
       // Wingbeat: integrated, so tempo and flutter change it without a jump.
-      b.phase += step * TAU * (fl.beats / LOOP) * flutter + dt * burst * TAU * 3;
+      // Settled on a flower, the wings slow, and fold up together.
+      b.phase += (step * TAU * (fl.beats / LOOP) * flutter + dt * burst * TAU * 3) * (1 - 0.75 * settled);
       const beat = b.phase;
-      const flap = 0.425 + 0.725 * amp * Math.sin(beat) + 0.4 * bump;
+      const flap = 0.425 + 0.725 * amp * (1 - 0.7 * settled) * Math.sin(beat) + 0.4 * bump + 0.55 * settled;
 
       // Which way it is flying, from how it actually travelled — taken before
       // the wingbeat's bob is added, or every beat would tip its nose up and
@@ -341,7 +446,8 @@ export class ButterfliesRenderer {
         if (fwd.lengthSq() > 1e-8) {
           fwd.normalize();
           const before = b.heading.clone();
-          b.heading.lerp(fwd, 1 - Math.exp(-dt * 6));
+          // Settled, it keeps facing the way it landed.
+          b.heading.lerp(fwd, (1 - Math.exp(-dt * 6)) * (1 - settled));
           // Lerping between near-opposite directions can pass through zero.
           if (b.heading.lengthSq() < 1e-6) b.heading.copy(fwd);
           b.heading.normalize();
@@ -397,11 +503,6 @@ export class ButterfliesRenderer {
       look.apply(u, cfg.colour.depth, spec);
     });
 
-    // ── camera: the reel's shot, the same as Bloom Field's at rest ──────────
-    frameCamera(this.camera, width, height);
-    this.camera.position.set(0, 0.5, 15.5);
-    this.camera.lookAt(0, 0.1, 0);
-
     this.scene.updateMatrixWorld(true);
     this.camera.updateMatrixWorld(true);
     for (const b of this.flock) {
@@ -410,13 +511,5 @@ export class ButterfliesRenderer {
       centre.applyMatrix4(this.camera.matrixWorldInverse);
       b.shared.uCenter.value.copy(centre);
     }
-
-    if (this.surface.width !== width || this.surface.height !== height) {
-      renderer.setSize(width, height, false);
-    }
-    renderer.render(this.scene, this.camera);
-
-    drawBackdrop(ctx, width, height, cfg.flight.backdrop);
-    ctx.drawImage(this.surface, 0, 0, width, height);
   }
 }

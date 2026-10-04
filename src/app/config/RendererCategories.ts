@@ -305,6 +305,38 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: '7',
     description: 'An inflated flock in the Bloom Field style, following your hand'
   },
+  world: {
+    pattern: 'world',
+    name: 'Nature World',
+    short: 'World',
+    category: '3D',
+    key: 'N',
+    description: 'Flowers, butterflies, dandelions and jellyfish in one scene under one sky — the butterflies land on the flowers'
+  },
+  aurora: {
+    pattern: 'aurora',
+    name: 'Aurora',
+    short: 'Aurora',
+    category: '2D',
+    key: 'A',
+    description: 'Curtains of light folding over a night sky — soft behind the nature visuals'
+  },
+  watercolour: {
+    pattern: 'watercolour',
+    name: 'Watercolour Sky',
+    short: 'Sky',
+    category: '2D',
+    key: 'S',
+    description: 'Washes of paint on paper in the flowers\' palettes, drops blooming on the kick'
+  },
+  jellyfish: {
+    pattern: 'jellyfish',
+    name: 'Jellyfish Drift',
+    short: 'Jelly',
+    category: '3D',
+    key: '-',
+    description: 'Inflated jellyfish swimming by pulses, each kick a squeeze of the bell'
+  },
   dandelion: {
     pattern: 'dandelion',
     name: 'Dandelion',

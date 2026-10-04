@@ -5,7 +5,7 @@ import { ParamValues, withOverrides } from '../../params/types';
 import { disposeThree } from './disposeThree';
 import { DandelionModel, loadDandelion } from './dandelion/model';
 import {
-  InflatedLook, LOOP, Playing, Shared, TAU,
+  InflatedLook, LOOP, MotifHost, Playing, Shared, TAU,
   drawBackdrop, drawUnavailable, frameCamera, makeRenderer,
 } from './inflated/style';
 
@@ -341,8 +341,16 @@ export class DandelionRenderer {
 
   private surface: HTMLCanvasElement;
   private renderer: THREE.WebGLRenderer | null = null;
-  private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera(30, 16 / 9, 0.1, 200);
+  private readonly host: MotifHost | null;
+  private scene: THREE.Scene;
+  private camera: THREE.PerspectiveCamera;
+  /** Everything of the field, so a host can place it in its world. */
+  readonly group = new THREE.Group();
+  /**
+   * How far back the field stands. A host sets it to put the dandelions
+   * behind whatever is in front; the stems still reach below the frame.
+   */
+  depth = 0;
   private look: InflatedLook | null = null;
   private playing = new Playing(0.5);
   private failed = false;
@@ -377,20 +385,23 @@ export class DandelionRenderer {
   private swipe = new THREE.Vector2();
   private present = 0;
 
-  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, host: MotifHost | null = null) {
     this.canvas = canvas;
     this.ctx = ctx;
+    this.host = host;
+    this.scene = host ? host.scene : new THREE.Scene();
+    this.camera = host ? host.camera : new THREE.PerspectiveCamera(30, 16 / 9, 0.1, 200);
     this.surface = document.createElement('canvas');
     try {
-      this.renderer = makeRenderer(this.surface);
-      this.look = new InflatedLook();
+      if (!host) this.renderer = makeRenderer(this.surface);
+      this.look = host ? host.look : new InflatedLook();
     } catch (error) {
       console.error('Dandelion could not start:', error);
       this.failed = true;
       return;
     }
     loadDandelion()
-      .then((model) => { if (this.renderer) this.build(model); })
+      .then((model) => { if (this.look) this.build(model); })
       .catch((error) => {
         console.error('Dandelion model failed to load:', error);
         this.failed = true;
@@ -468,12 +479,13 @@ export class DandelionRenderer {
       root.add(new THREE.Mesh(model.strokes, strokeMat));
       for (const child of root.children) child.frustumCulled = false;
       root.visible = false;
-      this.scene.add(root);
+      this.group.add(root);
       this.flowers.push({
         root, shared, u, presence: 0, at: new THREE.Vector3(), size: 1, placed: false,
         bend: new THREE.Vector2(),
       });
     }
+    this.scene.add(this.group);
     this.model = model;
   }
 
@@ -491,13 +503,14 @@ export class DandelionRenderer {
   private time: { value: number } | null = null;
 
   destroy() {
-    this.look?.dispose();
+    if (!this.host) this.look?.dispose();
     this.look = null;
     this.seedTex?.dispose();
     for (const m of this.materials) m.dispose();
     // The geometry is shared by every Dandelion renderer; take it out of the
     // scene first so disposing this one's renderer does not free it for all.
     for (const f of this.flowers) f.root.clear();
+    this.scene.remove(this.group);
     if (this.renderer) disposeThree(this.scene, this.renderer);
     this.renderer = null;
   }
@@ -508,14 +521,32 @@ export class DandelionRenderer {
     const height = this.canvas.height;
     if (width === 0 || height === 0) return;
     const renderer = this.renderer;
-    const look = this.look;
-    if (this.failed || !renderer || !look) {
+    if (this.failed || !renderer || !this.look) {
       drawUnavailable(ctx, width, height, 'DANDELION');
       return;
     }
-    const model = this.model;
     drawBackdrop(ctx, width, height, cfg.field.backdrop);
-    if (!model) return;
+    if (!this.model) return;
+    frameCamera(this.camera, width, height);
+    this.camera.position.set(0, 0.5, 15.5);
+    this.camera.lookAt(0, 0.1, 0);
+    this.update(handData, colors, audioData, width, height);
+    if (this.surface.width !== width || this.surface.height !== height) {
+      renderer.setSize(width, height, false);
+    }
+    renderer.render(this.scene, this.camera);
+    ctx.drawImage(this.surface, 0, 0, width, height);
+  }
+
+  /**
+   * One frame of the field: everything moved and coloured, nothing drawn. A
+   * host calls this with its camera already placed, then draws its scene.
+   */
+  update(handData: HandData, colors: string[], audioData: AudioData | undefined, width: number, height: number) {
+    const { cfg } = this;
+    const look = this.look;
+    const model = this.model;
+    if (!look || !model || this.failed) return;
 
     // ── the hands and the music ─────────────────────────────────────────────
     const play = this.playing;
@@ -591,10 +622,7 @@ export class DandelionRenderer {
 
     // ── palette and camera ──────────────────────────────────────────────────
     const first = !this.started;
-    look.update(colors, cfg.colour.palette, dt, first);
-    frameCamera(this.camera, width, height);
-    this.camera.position.set(0, 0.5, 15.5);
-    this.camera.lookAt(0, 0.1, 0);
+    if (!this.host) look.update(colors, cfg.colour.palette, dt, first);
     const tanHalf = Math.tan(((this.camera.fov / 2) * Math.PI) / 180);
     const aspect = width / height;
 
@@ -640,7 +668,7 @@ export class DandelionRenderer {
       // Where it stands for this many: spread across, kept centred, the stem's
       // foot always below the frame.
       const r = size * slot.k;
-      const z = count === 1 ? 0 : slot.z;
+      const z = (count === 1 ? 0 : slot.z) + this.depth;
       const halfW = (15.5 - z) * tanHalf * aspect;
       const x = count === 1 ? 0 : ((slot.x - meanX) / Math.max(0.5, spanX)) * halfW * (0.66 + 0.24 * Math.min(1, (count - 1) / 12));
       const bottom = 0.1 - (15.5 - z) * tanHalf;
@@ -859,11 +887,5 @@ export class DandelionRenderer {
     this.viewport!.value.set(width, height);
     this.time!.value = t;
     this.strokeWidth!.value = Math.max(1, height / 620);
-
-    if (this.surface.width !== width || this.surface.height !== height) {
-      renderer.setSize(width, height, false);
-    }
-    renderer.render(this.scene, this.camera);
-    ctx.drawImage(this.surface, 0, 0, width, height);
   }
 }

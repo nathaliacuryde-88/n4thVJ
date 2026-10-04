@@ -33,6 +33,10 @@ import { BloomFieldConfig } from '../config/BloomFieldRendererConfig';
 import { ButterfliesConfig } from '../config/ButterfliesRendererConfig';
 import { DiceConfig } from '../config/DiceRendererConfig';
 import { DandelionConfig } from '../config/DandelionRendererConfig';
+import { JellyfishConfig } from '../config/JellyfishRendererConfig';
+import { AuroraConfig } from '../config/AuroraRendererConfig';
+import { WatercolourConfig } from '../config/WatercolourRendererConfig';
+import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
 import { AtlasConfig } from '../config/AtlasRendererConfig';
 import { CrowdConfig } from '../config/CrowdRendererConfig';
 import { ParamGroup } from './types';
@@ -412,6 +416,176 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.bass', label: 'Bass loops', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hat flutter', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  world: {
+    config: NatureWorldConfig,
+    groups: [
+      {
+        name: 'Colour',
+        params: [
+          { path: 'colour.speed', label: 'Flow', min: -3, max: 3, step: 0.05, hint: 'below 0 runs backwards' },
+          { path: 'colour.offset', label: 'Shift', min: 0, max: 1, step: 0.01, hint: 'turn the palette by hand' },
+          {
+            path: 'colour.palette', label: 'Palette', min: 0, max: 3, step: 1,
+            labels: ['Reel', 'Ember', 'Lagoon', 'Ink'],
+          },
+          { path: 'colour.depth', label: 'Shadow', min: 0, max: 0.8, step: 0.01 },
+        ],
+      },
+      {
+        name: 'World',
+        params: [
+          {
+            path: 'world.sky', label: 'Sky', min: 0, max: 3, step: 1,
+            labels: ['Studio', 'Watercolour', 'Aurora', 'Black'],
+          },
+          { path: 'world.flowers', label: 'Flowers', min: 0, max: 7, step: 1 },
+          { path: 'world.butterflies', label: 'Butterflies', min: 0, max: 8, step: 1 },
+          { path: 'world.dandelions', label: 'Dandelions', min: 0, max: 8, step: 1 },
+          { path: 'world.jellyfish', label: 'Jellyfish', min: 0, max: 8, step: 1 },
+          { path: 'world.seeds', label: 'Seeds flying', min: 0, max: 1, step: 0.01, hint: '0 = the heads stay whole' },
+          { path: 'world.visits', label: 'Flower visits', min: 0, max: 1, step: 0.05, hint: 'how often butterflies land' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.camera', label: 'Hand moves world', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.follow', label: 'Follow hand', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap burst', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hats', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.wind', label: 'Music wind', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  aurora: {
+    config: AuroraConfig,
+    groups: [
+      {
+        name: 'Sky',
+        params: [
+          { path: 'sky.curtains', label: 'Curtains', min: 1, max: 4, step: 1 },
+          { path: 'sky.height', label: 'Height', min: 0, max: 1.5, step: 0.05 },
+          { path: 'sky.brightness', label: 'Brightness', min: 0, max: 2, step: 0.05 },
+          { path: 'sky.night', label: 'Night', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.follow', label: 'Lifts to hand', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap flare', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick flare', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.mid', label: 'Melody folds', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hat shiver', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  watercolour: {
+    config: WatercolourConfig,
+    groups: [
+      {
+        name: 'Colour',
+        params: [
+          { path: 'colour.speed', label: 'Flow', min: -3, max: 3, step: 0.05, hint: 'below 0 runs backwards' },
+          { path: 'colour.offset', label: 'Shift', min: 0, max: 1, step: 0.01, hint: 'turn the palette by hand' },
+          {
+            path: 'colour.palette', label: 'Palette', min: 0, max: 3, step: 1,
+            labels: ['Reel', 'Ember', 'Lagoon', 'Ink'],
+          },
+        ],
+      },
+      {
+        name: 'Paint',
+        params: [
+          { path: 'paint.washes', label: 'Washes', min: 1, max: 3, step: 1 },
+          { path: 'paint.wet', label: 'Wet', min: 0, max: 1, step: 0.01, hint: 'soft bleeding edges' },
+          { path: 'paint.drift', label: 'Drift', min: 0, max: 3, step: 0.05 },
+          { path: 'paint.drops', label: 'Drops', min: 0, max: 1, step: 0.01, hint: 'paint dropped on the kicks' },
+          { path: 'paint.paper', label: 'Paper', min: 0, max: 1, step: 0.05, hint: '0 = glowing on black, stacks cleanly' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.push', label: 'Hand pushes', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap splash', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick drops', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass swell', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  jellyfish: {
+    config: JellyfishConfig,
+    groups: [
+      {
+        name: 'Colour',
+        params: [
+          { path: 'colour.speed', label: 'Flow', min: -3, max: 3, step: 0.05, hint: 'below 0 runs backwards' },
+          { path: 'colour.offset', label: 'Shift', min: 0, max: 1, step: 0.01, hint: 'turn the palette by hand' },
+          {
+            path: 'colour.palette', label: 'Palette', min: 0, max: 3, step: 1,
+            labels: ['Reel', 'Ember', 'Lagoon', 'Ink'],
+          },
+          { path: 'colour.depth', label: 'Shadow', min: 0, max: 0.8, step: 0.01 },
+        ],
+      },
+      {
+        name: 'Swarm',
+        params: [
+          { path: 'swarm.count', label: 'Jellyfish', min: 1, max: 8, step: 1 },
+          { path: 'swarm.size', label: 'Size', min: 0.4, max: 2, step: 0.05 },
+          { path: 'swarm.drift', label: 'Drift', min: 0, max: 2.5, step: 0.05, hint: '0 holds each in place' },
+          { path: 'swarm.pulse', label: 'Pulse', min: 0, max: 1.5, step: 0.05 },
+          { path: 'swarm.tentacles', label: 'Tentacles', min: 0.3, max: 2, step: 0.05 },
+          { path: 'swarm.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.follow', label: 'Follow hand', min: 0, max: 1.5, step: 0.05 },
+          { path: 'hands.spread', label: 'Spread scatter', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap jet', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick pulse', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass swell', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hat ripple', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],

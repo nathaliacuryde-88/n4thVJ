@@ -4,7 +4,7 @@ import { BloomFieldConfig } from '../../config/BloomFieldRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { disposeThree } from './disposeThree';
 import {
-  CORE, InflatedLook, LOBE, LOOP, Playing, Shared, TAU, TUBE,
+  CORE, InflatedLook, LOBE, LOOP, MotifHost, Playing, Shared, TAU, TUBE,
   drawBackdrop, drawUnavailable, frameCamera, makeRenderer,
 } from './inflated/style';
 import { Tube } from './inflated/Tube';
@@ -98,8 +98,11 @@ export class BloomFieldRenderer {
 
   private surface: HTMLCanvasElement;
   private renderer: THREE.WebGLRenderer | null = null;
-  private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera(30, 16 / 9, 0.1, 100);
+  private readonly host: MotifHost | null;
+  private scene: THREE.Scene;
+  private camera: THREE.PerspectiveCamera;
+  /** Everything of the field, so a host can place it in its world. */
+  readonly group = new THREE.Group();
   private flowers: Bloom[] = [];
   private geometries: THREE.BufferGeometry[] = [];
   private failed = false;
@@ -118,9 +121,12 @@ export class BloomFieldRenderer {
    */
   private started = false;
 
-  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, host: MotifHost | null = null) {
     this.canvas = canvas;
     this.ctx = ctx;
+    this.host = host;
+    this.scene = host ? host.scene : new THREE.Scene();
+    this.camera = host ? host.camera : new THREE.PerspectiveCamera(30, 16 / 9, 0.1, 100);
     this.surface = document.createElement('canvas');
     try {
       this.init();
@@ -135,9 +141,10 @@ export class BloomFieldRenderer {
   }
 
   private init() {
-    this.renderer = makeRenderer(this.surface);
-    const look = new InflatedLook();
+    if (!this.host) this.renderer = makeRenderer(this.surface);
+    const look = this.host ? this.host.look : new InflatedLook();
     this.look = look;
+    this.scene.add(this.group);
 
     const petalGeo = new THREE.SphereGeometry(1, 56, 36);
     const coreGeo = new THREE.SphereGeometry(0.27, 40, 28);
@@ -150,7 +157,7 @@ export class BloomFieldRenderer {
       const head = new THREE.Group();
       const ring = new THREE.Group();
       head.add(ring);
-      this.scene.add(head);
+      this.group.add(head);
 
       const tilts: THREE.Group[] = [];
       const petals: THREE.Mesh[] = [];
@@ -188,7 +195,7 @@ export class BloomFieldRenderer {
 
       const anchors = Array.from({ length: 6 }, () => new THREE.Vector3());
       const stem = new Tube(look.material(TUBE, stemCommon, { uWS: { value: 0.55 } }), anchors);
-      this.scene.add(stem.mesh);
+      this.group.add(stem.mesh);
 
       this.flowers.push({
         spec, head, ring, tilts, petals, core, stamens, stem,
@@ -199,10 +206,19 @@ export class BloomFieldRenderer {
   }
 
   destroy() {
-    this.look?.dispose();
+    if (!this.host) this.look?.dispose();
     this.look = null;
     for (const geometry of this.geometries) geometry.dispose();
-    if (this.renderer) disposeThree(this.scene, this.renderer);
+    if (this.host) {
+      this.scene.remove(this.group);
+      this.group.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh) (mesh.material as THREE.Material).dispose();
+      });
+      for (const f of this.flowers) f.stem.mesh.geometry.dispose();
+    } else if (this.renderer) {
+      disposeThree(this.scene, this.renderer);
+    }
     this.renderer = null;
   }
 
@@ -213,11 +229,48 @@ export class BloomFieldRenderer {
     if (width === 0 || height === 0) return;
 
     const renderer = this.renderer;
-    const look = this.look;
-    if (this.failed || !renderer || !look) {
+    if (this.failed || !renderer || !this.look) {
       drawUnavailable(ctx, width, height, 'BLOOM FIELD');
       return;
     }
+    this.update(handData, colors, audioData, width, height);
+
+    if (this.surface.width !== width || this.surface.height !== height) {
+      renderer.setSize(width, height, false);
+    }
+    renderer.render(this.scene, this.camera);
+
+    // ── onto the layer ───────────────────────────────────────────────────────
+    drawBackdrop(ctx, width, height, cfg.field.backdrop);
+    ctx.drawImage(this.surface, 0, 0, width, height);
+  }
+
+  /**
+   * Where the open flowers are, for a butterfly to land on: the top of each
+   * head, in world terms, and which way is up from it.
+   */
+  perches(): { at: THREE.Vector3; up: THREE.Vector3; size: number }[] {
+    const out: { at: THREE.Vector3; up: THREE.Vector3; size: number }[] = [];
+    for (const f of this.flowers) {
+      if (!f.head.visible || f.presence < 0.9) continue;
+      const at = new THREE.Vector3();
+      f.core.getWorldPosition(at);
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(f.head.getWorldQuaternion(new THREE.Quaternion()));
+      const scale = new THREE.Vector3();
+      f.head.getWorldScale(scale);
+      out.push({ at, up, size: scale.x });
+    }
+    return out;
+  }
+
+  /**
+   * One frame of the field: everything moved and coloured, nothing drawn.
+   * Standing alone it also places its own camera; hosted, the host has.
+   */
+  update(handData: HandData, colors: string[], audioData: AudioData | undefined, width: number, height: number) {
+    const { cfg } = this;
+    const look = this.look;
+    if (!look || this.failed) return;
 
     // ── the hands and the music ─────────────────────────────────────────────
     const play = this.playing;
@@ -240,7 +293,7 @@ export class BloomFieldRenderer {
     // ── palette ──────────────────────────────────────────────────────────────
     const shown = new Set(SHOWN[Math.max(0, Math.min(7, Math.round(cfg.field.count)))]);
     const first = !this.started;
-    look.update(colors, cfg.colour.palette, dt, first);
+    if (!this.host) look.update(colors, cfg.colour.palette, dt, first);
     if (first) {
       this.started = true;
       this.flowers.forEach((f, i) => { f.presence = shown.has(i) ? 1 : 0; });
@@ -325,7 +378,7 @@ export class BloomFieldRenderer {
     });
 
     // ── camera ───────────────────────────────────────────────────────────────
-    this.placeCamera(width, height);
+    if (!this.host) this.placeCamera(width, height);
 
     this.scene.updateMatrixWorld(true);
     this.camera.updateMatrixWorld(true);
@@ -335,15 +388,6 @@ export class BloomFieldRenderer {
       centre.applyMatrix4(this.camera.matrixWorldInverse);
       f.shared.uCenter.value.copy(centre);
     }
-
-    if (this.surface.width !== width || this.surface.height !== height) {
-      renderer.setSize(width, height, false);
-    }
-    renderer.render(this.scene, this.camera);
-
-    // ── onto the layer ───────────────────────────────────────────────────────
-    drawBackdrop(ctx, width, height, cfg.field.backdrop);
-    ctx.drawImage(this.surface, 0, 0, width, height);
   }
 
   /**

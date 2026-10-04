@@ -57,8 +57,12 @@ export class Tube {
     this.mesh.frustumCulled = false;
   }
 
-  /** Re-bends the tube to the anchors as they stand now. */
-  update(radius: number) {
+  /**
+   * Re-bends the tube to the anchors as they stand now. `tip` is the radius at
+   * the far end as a share of the radius at the start, for a tube that tapers
+   * — a tentacle, say; 1 keeps it even all the way, as a stem is.
+   */
+  update(radius: number, tip = 1) {
     const { curve, points, tangents, length, sides } = this;
     curve.updateArcLengths();
     for (let i = 0; i <= length; i++) curve.getPointAt(i / length, points[i]);
@@ -85,6 +89,7 @@ export class Tube {
       n.addScaledVector(t, -n.dot(t)).normalize();
       bn.crossVectors(t, n);
       const p = points[i];
+      const r = radius * (1 + (tip - 1) * (i / length));
       for (let j = 0; j <= sides; j++) {
         const a = (j / sides) * TAU;
         // Round the same way three.js's own tube goes, which is what makes
@@ -92,9 +97,9 @@ export class Tube {
         // shader reads the stem as seen from inside, and it shades dark.
         dir.copy(n).multiplyScalar(-Math.cos(a)).addScaledVector(bn, Math.sin(a));
         const k = (i * (sides + 1) + j) * 3;
-        pos[k] = p.x + dir.x * radius;
-        pos[k + 1] = p.y + dir.y * radius;
-        pos[k + 2] = p.z + dir.z * radius;
+        pos[k] = p.x + dir.x * r;
+        pos[k + 1] = p.y + dir.y * r;
+        pos[k + 2] = p.z + dir.z * r;
         nor[k] = dir.x;
         nor[k + 1] = dir.y;
         nor[k + 2] = dir.z;

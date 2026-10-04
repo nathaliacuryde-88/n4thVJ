@@ -400,6 +400,24 @@ export function drawUnavailable(ctx: CanvasRenderingContext2D, width: number, he
   ctx.fillText(`${name} NEEDS WEBGL`, width / 2, height / 2);
 }
 
+// ── a shared world ───────────────────────────────────────────────────────────
+
+/**
+ * What a motif needs to live in someone else's scene rather than its own.
+ *
+ * Every motif in the family can stand alone — its own renderer, camera and
+ * palette, drawn onto its own layer — or be hosted: it adds itself to the
+ * host's scene, is seen through the host's camera, takes the host's palette,
+ * and leaves the drawing to the host. That is how Nature World puts the
+ * flowers, butterflies, dandelions and jellyfish into one scene, where they
+ * can meet, rather than stacking them as separate pictures.
+ */
+export interface MotifHost {
+  scene: THREE.Scene;
+  camera: THREE.PerspectiveCamera;
+  look: InflatedLook;
+}
+
 // ── playing ──────────────────────────────────────────────────────────────────
 
 /**

@@ -37,6 +37,10 @@ import { ChromeRenderer } from './ChromeRenderer';
 import { BloomFieldRenderer } from './BloomFieldRenderer';
 import { ButterfliesRenderer } from './ButterfliesRenderer';
 import { DandelionRenderer } from './DandelionRenderer';
+import { JellyfishRenderer } from './JellyfishRenderer';
+import { AuroraRenderer } from './AuroraRenderer';
+import { WatercolourRenderer } from './WatercolourRenderer';
+import { NatureWorldRenderer } from './NatureWorldRenderer';
 import { DiceRenderer } from './DiceRenderer';
 import { AtlasRenderer } from './AtlasRenderer';
 import { CrowdRenderer } from './CrowdRenderer';
@@ -179,6 +183,18 @@ export function createRenderer(
       break;
     case 'butterflies':
       renderer = new ButterfliesRenderer(canvas, ctx);
+      break;
+    case 'world':
+      renderer = new NatureWorldRenderer(canvas, ctx);
+      break;
+    case 'aurora':
+      renderer = new AuroraRenderer(canvas, ctx);
+      break;
+    case 'watercolour':
+      renderer = new WatercolourRenderer(canvas, ctx);
+      break;
+    case 'jellyfish':
+      renderer = new JellyfishRenderer(canvas, ctx);
       break;
     case 'dandelion':
       renderer = new DandelionRenderer(canvas, ctx);
