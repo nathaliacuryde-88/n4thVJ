@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { KNOB_FX } from './knobs';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -252,6 +253,22 @@ export function nanoKontrol2Map(knobFx: string[]): Record<string, string> {
   });
   return out;
 }
+
+/** Which layout of the preset this is, so a map made by an older one can be brought up to date. */
+export const NANO_LAYOUT = 'knobs = effects';
+
+/**
+ * A map the preset made, from before the layout changed — the first one put
+ * the layers' hands drive on the knobs — is replaced by the current layout,
+ * so pressing the preset again is not something she has to know to do.
+ */
+(function upgrade() {
+  if (map['motion1'] === 'cc:0:16') {
+    map = nanoKontrol2Map(KNOB_FX.map((k) => k.name));
+    save();
+    snapshot = make();
+  }
+})();
 
 export function useMidi() {
   return useSyncExternalStore(

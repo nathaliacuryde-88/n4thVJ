@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Activity, Gauge, Plane } from 'lucide-react';
 import { beatPosition, clearTempo, tap, useTempo } from '../motion/tempo';
 import { KNOB_FX } from '../control/knobs';
-import { MidiTarget, applyMap, describe, enableMidi, learn, nanoKontrol2Map, unbind, useMidi } from '../control/midi';
+import { MidiTarget, NANO_LAYOUT, applyMap, describe, enableMidi, learn, nanoKontrol2Map, unbind, useMidi } from '../control/midi';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -207,6 +207,7 @@ export function StatusBar({
             }`}
           >
             NANOKONTROL2 PRESET{isNano ? ' — detected, click to map all' : ''}
+            <span className="block text-[9px] opacity-60">layout: {NANO_LAYOUT}, faders 5–8 = hands</span>
           </button>
           <div className="mb-2 text-white/35">
             Or press LEARN, then move the fader or hit the pad you want on it.
