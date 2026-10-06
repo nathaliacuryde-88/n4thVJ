@@ -115,6 +115,8 @@ interface VJCanvasProps {
   autoHandData: HandData;
   /** Whether that automatic drive is switched on at all. */
   autoDrive: boolean;
+  /** The master fader, 0–1: the whole output, projector and recording included. 0 is black. */
+  master?: number;
   /**
    * The visible canvas, whenever it changes.
    *
@@ -138,8 +140,11 @@ export function VJCanvas({
   colorModes,
   autoHandData,
   autoDrive,
+  master = 1,
   onCanvasReady,
 }: VJCanvasProps) {
+  const masterRef = useRef(master);
+  masterRef.current = master;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
@@ -484,6 +489,8 @@ export function VJCanvas({
     };
 
     let lastFrame = performance.now();
+    /** The master as shown: eased, so a blackout is a quick dip rather than a cut. */
+    let shownMaster = masterRef.current;
     const animate = () => {
       const now = performance.now();
       const ctx = compositeCtxRef.current;
@@ -566,6 +573,14 @@ export function VJCanvas({
 
       if (ctx && slotsRef.current.length > 0) {
         compose(ctx, now);
+        shownMaster += (masterRef.current - shownMaster) * Math.min(1, delta * 14);
+        if (Math.abs(masterRef.current - shownMaster) < 0.002) shownMaster = masterRef.current;
+        if (shownMaster < 1) {
+          ctx.globalAlpha = 1 - shownMaster;
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+          ctx.globalAlpha = 1;
+        }
         // The visible canvas is plain 2D: every effect has already happened,
         // one layer at a time, on the way into the composite.
         fallbackCtxRef.current?.drawImage(ctx.canvas, 0, 0);

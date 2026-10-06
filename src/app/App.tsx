@@ -23,8 +23,8 @@ import { SoundSource, nextSound, openTakeAudio } from './record/audio';
 import { OutputWindow } from './output/OutputWindow';
 import { SavedSet, loadSavedSets, pick, storeSavedSets } from './config/savedSets';
 import { StatusBar, PILOT_BARS } from './components/StatusBar';
-import { beatPosition, clearTempo, currentBpm, tap } from './motion/tempo';
-import { MidiTarget, setMidiHandler } from './control/midi';
+import { beatPosition, clearTempo, currentBpm, nudgeTempo, tap } from './motion/tempo';
+import { MidiTarget, setMidiHandler, setMidiReader } from './control/midi';
 import { stageDoing } from './pipeline/PostPipeline';
 import { getByPath } from './params/types';
 import { Hand, AudioLines } from 'lucide-react';
@@ -892,15 +892,38 @@ export default function App() {
     });
   }, [currentPattern]);
 
+  /*
+   * The master fader and the blackout. Neither is remembered: a set always
+   * opens with the picture up.
+   */
+  const [master, setMaster] = useState(1);
+  const [blackout, setBlackout] = useState(false);
+
+  const effectNames = useMemo(
+    () => PIPELINE_PARAMS.groups.filter((g) => g.togglePath).map((g) => g.name),
+    [],
+  );
+
   /** Everything a MIDI control can be put on. */
   const midiTargets = useMemo<MidiTarget[]>(() => [
     ...Array.from({ length: MAX_LAYERS }, (_, i) => ({
       id: `layer${i + 1}`, label: `Layer ${i + 1} fader`, group: 'Layers', continuous: true,
     })),
+    ...Array.from({ length: MAX_LAYERS }, (_, i) => ({
+      id: `motion${i + 1}`, label: `Layer ${i + 1} hands drive`, group: 'Layers', continuous: true,
+    })),
+    { id: 'layer.prev', label: 'Select previous layer', group: 'Layers', continuous: false },
     { id: 'layer.next', label: 'Select next layer', group: 'Layers', continuous: false },
-    { id: 'hands', label: 'Hands drive', group: 'Drive', continuous: true },
-    { id: 'gain', label: 'Audio gain', group: 'Drive', continuous: true },
+    { id: 'master', label: 'Master', group: 'Output', continuous: true },
+    { id: 'blackout', label: 'Blackout on/off', group: 'Output', continuous: false },
+    { id: 'record', label: 'Record on/off', group: 'Output', continuous: false },
+    { id: 'gain', label: 'Audio gain', group: 'Drive & colour', continuous: true },
+    { id: 'hands', label: 'Hands drive (selected layer)', group: 'Drive & colour', continuous: true },
+    { id: 'hue', label: 'Hue (selected visual)', group: 'Drive & colour', continuous: true },
+    { id: 'saturation', label: 'Saturation (selected visual)', group: 'Drive & colour', continuous: true },
     { id: 'tap', label: 'Tap tempo', group: 'Tempo & set', continuous: false },
+    { id: 'tempo.down', label: 'Tempo −0.5', group: 'Tempo & set', continuous: false },
+    { id: 'tempo.up', label: 'Tempo +0.5', group: 'Tempo & set', continuous: false },
     { id: 'pilot', label: 'Auto-pilot on/off', group: 'Tempo & set', continuous: false },
     { id: 'next', label: 'Next visual', group: 'Tempo & set', continuous: false },
     { id: 'prev', label: 'Previous visual', group: 'Tempo & set', continuous: false },
@@ -908,10 +931,13 @@ export default function App() {
       id: `slot${i + 1}`, label: `Visual ${slotKey(i)}`, group: 'Visuals', continuous: false,
     })),
     { id: 'fx', label: 'All effects on/off', group: 'Effects', continuous: false },
-    ...PIPELINE_PARAMS.groups.filter((g) => g.togglePath).map((g) => ({
-      id: `fx:${g.name}`, label: g.name, group: 'Effects', continuous: false,
+    ...effectNames.map((name) => ({
+      id: `fx:${name}`, label: name, group: 'Effects', continuous: false,
     })),
-  ], []);
+  ], [effectNames]);
+
+  const motionToUnit = (m: number) => (m - MOTION_MIN) / (MOTION_MAX - MOTION_MIN);
+  const unitToMotion = (v: number) => Math.round((MOTION_MIN + v * (MOTION_MAX - MOTION_MIN)) * 100) / 100;
 
   // What each control does, against the state of this render.
   const midiAct = useRef<(target: string, value: number) => void>(() => {});
@@ -919,10 +945,15 @@ export default function App() {
     if (target.endsWith('#press')) {
       const id = target.slice(0, -6);
       if (id === 'tap') tap();
+      else if (id === 'tempo.down') nudgeTempo(-0.5);
+      else if (id === 'tempo.up') nudgeTempo(0.5);
       else if (id === 'pilot') setPilotOn((p) => !p);
       else if (id === 'next') cyclePattern('next');
       else if (id === 'prev') cyclePattern('prev');
       else if (id === 'layer.next') cycleLayer();
+      else if (id === 'layer.prev') setSelectedLayer((s) => (s - 1 + layers.length) % layers.length);
+      else if (id === 'blackout') setBlackout((b) => !b);
+      else if (id === 'record') void toggleRecording();
       else if (id === 'fx') toggleFx();
       else if (id.startsWith('fx:')) toggleFxStage(id.slice(3));
       else if (id.startsWith('slot')) {
@@ -932,13 +963,42 @@ export default function App() {
       return;
     }
     const layer = /^layer(\d)$/.exec(target);
+    const drive = /^motion(\d)$/.exec(target);
     if (layer) setLayerOpacity(Number(layer[1]) - 1, Math.round(value * 100) / 100);
-    else if (target === 'hands') setMotion(Math.round((MOTION_MIN + value * (MOTION_MAX - MOTION_MIN)) * 100) / 100);
+    else if (drive) {
+      const index = Number(drive[1]) - 1;
+      setLayers((prev) => prev.map((l, i) => (i === index ? { ...l, motion: unitToMotion(value) } : l)));
+    }
+    else if (target === 'hands') setMotion(unitToMotion(value));
     else if (target === 'gain') setAudioSensitivity(Math.round(value * 100) / 100);
+    else if (target === 'hue') setHue(Math.round(value * 359));
+    else if (target === 'saturation') setSaturation(Math.round(value * 100));
+    else if (target === 'master') setMaster(Math.round(value * 100) / 100);
   };
+
+  // Where each continuous target stands now, so a fader out of step picks up
+  // rather than jumps.
+  const midiRead = useRef<(target: string) => number | undefined>(() => undefined);
+  midiRead.current = (target) => {
+    const layer = /^layer(\d)$/.exec(target);
+    if (layer) return layers[Number(layer[1]) - 1]?.opacity;
+    const drive = /^motion(\d)$/.exec(target);
+    if (drive) {
+      const l = layers[Number(drive[1]) - 1];
+      return l ? motionToUnit(l.motion) : undefined;
+    }
+    if (target === 'hands') return motionToUnit(motion);
+    if (target === 'gain') return audioSensitivity;
+    if (target === 'hue') return hue / 359;
+    if (target === 'saturation') return saturation / 100;
+    if (target === 'master') return master;
+    return undefined;
+  };
+
   useEffect(() => {
     setMidiHandler((target, value) => midiAct.current(target, value));
-    return () => setMidiHandler(null);
+    setMidiReader((target) => midiRead.current(target));
+    return () => { setMidiHandler(null); setMidiReader(null); };
   }, []);
 
   /** The number currently held down, if any, while we wait to see if it is a hold. */
@@ -1201,6 +1261,7 @@ export default function App() {
         colorModes={layers.map((l) => lookFor(l.pattern).colorMode)}
         autoHandData={autoHands}
         autoDrive={idleDrive}
+        master={blackout ? 0 : master}
         fxByPattern={fxByPattern}
         onCanvasReady={(canvas) => {
           canvasRef.current = canvas;
@@ -1271,6 +1332,10 @@ export default function App() {
           onPilotToggle={() => setPilotOn((p) => !p)}
           onPilotBars={setPilotBars}
           midiTargets={midiTargets}
+          effectNames={effectNames}
+          master={master}
+          blackout={blackout}
+          onBlackout={() => setBlackout((b) => !b)}
         />
       )}
 

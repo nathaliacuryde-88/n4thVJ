@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Activity, Gauge, Plane } from 'lucide-react';
 import { beatPosition, clearTempo, tap, useTempo } from '../motion/tempo';
-import { MidiTarget, describe, enableMidi, learn, unbind, useMidi } from '../control/midi';
+import { MidiTarget, applyMap, describe, enableMidi, learn, nanoKontrol2Map, unbind, useMidi } from '../control/midi';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -27,6 +27,10 @@ export function StatusBar({
   onPilotToggle,
   onPilotBars,
   midiTargets,
+  effectNames,
+  master,
+  blackout,
+  onBlackout,
 }: {
   pilotOn: boolean;
   pilotBars: number;
@@ -35,6 +39,11 @@ export function StatusBar({
   onPilotToggle: () => void;
   onPilotBars: (bars: number) => void;
   midiTargets: MidiTarget[];
+  /** The effects in chip order, for a controller preset's effect buttons. */
+  effectNames: string[];
+  master: number;
+  blackout: boolean;
+  onBlackout: () => void;
 }) {
   const { bpm } = useTempo();
   const midi = useMidi();
@@ -76,6 +85,9 @@ export function StatusBar({
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [bpm, pilotOn, pilotSince, pilotBars]);
+
+  const isNano = midi.devices.some((d) => /nanokontrol\s*2/i.test(d));
+  const pickupLabel = midi.pickup ? midiTargets.find((t) => t.id === midi.pickup!.target)?.label : null;
 
   const health = fps >= 50 ? 'text-emerald-300' : fps >= 30 ? 'text-amber-300' : 'text-red-400';
   const groups = [...new Set(midiTargets.map((t) => t.group))];
@@ -146,7 +158,29 @@ export function StatusBar({
           <Activity className="h-3 w-3" />
           MIDI
         </button>
+
+        {(blackout || master < 1) && (
+          <>
+            <div className="h-4 w-px bg-white/15" />
+            <button
+              onClick={onBlackout}
+              title={blackout ? 'The output is black — click to bring it back' : `Master at ${Math.round(master * 100)}% — click for blackout`}
+              className={`rounded-full px-2 py-1 text-[10px] tracking-wider ${
+                blackout ? 'animate-pulse bg-red-500 text-white' : 'text-amber-300 hover:bg-white/10'
+              }`}
+            >
+              {blackout ? 'BLACKOUT' : `MASTER ${Math.round(master * 100)}%`}
+            </button>
+          </>
+        )}
       </div>
+
+      {/* A fader out of step with its value, waiting to be brought to it. */}
+      {midi.pickup && pickupLabel && (
+        <div className="mt-2 w-fit rounded-full border border-amber-300/40 bg-black/80 px-3 py-1 text-[10px] text-amber-200">
+          {pickupLabel}: move it {midi.pickup.from < midi.pickup.at ? 'up' : 'down'} to {Math.round(midi.pickup.at * 100)}% to pick up
+        </div>
+      )}
 
       {midiOpen && (
         <div className="mt-2 max-h-[70vh] w-[300px] overflow-y-auto rounded-xl border border-white/20 bg-black/90 p-3 text-[10px] backdrop-blur-sm">
@@ -158,8 +192,17 @@ export function StatusBar({
             {midi.problem ?? (midi.devices.length ? `Listening to ${midi.devices.join(', ')}` : 'Waiting for the browser…')}
             {midi.lastSeen && <span className="ml-1 text-white/30">· last: {describe(midi.lastSeen)}</span>}
           </div>
+          <button
+            onClick={() => applyMap(nanoKontrol2Map(effectNames))}
+            title="Map everything at once for a Korg nanoKONTROL2 in its factory setting"
+            className={`mb-2 w-full rounded-lg px-2 py-1.5 text-left text-[10px] tracking-wider ${
+              isNano ? 'bg-cyan-400 text-black hover:bg-cyan-300' : 'bg-white/10 text-white/75 hover:bg-white/20'
+            }`}
+          >
+            NANOKONTROL2 PRESET{isNano ? ' — detected, click to map all' : ''}
+          </button>
           <div className="mb-2 text-white/35">
-            Press LEARN, then move the fader or hit the pad you want on it.
+            Or press LEARN, then move the fader or hit the pad you want on it.
           </div>
           {groups.map((group) => (
             <div key={group} className="mb-2">
