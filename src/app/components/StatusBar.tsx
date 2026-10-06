@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Activity, Gauge, Plane } from 'lucide-react';
 import { beatPosition, clearTempo, tap, useTempo } from '../motion/tempo';
+import { KNOB_FX } from '../control/knobs';
 import { MidiTarget, applyMap, describe, enableMidi, learn, nanoKontrol2Map, unbind, useMidi } from '../control/midi';
 
 /**
@@ -27,10 +28,10 @@ export function StatusBar({
   onPilotToggle,
   onPilotBars,
   midiTargets,
-  effectNames,
   master,
   blackout,
   onBlackout,
+  notice,
 }: {
   pilotOn: boolean;
   pilotBars: number;
@@ -39,11 +40,11 @@ export function StatusBar({
   onPilotToggle: () => void;
   onPilotBars: (bars: number) => void;
   midiTargets: MidiTarget[];
-  /** The effects in chip order, for a controller preset's effect buttons. */
-  effectNames: string[];
   master: number;
   blackout: boolean;
   onBlackout: () => void;
+  /** A change made from the controller, said for a moment. */
+  notice?: string | null;
 }) {
   const { bpm } = useTempo();
   const midi = useMidi();
@@ -175,6 +176,12 @@ export function StatusBar({
         )}
       </div>
 
+      {notice && (
+        <div className="mt-2 w-fit rounded-full border border-white/25 bg-black/80 px-3 py-1 text-[10px] tracking-wider text-white">
+          {notice}
+        </div>
+      )}
+
       {/* A fader out of step with its value, waiting to be brought to it. */}
       {midi.pickup && pickupLabel && (
         <div className="mt-2 w-fit rounded-full border border-amber-300/40 bg-black/80 px-3 py-1 text-[10px] text-amber-200">
@@ -193,7 +200,7 @@ export function StatusBar({
             {midi.lastSeen && <span className="ml-1 text-white/30">· last: {describe(midi.lastSeen)}</span>}
           </div>
           <button
-            onClick={() => applyMap(nanoKontrol2Map(effectNames))}
+            onClick={() => applyMap(nanoKontrol2Map(KNOB_FX.map((k) => k.name)))}
             title="Map everything at once for a Korg nanoKONTROL2 in its factory setting"
             className={`mb-2 w-full rounded-lg px-2 py-1.5 text-left text-[10px] tracking-wider ${
               isNano ? 'bg-cyan-400 text-black hover:bg-cyan-300' : 'bg-white/10 text-white/75 hover:bg-white/20'

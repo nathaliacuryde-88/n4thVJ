@@ -25,6 +25,7 @@ import { SavedSet, loadSavedSets, pick, storeSavedSets } from './config/savedSet
 import { StatusBar, PILOT_BARS } from './components/StatusBar';
 import { beatPosition, clearTempo, currentBpm, nudgeTempo, tap } from './motion/tempo';
 import { MidiTarget, setMidiHandler, setMidiReader } from './control/midi';
+import { COUNTS, KNOB_FX, KNOB_OFF, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, knobPosition, knobValue } from './control/knobs';
 import { stageDoing } from './pipeline/PostPipeline';
 import { getByPath } from './params/types';
 import { Hand, AudioLines } from 'lucide-react';
@@ -899,6 +900,77 @@ export default function App() {
   const [master, setMaster] = useState(1);
   const [blackout, setBlackout] = useState(false);
 
+  /** How far each visual is zoomed, for the ones with nothing to count. */
+  const [zooms, setZooms] = useState<Record<string, number>>(() =>
+    loadSetting<Record<string, number>>('vj-zoom', {}, (v) => typeof v === 'object' && v !== null),
+  );
+  useEffect(() => { saveSetting('vj-zoom', zooms); }, [zooms]);
+
+  /** A word on screen for a moment, for a change made from the controller with nothing else showing it. */
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef(0);
+  const flash = useCallback((text: string) => {
+    setNotice(text);
+    window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 1400);
+  }, []);
+
+  /** One more or one fewer of what the selected visual shows — or, with nothing to count, a step of zoom. */
+  const stepCount = useCallback((dir: 1 | -1) => {
+    const counts = COUNTS[currentPattern];
+    const entry = RENDERER_PARAMS[currentPattern];
+    const name = RENDERER_CATEGORIES[currentPattern].short;
+    if (counts && entry) {
+      const specs = entry.groups.flatMap((g) => g.params);
+      const mine = paramValues[currentPattern] ?? {};
+      const now = counts.map(({ path }) => (mine[path] ?? getByPath(entry.config, path) ?? 0) as number);
+      // Several together (the world): only the ones showing, so "more" does not
+      // bring in something she had taken out — unless nothing is showing.
+      const anyOn = now.some((v) => v > 0);
+      const next: Record<string, number> = {};
+      counts.forEach(({ path, step }, i) => {
+        const spec = specs.find((p) => p.path === path);
+        if (!spec) return;
+        if (counts.length > 1 && anyOn && now[i] <= 0) return;
+        const floor = counts.length > 1 ? Math.max(spec.min, Math.min(1, now[i])) : spec.min;
+        const v = Math.round(Math.max(floor, Math.min(spec.max, now[i] + dir * step)) * 1000) / 1000;
+        next[path] = v;
+      });
+      setParamValues((prev) => ({ ...prev, [currentPattern]: { ...(prev[currentPattern] ?? {}), ...next } }));
+      const shown = Object.values(next)[0];
+      const label = specs.find((p) => p.path === counts[0].path)?.label ?? 'Count';
+      flash(counts.length > 1 ? `${name} · ${dir > 0 ? 'more' : 'fewer'}` : `${name} · ${label} ${Number.isInteger(shown) ? shown : Math.round(shown * 100) + '%'}`);
+      return;
+    }
+    const z = zooms[currentPattern] ?? 1;
+    const nz = Math.round(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, dir > 0 ? z * ZOOM_STEP : z / ZOOM_STEP)) * 100) / 100;
+    // Back to exactly 1 when it passes through, so "as drawn" is reachable.
+    const snapped = Math.abs(nz - 1) < 0.06 ? 1 : nz;
+    setZooms((prev) => ({ ...prev, [currentPattern]: snapped }));
+    flash(`${name} · Zoom ${Math.round(snapped * 100)}%`);
+  }, [currentPattern, paramValues, zooms, flash]);
+
+  /** An effect turned by a knob: down is off, up is on and that strong. */
+  const turnFx = useCallback((fx: (typeof KNOB_FX)[number], v: number) => {
+    const group = PIPELINE_PARAMS.groups.find((g) => g.name === fx.name);
+    if (!group?.togglePath) return;
+    setFxByPattern((prev) => {
+      const mine = prev[currentPattern] ?? {};
+      const next = { ...mine };
+      if (v < KNOB_OFF) {
+        next[group.togglePath!] = 0;
+      } else {
+        next[group.togglePath!] = 1;
+        // Its other sliders as she left them, or the preset the first time.
+        for (const [path, preset] of Object.entries(group.turnOn ?? {})) {
+          if (path !== fx.path && mine[path] === undefined) next[path] = preset;
+        }
+        next[fx.path] = knobValue(fx, v);
+      }
+      return { ...prev, [currentPattern]: next };
+    });
+  }, [currentPattern]);
+
   const effectNames = useMemo(
     () => PIPELINE_PARAMS.groups.filter((g) => g.togglePath).map((g) => g.name),
     [],
@@ -912,15 +984,26 @@ export default function App() {
     ...Array.from({ length: MAX_LAYERS }, (_, i) => ({
       id: `motion${i + 1}`, label: `Layer ${i + 1} hands drive`, group: 'Layers', continuous: true,
     })),
+    ...Array.from({ length: MAX_LAYERS }, (_, i) => ({
+      id: `select${i + 1}`, label: `Select layer ${i + 1}`, group: 'Layers', continuous: false,
+    })),
     { id: 'layer.prev', label: 'Select previous layer', group: 'Layers', continuous: false },
     { id: 'layer.next', label: 'Select next layer', group: 'Layers', continuous: false },
-    { id: 'master', label: 'Master', group: 'Output', continuous: true },
-    { id: 'blackout', label: 'Blackout on/off', group: 'Output', continuous: false },
-    { id: 'record', label: 'Record on/off', group: 'Output', continuous: false },
-    { id: 'gain', label: 'Audio gain', group: 'Drive & colour', continuous: true },
-    { id: 'hands', label: 'Hands drive (selected layer)', group: 'Drive & colour', continuous: true },
-    { id: 'hue', label: 'Hue (selected visual)', group: 'Drive & colour', continuous: true },
-    { id: 'saturation', label: 'Saturation (selected visual)', group: 'Drive & colour', continuous: true },
+    ...KNOB_FX.map((fx) => ({
+      id: `knob:${fx.name}`, label: `${fx.name} amount`, group: 'Effect knobs (selected layer)', continuous: true,
+    })),
+    { id: 'fx', label: 'All effects on/off', group: 'Effects on/off', continuous: false },
+    ...effectNames.map((name) => ({
+      id: `fx:${name}`, label: name, group: 'Effects on/off', continuous: false,
+    })),
+    { id: 'count.up', label: 'More objects / zoom in', group: 'Selected visual', continuous: false },
+    { id: 'count.down', label: 'Fewer objects / zoom out', group: 'Selected visual', continuous: false },
+    { id: 'hue', label: 'Hue', group: 'Selected visual', continuous: true },
+    { id: 'saturation', label: 'Saturation', group: 'Selected visual', continuous: true },
+    { id: 'autohue', label: 'Auto colour on/off', group: 'Selected visual', continuous: false },
+    { id: 'mode', label: 'Hands ↔ audio', group: 'Drive', continuous: false },
+    { id: 'gain', label: 'Audio gain', group: 'Drive', continuous: true },
+    { id: 'hands', label: 'Hands drive (selected layer)', group: 'Drive', continuous: true },
     { id: 'tap', label: 'Tap tempo', group: 'Tempo & set', continuous: false },
     { id: 'tempo.down', label: 'Tempo −0.5', group: 'Tempo & set', continuous: false },
     { id: 'tempo.up', label: 'Tempo +0.5', group: 'Tempo & set', continuous: false },
@@ -930,14 +1013,16 @@ export default function App() {
     ...Array.from({ length: MAX_SET }, (_, i) => ({
       id: `slot${i + 1}`, label: `Visual ${slotKey(i)}`, group: 'Visuals', continuous: false,
     })),
-    { id: 'fx', label: 'All effects on/off', group: 'Effects', continuous: false },
-    ...effectNames.map((name) => ({
-      id: `fx:${name}`, label: name, group: 'Effects', continuous: false,
-    })),
+    { id: 'master', label: 'Master', group: 'Output', continuous: true },
+    { id: 'blackout', label: 'Blackout on/off', group: 'Output', continuous: false },
+    { id: 'record', label: 'Record on/off', group: 'Output', continuous: false },
   ], [effectNames]);
 
   const motionToUnit = (m: number) => (m - MOTION_MIN) / (MOTION_MAX - MOTION_MIN);
   const unitToMotion = (v: number) => Math.round((MOTION_MIN + v * (MOTION_MAX - MOTION_MIN)) * 100) / 100;
+
+  /** Where each effect knob was last turned to, for its whole-step values. */
+  const knobSent = useRef<Record<string, number>>({});
 
   // What each control does, against the state of this render.
   const midiAct = useRef<(target: string, value: number) => void>(() => {});
@@ -953,6 +1038,20 @@ export default function App() {
       else if (id === 'layer.next') cycleLayer();
       else if (id === 'layer.prev') setSelectedLayer((s) => (s - 1 + layers.length) % layers.length);
       else if (id === 'blackout') setBlackout((b) => !b);
+      else if (id === 'count.up') stepCount(1);
+      else if (id === 'count.down') stepCount(-1);
+      else if (id === 'autohue') {
+        flash(autoHueEnabled ? 'Auto colour off' : 'Auto colour on');
+        setAutoHueEnabled((a) => !a);
+      }
+      else if (id === 'mode') {
+        flash(audioEnabled ? 'Hands drive' : 'Audio drives');
+        setAudioEnabled((a) => !a);
+      }
+      else if (id.startsWith('select')) {
+        const index = Number(id.slice(6)) - 1;
+        if (index < layers.length) setSelectedLayer(index);
+      }
       else if (id === 'record') void toggleRecording();
       else if (id === 'fx') toggleFx();
       else if (id.startsWith('fx:')) toggleFxStage(id.slice(3));
@@ -974,11 +1073,18 @@ export default function App() {
     else if (target === 'hue') setHue(Math.round(value * 359));
     else if (target === 'saturation') setSaturation(Math.round(value * 100));
     else if (target === 'master') setMaster(Math.round(value * 100) / 100);
+    else if (target.startsWith('knob:')) {
+      const fx = KNOB_FX.find((k) => k.name === target.slice(5));
+      if (fx) { knobSent.current[target] = value; turnFx(fx, value); }
+    }
   };
 
   // Where each continuous target stands now, so a fader out of step picks up
   // rather than jumps.
   const midiRead = useRef<(target: string) => number | undefined>(() => undefined);
+  // Taken as of this render, so it agrees with the state the reader sees —
+  // the ref itself runs ahead of the state while a knob is turning.
+  const knobSentNow = { ...knobSent.current };
   midiRead.current = (target) => {
     const layer = /^layer(\d)$/.exec(target);
     if (layer) return layers[Number(layer[1]) - 1]?.opacity;
@@ -992,6 +1098,19 @@ export default function App() {
     if (target === 'hue') return hue / 359;
     if (target === 'saturation') return saturation / 100;
     if (target === 'master') return master;
+    if (target.startsWith('knob:')) {
+      const fx = KNOB_FX.find((k) => k.name === target.slice(5));
+      const group = PIPELINE_PARAMS.groups.find((g) => g.name === fx?.name);
+      if (!fx || !group?.togglePath) return undefined;
+      const read = (path: string) => (fxParams[path] ?? getByPath(PIPELINE_PARAMS.config, path) ?? 0) as number;
+      // Off: whatever the knob does next is meant — it turns the effect on there.
+      if (read(group.togglePath) < 0.5) return undefined;
+      // A knob on whole steps (Echo) sits between them: still where it was
+      // turned to, as long as the value is still the one it gave.
+      const sentAt = knobSentNow[target];
+      if (sentAt !== undefined && sentAt >= KNOB_OFF && knobValue(fx, sentAt) === read(fx.path)) return sentAt;
+      return knobPosition(fx, read(fx.path));
+    }
     return undefined;
   };
 
@@ -1262,6 +1381,7 @@ export default function App() {
         autoHandData={autoHands}
         autoDrive={idleDrive}
         master={blackout ? 0 : master}
+        zoomByPattern={zooms}
         fxByPattern={fxByPattern}
         onCanvasReady={(canvas) => {
           canvasRef.current = canvas;
@@ -1332,10 +1452,10 @@ export default function App() {
           onPilotToggle={() => setPilotOn((p) => !p)}
           onPilotBars={setPilotBars}
           midiTargets={midiTargets}
-          effectNames={effectNames}
           master={master}
           blackout={blackout}
           onBlackout={() => setBlackout((b) => !b)}
+          notice={notice}
         />
       )}
 

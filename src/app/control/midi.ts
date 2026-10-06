@@ -48,6 +48,8 @@ let reader: Reader | null = null;
 const lastValue = new Map<string, number>();
 /** What each continuous target was last set to from here, to tell whether it is still in step. */
 const sent = new Map<string, number>();
+/** What each continuous target read at its last message. */
+const seen = new Map<string, number>();
 /** A fader waiting to pick up, and where it has to go. */
 let pickup: { target: string; at: number; from: number } | null = null;
 
@@ -125,10 +127,19 @@ function takesOver(target: string, value: number, before: number | undefined): b
   const current = reader?.(target);
   if (current === undefined) return true;
   const last = sent.get(target);
-  const inStep = last !== undefined && Math.abs(last - current) < 0.02;
+  const was = seen.get(target);
+  seen.set(target, current);
+  /*
+   * In step while the value is the one this fader last gave — or has not
+   * caught up with it yet (fast moves arrive between renders). Anything else
+   * moved it: the mouse, a key, a set loading.
+   */
+  const inStep = last !== undefined
+    && (Math.abs(last - current) < 0.02 || (was !== undefined && Math.abs(was - current) < 0.005));
   const reached = Math.abs(value - current) < 0.04
     || (before !== undefined && (before - current) * (value - current) < 0);
   if (!inStep && !reached) {
+    sent.delete(target);
     if (pickup?.target !== target || Math.abs(pickup.from - value) > 0.02) {
       pickup = { target, at: current, from: value };
       publish();
@@ -184,6 +195,7 @@ export function applyMap(next: Record<string, string>) {
   map = { ...next };
   learning = null;
   sent.clear();
+  seen.clear();
   save();
   publish();
 }
@@ -202,37 +214,41 @@ export function unbind(target: string) {
 }
 
 /**
- * The Korg nanoKONTROL2 in its factory CC mode, laid out as one strip per
- * layer on the left and the whole show on the right:
+ * The Korg nanoKONTROL2 in its factory CC mode. The eight strips:
  *
- *   faders 1–4  layer faders          knobs 1–4  each layer's hands drive
- *   fader 5     audio gain            knob 5     hue      knob 6  saturation
- *   fader 8     master                (fader 6–7, knob 7–8 free to LEARN)
- *   S 1–8       visuals 1–8           M 1–7      visuals 9–15
- *   R 1–8       the first eight effects
- *   TRACK ◀ ▶   previous / next visual           CYCLE   auto-pilot
- *   MARKER SET  tap tempo    MARKER ◀ ▶  tempo −/+    ◀◀ ▶▶  previous / next layer
- *   STOP        blackout     PLAY        all effects       REC  record
+ *   faders 1–4   layer faders            faders 5–8  each layer's hands drive
+ *   knobs 1–8    effect amounts on the selected layer — Feedback, Colour,
+ *                Displace, Chromatic, Pixelate, Echo, Atlas, Fluted
+ *                (all the way down is off)
+ *   S 1–8        visuals 1–8             M 1–7       visuals 9–15
+ *   R 1–4        select layer 1–4        R 5–6       Kaleido, Noise on/off
+ *   R 7          auto-pilot              R 8         blackout
+ *
+ * and the transport:
+ *
+ *   TRACK ◀ ▶    previous / next visual   CYCLE       auto colour
+ *   ◀◀ ▶▶        fewer / more objects — or zoom out / in, where nothing counts
+ *   MARKER SET   tap tempo                MARKER ◀ ▶  tempo −/+
+ *   STOP         all effects on/off       PLAY        hands ↔ audio
+ *   REC          record
  */
-export function nanoKontrol2Map(effects: string[]): Record<string, string> {
+export function nanoKontrol2Map(knobFx: string[]): Record<string, string> {
   const cc = (n: number) => `cc:0:${n}`;
   const out: Record<string, string> = {};
   for (let i = 0; i < 4; i++) {
     out[`layer${i + 1}`] = cc(i);
-    out[`motion${i + 1}`] = cc(16 + i);
+    out[`motion${i + 1}`] = cc(4 + i);
+    out[`select${i + 1}`] = cc(64 + i);
   }
-  out.gain = cc(4);
-  out.hue = cc(20);
-  out.saturation = cc(21);
-  out.master = cc(7);
+  knobFx.slice(0, 8).forEach((name, i) => { out[`knob:${name}`] = cc(16 + i); });
   for (let i = 0; i < 8; i++) out[`slot${i + 1}`] = cc(32 + i);
   for (let i = 0; i < 7; i++) out[`slot${i + 9}`] = cc(48 + i);
-  effects.slice(0, 8).forEach((name, i) => { out[`fx:${name}`] = cc(64 + i); });
   Object.assign(out, {
-    prev: cc(58), next: cc(59), pilot: cc(46),
+    'fx:Kaleido': cc(68), 'fx:Noise': cc(69), pilot: cc(70), blackout: cc(71),
+    prev: cc(58), next: cc(59), autohue: cc(46),
+    'count.down': cc(43), 'count.up': cc(44),
     tap: cc(60), 'tempo.down': cc(61), 'tempo.up': cc(62),
-    'layer.prev': cc(43), 'layer.next': cc(44),
-    blackout: cc(42), fx: cc(41), record: cc(45),
+    fx: cc(42), mode: cc(41), record: cc(45),
   });
   return out;
 }

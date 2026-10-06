@@ -117,6 +117,8 @@ interface VJCanvasProps {
   autoDrive: boolean;
   /** The master fader, 0–1: the whole output, projector and recording included. 0 is black. */
   master?: number;
+  /** How far each visual is zoomed, by pattern: 1 is as drawn. */
+  zoomByPattern?: Record<string, number>;
   /**
    * The visible canvas, whenever it changes.
    *
@@ -141,10 +143,13 @@ export function VJCanvas({
   autoHandData,
   autoDrive,
   master = 1,
+  zoomByPattern,
   onCanvasReady,
 }: VJCanvasProps) {
   const masterRef = useRef(master);
   masterRef.current = master;
+  const zoomRef = useRef(zoomByPattern);
+  zoomRef.current = zoomByPattern;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
@@ -451,12 +456,19 @@ export function VJCanvas({
 
         const width = ctx.canvas.width;
         const height = ctx.canvas.height;
+        // Zoomed about the middle; zoomed out, the frame sits on black.
+        const draw = (deck: Deck) => {
+          const z = zoomRef.current?.[deck.pattern] ?? 1;
+          const w = width * z;
+          const h = height * z;
+          ctx.drawImage(through(deck), (width - w) / 2, (height - h) / 2, w, h);
+        };
         if (slot.outgoing) {
           ctx.globalAlpha = opacity * (isBase ? 1 : 1 - fade);
-          ctx.drawImage(through(slot.outgoing), 0, 0, width, height);
+          draw(slot.outgoing);
         }
         ctx.globalAlpha = opacity * fade;
-        ctx.drawImage(through(slot.current), 0, 0, width, height);
+        draw(slot.current);
       });
 
       ctx.globalAlpha = 1;
