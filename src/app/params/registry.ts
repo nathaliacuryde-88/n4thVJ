@@ -35,6 +35,7 @@ import { DiceConfig } from '../config/DiceRendererConfig';
 import { DandelionConfig } from '../config/DandelionRendererConfig';
 import { JellyfishConfig } from '../config/JellyfishRendererConfig';
 import { AuroraConfig } from '../config/AuroraRendererConfig';
+import { BlendConfig } from '../config/BlendRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
 import { BigTypeConfig } from '../config/BigTypeRendererConfig';
@@ -605,6 +606,41 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody folds', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hat shiver', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  blend: {
+    config: BlendConfig,
+    groups: [
+      {
+        name: 'Blend',
+        params: [
+          { path: 'blend.lines', label: 'Lines', min: 20, max: 300, step: 5, hint: 'finer beats into moiré' },
+          { path: 'blend.size', label: 'Size', min: 0.3, max: 1.8, step: 0.05 },
+          { path: 'blend.zigzag', label: 'Zigzag', min: 2, max: 5, step: 1 },
+          { path: 'blend.wobble', label: 'Wobble', min: 0, max: 1.5, step: 0.05 },
+          { path: 'blend.softness', label: 'Soft rim', min: 0, max: 1, step: 0.05 },
+          { path: 'blend.spin', label: 'Spin', min: 0, max: 3, step: 0.05 },
+          { path: 'blend.colourway', label: 'Colours', min: 0, max: 1, step: 1, labels: ['Candy', 'Neon'] },
+          { path: 'blend.ground', label: 'Ground', min: 0, max: 1, step: 1, labels: ['Colour', 'Black'], hint: 'black stacks cleanly' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.follow', label: 'Follows hand', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap ripple', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick ripple', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass swell', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.mid', label: 'Melody wobble', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hat shimmer', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],

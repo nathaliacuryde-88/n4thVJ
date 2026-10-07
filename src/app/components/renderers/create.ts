@@ -39,6 +39,7 @@ import { ButterfliesRenderer } from './ButterfliesRenderer';
 import { DandelionRenderer } from './DandelionRenderer';
 import { JellyfishRenderer } from './JellyfishRenderer';
 import { AuroraRenderer } from './AuroraRenderer';
+import { BlendRenderer } from './BlendRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
 import { NatureWorldRenderer } from './NatureWorldRenderer';
 import { BigTypeRenderer } from './BigTypeRenderer';
@@ -197,6 +198,9 @@ export function createRenderer(
       break;
     case 'aurora':
       renderer = new AuroraRenderer(canvas, ctx);
+      break;
+    case 'blend':
+      renderer = new BlendRenderer(canvas, ctx);
       break;
     case 'watercolour':
       renderer = new WatercolourRenderer(canvas, ctx);

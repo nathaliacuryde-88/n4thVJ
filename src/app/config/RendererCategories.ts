@@ -337,6 +337,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'A',
     description: 'Curtains of light folding over a night sky — soft behind the nature visuals'
   },
+  blend: {
+    pattern: 'blend',
+    name: 'Blend',
+    short: 'Blend',
+    category: '2D',
+    key: 'B',
+    description: 'A zigzag blob of hundreds of fine outlines beating into moiré, turning slowly — made for the background'
+  },
   watercolour: {
     pattern: 'watercolour',
     name: 'Watercolour Sky',
