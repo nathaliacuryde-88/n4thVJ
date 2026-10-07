@@ -641,14 +641,15 @@ export function Library({
                   e.dataTransfer.setData('text/plain', pattern);
                 }}
                 onDragEnd={() => setDragging(null)}
+                // The pills slide out of the way as one passes over them.
+                onDragEnter={() => { if (dragging && dragging !== pattern) moveTo(dragging, i); }}
                 onDragOver={(e) => {
-                  if (!dragging || dragging === pattern) return;
+                  if (!dragging) return;
                   e.preventDefault();
                   e.dataTransfer.dropEffect = 'move';
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  if (dragging) moveTo(dragging, i);
                   setDragging(null);
                 }}
                 className={`group flex cursor-grab items-center gap-2 rounded-full border py-1 pl-1 pr-3 transition-all active:cursor-grabbing ${
@@ -658,7 +659,7 @@ export function Library({
                 }`}
               >
                 <span className="relative flex h-6 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-[11px] font-semibold text-black">
-                  {thumbs[pattern] && <img src={thumbs[pattern]} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+                  {thumbs[pattern] && <img src={thumbs[pattern]} alt="" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full object-cover" />}
                   <span className={`relative ${thumbs[pattern] ? 'rounded bg-black/70 px-1 text-[10px] text-white' : ''}`}>{slotKey(i)}</span>
                 </span>
                 <span className="select-none text-[11px] text-white/80">

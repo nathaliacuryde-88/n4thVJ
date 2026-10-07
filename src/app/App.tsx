@@ -1531,6 +1531,7 @@ export default function App() {
           autoHueEnabled={autoHueEnabled}
           onAutoHueToggle={() => setAutoHueEnabled(prev => !prev)}
           set={set}
+          onSetReorder={setSet}
           onOpenLibrary={() => setView('library')}
           setName={setName}
           onSaveSet={saveNamedSet}

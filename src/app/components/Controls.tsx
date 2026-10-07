@@ -59,6 +59,8 @@ interface ControlsProps {
   onAutoHueToggle: () => void;
   /** Tonight's visuals in key order, as chosen in the library. */
   set: VisualPattern[];
+  /** The set in a new order — dragging a card along the row. */
+  onSetReorder: (set: VisualPattern[]) => void;
   onOpenLibrary: () => void;
   /** The saved set she is in, and saving to it — or naming a new one. */
   setName: string | null;
@@ -164,6 +166,7 @@ export function Controls({
   autoHueEnabled,
   onAutoHueToggle,
   set,
+  onSetReorder,
   onOpenLibrary,
   setName,
   onSaveSet,
@@ -197,6 +200,23 @@ export function Controls({
     if (!holdRef.current) return;
     clearTimeout(holdRef.current.timer);
     holdRef.current = null;
+  };
+
+  /*
+   * Drag a card along the row to reorder the set — and with it the keys, which
+   * follow the order. The cards slide out of the way as it passes over them.
+   * Starting a drag cancels the hold, so dragging never stacks a layer.
+   */
+  const [dragging, setDragging] = useState<VisualPattern | null>(null);
+  const dragOver = (pattern: VisualPattern) => {
+    if (!dragging || dragging === pattern) return;
+    const from = set.indexOf(dragging);
+    const to = set.indexOf(pattern);
+    if (from === -1 || to === -1) return;
+    const next = [...set];
+    next.splice(from, 1);
+    next.splice(to, 0, dragging);
+    onSetReorder(next);
   };
 
   const startHold = (pattern: VisualPattern) => {
@@ -305,10 +325,22 @@ export function Controls({
                     onPointerDown={() => startHold(pattern)}
                     onPointerUp={() => endHold(pattern)}
                     onPointerLeave={cancelHold}
-                    className="relative flex w-[44px] shrink-0 flex-col items-center gap-0.5 group/set"
+                    onPointerCancel={cancelHold}
+                    draggable
+                    onDragStart={(e) => {
+                      cancelHold();
+                      setDragging(pattern);
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', pattern);
+                    }}
+                    onDragEnter={() => dragOver(pattern)}
+                    onDragOver={(e) => { if (dragging) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
+                    onDrop={(e) => { e.preventDefault(); setDragging(null); }}
+                    onDragEnd={() => setDragging(null)}
+                    className={`relative flex w-[44px] shrink-0 cursor-grab flex-col items-center gap-0.5 group/set active:cursor-grabbing ${dragging === pattern ? 'opacity-40' : ''}`}
                     title={`${RENDERER_CATEGORIES[pattern].name} (${slotKey(index)})${
                       layerIndex !== -1 ? ` — layer ${layerIndex + 1}` : ''
-                    } · hold to stack`}
+                    } · hold to stack · drag to reorder`}
                   >
                     {/* A still of the visual, so the key is recognised by what it
                         plays, its key in the corner. */}
