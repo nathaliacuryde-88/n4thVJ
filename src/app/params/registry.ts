@@ -37,6 +37,7 @@ import { JellyfishConfig } from '../config/JellyfishRendererConfig';
 import { AuroraConfig } from '../config/AuroraRendererConfig';
 import { BlendConfig } from '../config/BlendRendererConfig';
 import { DreamConfig } from '../config/DreamRendererConfig';
+import { SlapConfig } from '../config/SlapRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
 import { BigTypeConfig } from '../config/BigTypeRendererConfig';
@@ -607,6 +608,38 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody folds', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hat shiver', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  slap: {
+    config: SlapConfig,
+    groups: [
+      {
+        name: 'Head',
+        params: [
+          { path: 'head.size', label: 'Size', min: 0.4, max: 2.5, step: 0.05 },
+          { path: 'head.bounce', label: 'Bounce', min: 0, max: 1, step: 0.05, hint: 'off the edges of the frame' },
+          { path: 'head.back', label: 'Comes back', min: 0.2, max: 3, step: 0.05, hint: 'how soon and how fast it returns to the middle' },
+          { path: 'head.squash', label: 'Dent & wobble', min: 0, max: 2, step: 0.05 },
+          { path: 'head.blush', label: 'Blush', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.slap', label: 'Slap force', min: 0, max: 2.5, step: 0.05 },
+          { path: 'hands.speed', label: 'Swing needed', min: 0.3, max: 2, step: 0.05, hint: 'how fast an open hand must move to slap' },
+          { path: 'hands.clap', label: 'Clap slap', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.show', label: 'Show hand', min: 0, max: 1, step: 0.05, hint: 'draws your hand as a glove' },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick knock', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass bob', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],

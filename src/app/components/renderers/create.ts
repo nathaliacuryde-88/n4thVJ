@@ -41,6 +41,7 @@ import { JellyfishRenderer } from './JellyfishRenderer';
 import { AuroraRenderer } from './AuroraRenderer';
 import { BlendRenderer } from './BlendRenderer';
 import { DreamRenderer } from './DreamRenderer';
+import { SlapRenderer } from './SlapRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
 import { NatureWorldRenderer } from './NatureWorldRenderer';
 import { BigTypeRenderer } from './BigTypeRenderer';
@@ -94,7 +95,7 @@ export const HOLDS_CONTEXT: ReadonlySet<string> = new Set([
   'atlas', 'aurora', 'bigtype', 'blend', 'bloom', 'butterflies', 'chrome', 'crowd',
   'cubewall', 'dandelion', 'dice', 'digitalblocks', 'distortedcamera', 'dream',
   'elastic-net', 'jellyfish', 'liquidchrome', 'morphing', 'world', 'network-cube',
-  'particleimage', 'ripple', 'smokehand-torus', 'smokehand-hand', 'watercolour',
+  'particleimage', 'ripple', 'slap', 'smokehand-torus', 'smokehand-hand', 'watercolour',
 ]);
 
 export function createRenderer(
@@ -220,6 +221,9 @@ export function createRenderer(
       break;
     case 'dream':
       renderer = new DreamRenderer(canvas, ctx);
+      break;
+    case 'slap':
+      renderer = new SlapRenderer(canvas, ctx);
       break;
     case 'watercolour':
       renderer = new WatercolourRenderer(canvas, ctx);

@@ -337,6 +337,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'A',
     description: 'Curtains of light folding over a night sky — soft behind the nature visuals'
   },
+  slap: {
+    pattern: 'slap',
+    name: 'Slap',
+    short: 'Slap',
+    category: '3D',
+    key: 'S',
+    description: 'A head an open hand can slap — it dents, wobbles, flushes red, bounces round the frame and comes back'
+  },
   dream: {
     pattern: 'dream',
     name: 'Dreamscape',

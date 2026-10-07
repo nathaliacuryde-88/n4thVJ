@@ -40,7 +40,7 @@ import {
   saveText,
 } from './config/content';
 
-export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple' | 'text' | 'video' | 'mosaic' | 'chrome' | 'bloom' | 'butterflies' | 'dice' | 'atlas' | 'crowd' | 'dandelion' | 'jellyfish' | 'aurora' | 'watercolour' | 'world' | 'bigtype' | 'particleimage' | 'blend' | 'dream';
+export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple' | 'text' | 'video' | 'mosaic' | 'chrome' | 'bloom' | 'butterflies' | 'dice' | 'atlas' | 'crowd' | 'dandelion' | 'jellyfish' | 'aurora' | 'watercolour' | 'world' | 'bigtype' | 'particleimage' | 'blend' | 'dream' | 'slap';
 
 export interface AudioData {
   /** Kick and sub, 20–160Hz. Scale, weight, push. */
@@ -90,6 +90,8 @@ export interface HandData {
   clapIntensity?: number;
   /** Last N positions. */
   gestureTrail?: { x: number; y: number; hand: 'left' | 'right' }[];
+  /** Made up — the automatic drive, or the music standing in — not her real hands. */
+  synthetic?: boolean;
 }
 
 /**
@@ -704,6 +706,7 @@ export default function App() {
     clapIntensity: audioData.beatIntensity,
     // Hands close on the kick, so the low end squeezes the whole frame.
     distanceBetweenHands: 0.45 - audioData.bass * 0.3,
+    synthetic: true,
   } : handsPresent || !idleDrive ? handData : autoHands;
 
   /*

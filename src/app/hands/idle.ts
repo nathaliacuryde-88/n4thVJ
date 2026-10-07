@@ -65,5 +65,6 @@ export function idleHands(t: number): HandData {
     left: hand(0, 0.32),
     right: hand(Math.PI, 0.68),
     distanceBetweenHands: 0.36,
+    synthetic: true,
   };
 }
