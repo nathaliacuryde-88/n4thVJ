@@ -109,9 +109,12 @@ function onMessage(event: MIDIMessageEvent) {
     // Sent as a value; a button target reads it as a press when it crosses half way up.
     if (takesOver(target, value / 127, known === undefined ? undefined : known / 127)) handler(target, value / 127);
     if (previous < 64 && value >= 64) handler(`${target}#press`, 1);
+    if (previous >= 64 && value < 64) handler(`${target}#release`, 0);
   } else if (!isNoteOff) {
     handler(target, value / 127);
     handler(`${target}#press`, 1);
+  } else {
+    handler(`${target}#release`, 0);
   }
 }
 

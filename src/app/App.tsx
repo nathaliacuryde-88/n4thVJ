@@ -130,6 +130,9 @@ function defaultLook(): Look {
   return { hue: 245, saturation: 100, colorMode: 'contrast' };
 }
 
+/** Shared, so an unset visual's effects keep one identity across renders. */
+const NO_FX: ParamValues = {};
+
 export default function App() {
   /**
    * The stack, bottom first. One entry is the ordinary case and behaves exactly
@@ -510,7 +513,7 @@ export default function App() {
   );
 
   /** The selected layer's visual's effects, which is what the panel edits. */
-  const fxParams = fxByPattern[currentPattern] ?? {};
+  const fxParams = fxByPattern[currentPattern] ?? NO_FX;
 
   const setFxParam = useCallback((path: string, value: number) => {
     setFxByPattern((prev) => ({
@@ -1024,6 +1027,9 @@ export default function App() {
   /** Where each effect knob was last turned to, for its whole-step values. */
   const knobSent = useRef<Record<string, number>>({});
 
+  /** Pads held down, waiting to see whether they are a tap or a hold. */
+  const midiHold = useRef<Record<string, { fired: boolean; timer: number }>>({});
+
   // What each control does, against the state of this render.
   const midiAct = useRef<(target: string, value: number) => void>(() => {});
   midiAct.current = (target, value) => {
@@ -1056,9 +1062,24 @@ export default function App() {
       else if (id === 'fx') toggleFx();
       else if (id.startsWith('fx:')) toggleFxStage(id.slice(3));
       else if (id.startsWith('slot')) {
+        // Like the number keys: tap switches, hold stacks.
         const pattern = set[Number(id.slice(4)) - 1];
-        if (pattern) setCurrentPattern(pattern);
+        if (!pattern) return;
+        clearTimeout(midiHold.current[id]?.timer);
+        const hold = { fired: false, timer: 0 };
+        hold.timer = window.setTimeout(() => { hold.fired = true; toggleLayer(pattern); }, HOLD_MS);
+        midiHold.current[id] = hold;
       }
+      return;
+    }
+    if (target.endsWith('#release')) {
+      const id = target.slice(0, -8);
+      const hold = midiHold.current[id];
+      if (!hold) return;
+      clearTimeout(hold.timer);
+      delete midiHold.current[id];
+      const pattern = set[Number(id.slice(4)) - 1];
+      if (!hold.fired && pattern) setCurrentPattern(pattern);
       return;
     }
     const layer = /^layer(\d)$/.exec(target);
