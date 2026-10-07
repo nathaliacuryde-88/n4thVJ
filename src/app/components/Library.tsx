@@ -10,7 +10,7 @@ import {
   RendererInfo,
 } from '../config/RendererCategories';
 import { MAX_SET, slotKey, keySlot } from '../config/setlist';
-import { createRenderer, VJRenderer } from './renderers/create';
+import { createRenderer, HOLDS_CONTEXT, VJRenderer } from './renderers/create';
 import { idleHands } from '../hands/idle';
 import { advanceClock, useLayerClock } from '../motion/clock';
 import { Clips, DEFAULT_TEXT } from '../config/content';
@@ -74,6 +74,8 @@ interface Tile {
   /** Frames drawn so far, which decides who gets a slot next. */
   frames: number;
   failed?: boolean;
+  /** When it last failed, so it can try again. */
+  failedAt?: number;
   /** The slider values last handed to the renderer, so they are only applied when they change. */
   applied?: ParamValues | undefined;
   /** Whether a still has been taken for the set bar this visit. */
@@ -254,7 +256,13 @@ export function Library({
       });
 
       for (const [pattern, tile] of queue) {
-        const holdsContext = RENDERER_CATEGORIES[pattern].category !== '2D';
+        // By what the renderer really uses, not its family: several 2D visuals
+        // draw with a shader, and counting them as free once let the page run
+        // past the browser's limit — it then dropped Dandelion's and Dice's
+        // contexts, and their cards said they needed WebGL.
+        const holdsContext = HOLDS_CONTEXT.has(pattern);
+        // A card that failed (often for want of a context) tries again later.
+        if (tile.failed && now - (tile.failedAt ?? 0) > 4000) tile.failed = false;
         const room = holdsContext ? gl < GL_PREVIEWS : canvas2d < CANVAS_PREVIEWS;
         const wanted = visible.current.has(pattern) && room && !tile.failed;
         if (wanted) {
@@ -265,6 +273,7 @@ export function Library({
               // No context to spare, or the renderer will not build here. The
               // tile stays a still and the card is still selectable.
               tile.failed = true;
+              tile.failedAt = now;
               continue;
             }
           }
@@ -284,6 +293,7 @@ export function Library({
             );
           } catch {
             tile.failed = true;
+            tile.failedAt = now;
             tile.renderer.destroy?.();
             tile.renderer = null;
             continue;

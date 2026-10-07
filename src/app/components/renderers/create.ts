@@ -82,6 +82,21 @@ export interface VJRenderer {
 }
 
 /** Build the renderer for a pattern. Unknown patterns fall back to Geometric. */
+/**
+ * The visuals whose renderer holds a WebGL context of its own.
+ *
+ * Not the same as the 3D/TD families: several 2D-looking visuals draw with a
+ * shader (Aurora, Watercolour, Blend, Dreamscape, Big Type, Ripple…), and the
+ * browser counts their contexts all the same. Anything that has to stay under
+ * the browser's limit of live contexts counts these.
+ */
+export const HOLDS_CONTEXT: ReadonlySet<string> = new Set([
+  'atlas', 'aurora', 'bigtype', 'blend', 'bloom', 'butterflies', 'chrome', 'crowd',
+  'cubewall', 'dandelion', 'dice', 'digitalblocks', 'distortedcamera', 'dream',
+  'elastic-net', 'jellyfish', 'liquidchrome', 'morphing', 'world', 'network-cube',
+  'particleimage', 'ripple', 'smokehand-torus', 'smokehand-hand', 'watercolour',
+]);
+
 export function createRenderer(
   pattern: VisualPattern,
   canvas: HTMLCanvasElement,
