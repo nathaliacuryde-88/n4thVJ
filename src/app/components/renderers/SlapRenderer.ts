@@ -235,7 +235,9 @@ export class SlapRenderer {
       this.lastHand[side] = at;
       if (!before || dt <= 0) continue;
       const velocity = at.clone().sub(before).divideScalar(Math.max(dt, 1 / 120));
-      const open = hand.gesture === 'open' || (hand.fingerCount ?? 0) >= 4;
+      // An open hand slaps; a fist punches. Either hits.
+      const fist = hand.gesture === 'fist' || (hand.fingerCount ?? 5) <= 1;
+      const open = fist || hand.gesture === 'open' || (hand.fingerCount ?? 0) >= 4;
       const centre = this.pos;
       const reach = this.radius() * 1.35;
       // Through the head this frame: the nearest point of the hand's path is inside it.
@@ -244,7 +246,7 @@ export class SlapRenderer {
       const nearest = before.clone().add(path.multiplyScalar(t));
       const fast = velocity.length() > this.halfH * 1.6 * cfg.hands.speed;
       if (open && fast && nearest.distanceTo(centre) < reach && this.sinceSlap > 0.3) {
-        this.slap(velocity, nearest);
+        this.slap(velocity, nearest, fist);
       }
     }
 
@@ -262,24 +264,29 @@ export class SlapRenderer {
     this.wasClapping = clapping;
   }
 
-  /** Hit: off it goes, spinning, dented where the hand landed, red. */
-  private slap(handVelocity: THREE.Vector2, at: THREE.Vector2) {
+  /**
+   * Hit: off it goes, spinning, dented where the hand landed, red. A punch
+   * (a fist) sends it harder and straighter, with a deeper dent and less
+   * spin than an open-handed slap, which whips it round.
+   */
+  private slap(handVelocity: THREE.Vector2, at: THREE.Vector2, punch = false) {
     const { cfg } = this;
     const speed = handVelocity.length();
-    const push = Math.min(this.halfH * 5, speed * 0.9) * cfg.hands.slap;
+    const push = Math.min(this.halfH * 5, speed * (punch ? 1.15 : 0.9)) * cfg.hands.slap;
     const dir = handVelocity.clone().normalize();
     this.vel.addScaledVector(dir, push);
     // Struck off-centre, it turns: a slap across the face swings it round,
     // one from below tips it back.
     const hard = Math.min(1.5, speed / (this.halfH * 3));
-    this.spin.y += dir.x * 9 * hard * cfg.hands.slap;
-    this.spin.x += -dir.y * 6 * hard * cfg.hands.slap;
-    this.spin.z += (Math.random() - 0.5) * 6 * hard;
+    const turn = punch ? 0.45 : 1;
+    this.spin.y += dir.x * 9 * hard * cfg.hands.slap * turn;
+    this.spin.x += -dir.y * 6 * hard * cfg.hands.slap * turn;
+    this.spin.z += (Math.random() - 0.5) * 6 * hard * turn;
     // The dent is where the hand came in from, in the head's own space.
     const from = new THREE.Vector3(at.x - this.pos.x, at.y - this.pos.y, 0.6).normalize();
     from.applyQuaternion(this.body.quaternion.clone().invert());
     this.dentAt.copy(from);
-    this.dent = Math.min(1.2, 0.35 + hard * 0.6) * cfg.head.squash;
+    this.dent = Math.min(1.5, (0.35 + hard * 0.6) * (punch ? 1.35 : 1)) * cfg.head.squash;
     this.dentAge = 0;
     this.wobbleVel += 6 * hard * cfg.head.squash;
     this.blush = Math.min(1, this.blush + 0.6 * hard + 0.3);
@@ -393,44 +400,131 @@ export class SlapRenderer {
     for (const m of this.materials) m.emissiveIntensity = this.blush * 0.28 * cfg.head.blush;
   }
 
-  /** Her hand on screen, as a soft white glove, so the slap reads from the back of the room. */
+  /*
+   * Her hand on screen, as a drawn outline: the silhouette's edge glowing,
+   * each finger's own outline fainter inside it, the inside barely there —
+   * in the manner of the Smoke Hand. Built from the tracked joints, so it
+   * opens and closes as her hand does, and a fist reads as a fist.
+   */
+  private shape = document.createElement('canvas');
+  private ring = document.createElement('canvas');
+
   private drawHands(handData: HandData, width: number, height: number) {
-    const ctx = this.ctx;
     const alpha = Math.min(1, this.cfg.hands.show);
     for (const hand of [handData.left, handData.right]) {
       const lm = hand?.landmarks;
       if (!lm || lm.length < 21) continue;
-      const P = (i: number) => [lm[i].x * width, lm[i].y * height] as const;
-      const size = Math.hypot(P(0)[0] - P(9)[0], P(0)[1] - P(9)[1]);
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.shadowColor = 'rgba(0,0,0,0.45)';
-      ctx.shadowBlur = size * 0.25;
-      ctx.fillStyle = ctx.strokeStyle = '#f6f1ea';
-      // The palm.
-      ctx.beginPath();
-      for (const i of [0, 1, 5, 9, 13, 17]) {
-        const [x, y] = P(i);
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      ctx.lineWidth = size * 0.35;
-      ctx.fill();
-      ctx.stroke();
-      // The fingers.
-      ctx.lineWidth = size * 0.26;
-      for (const finger of [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16], [17, 18, 19, 20]]) {
-        ctx.beginPath();
-        finger.forEach((i, k) => {
-          const [x, y] = P(i);
-          if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
-      }
-      ctx.restore();
+      const pts = lm.map((p) => [p.x * width, p.y * height] as [number, number]);
+      const size = Math.hypot(pts[0][0] - pts[9][0], pts[0][1] - pts[9][1]);
+      if (size < 4) continue;
+      // Work in a box round the hand, not the whole frame.
+      const pad = size * 0.6;
+      const xs = pts.map((p) => p[0]);
+      const ys = pts.map((p) => p[1]);
+      const x0 = Math.floor(Math.min(...xs) - pad);
+      const y0 = Math.floor(Math.min(...ys) - pad);
+      const w = Math.ceil(Math.max(...xs) + pad) - x0;
+      const h = Math.ceil(Math.max(...ys) + pad) - y0;
+      const local = pts.map(([x, y]) => [x - x0, y - y0] as [number, number]);
+      this.drawHand(local, size, w, h, x0, y0, alpha);
     }
+  }
+
+  /** Fingers: joints, and how wide each is at its base, as a share of the hand. */
+  private static FINGERS: [number[], number][] = [
+    [[1, 2, 3, 4], 0.3],
+    [[5, 6, 7, 8], 0.24],
+    [[9, 10, 11, 12], 0.25],
+    [[13, 14, 15, 16], 0.23],
+    [[17, 18, 19, 20], 0.19],
+  ];
+
+  /** Paints a silhouette in white: the palm, a stub of wrist, and the chosen fingers. */
+  private paintSilhouette(g: CanvasRenderingContext2D, P: [number, number][], size: number, fingers: number[], palm: boolean) {
+    g.fillStyle = g.strokeStyle = '#fff';
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    if (palm) {
+      // The palm, rounded, and the wrist running out of it.
+      const wrist = P[0];
+      const out: [number, number] = [wrist[0] + (wrist[0] - P[9][0]) * 0.35, wrist[1] + (wrist[1] - P[9][1]) * 0.35];
+      g.beginPath();
+      for (const [k, i] of [0, 1, 2, 5, 9, 13, 17].entries()) {
+        if (k === 0) g.moveTo(P[i][0], P[i][1]); else g.lineTo(P[i][0], P[i][1]);
+      }
+      g.closePath();
+      g.lineWidth = size * 0.28;
+      g.fill();
+      g.stroke();
+      g.lineWidth = size * 0.55;
+      g.beginPath();
+      g.moveTo(wrist[0], wrist[1]);
+      g.lineTo(out[0], out[1]);
+      g.stroke();
+    }
+    for (const f of fingers) {
+      const [joints, base] = SlapRenderer.FINGERS[f];
+      for (let k = 0; k < joints.length - 1; k++) {
+        // Tapering toward the tip.
+        g.lineWidth = size * base * (1 - k * 0.1);
+        g.beginPath();
+        g.moveTo(P[joints[k]][0], P[joints[k]][1]);
+        g.lineTo(P[joints[k + 1]][0], P[joints[k + 1]][1]);
+        g.stroke();
+      }
+    }
+  }
+
+  /** The edge of whatever is painted on `shape`, `thickness` wide, in `colour`, onto `ring`. */
+  private edgeOf(w: number, h: number, thickness: number, colour: string) {
+    const r = this.ring.getContext('2d')!;
+    r.globalCompositeOperation = 'source-over';
+    r.clearRect(0, 0, w, h);
+    // Grow the shape by drawing it shifted all round, then cut the shape out.
+    const steps = 12;
+    for (let i = 0; i < steps; i++) {
+      const a = (i / steps) * Math.PI * 2;
+      r.drawImage(this.shape, Math.cos(a) * thickness, Math.sin(a) * thickness);
+    }
+    r.globalCompositeOperation = 'destination-out';
+    r.drawImage(this.shape, 0, 0);
+    r.globalCompositeOperation = 'source-in';
+    r.fillStyle = colour;
+    r.fillRect(0, 0, w, h);
+    r.globalCompositeOperation = 'source-over';
+  }
+
+  private drawHand(P: [number, number][], size: number, w: number, h: number, x0: number, y0: number, alpha: number) {
+    const ctx = this.ctx;
+    for (const c of [this.shape, this.ring]) {
+      if (c.width < w || c.height < h) { c.width = Math.max(c.width, w); c.height = Math.max(c.height, h); }
+    }
+    const g = this.shape.getContext('2d')!;
+    const line = Math.max(1.5, size * 0.045);
+
+    // The whole hand: a faint fill, and its outline glowing.
+    g.clearRect(0, 0, this.shape.width, this.shape.height);
+    this.paintSilhouette(g, P, size, [0, 1, 2, 3, 4], true);
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.1;
+    ctx.drawImage(this.shape, 0, 0, w, h, x0, y0, w, h);
+    this.edgeOf(w, h, line, '#ffffff');
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = 'rgba(170, 220, 255, 0.9)';
+    ctx.shadowBlur = size * 0.18;
+    ctx.drawImage(this.ring, 0, 0, w, h, x0, y0, w, h);
+    ctx.shadowBlur = 0;
+
+    // Each finger's own outline, fainter, so fingers held together and a
+    // closed fist still read as fingers.
+    ctx.globalAlpha = alpha * 0.55;
+    for (let f = 0; f < 5; f++) {
+      g.clearRect(0, 0, this.shape.width, this.shape.height);
+      this.paintSilhouette(g, P, size, [f], false);
+      this.edgeOf(w, h, line * 0.6, '#e8f4ff');
+      ctx.drawImage(this.ring, 0, 0, w, h, x0, y0, w, h);
+    }
+    ctx.restore();
   }
 }
 
