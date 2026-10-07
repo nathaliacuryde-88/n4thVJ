@@ -40,6 +40,40 @@ export const PipelineConfig = {
   },
 
   /**
+   * REPEAT — the frame tiled into a grid, each tile a moment further back.
+   * Reads the frame memory, so a gesture walks across the tiles.
+   */
+  repeat: {
+    /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
+    enabled: 1,
+    /** Stage opacity: blends between this stage's input and its output. */
+    mix: 1,
+    /** Tiles across and down. Below 2 = off. */
+    grid: 0,
+    /** How far back the last tile is: 0 all in step, 1 the oldest moment kept (under a second). */
+    delay: 0.5,
+    /** The order time walks the tiles: 0 reading, 1 columns, 2 from the centre, 3 scattered. */
+    order: 0,
+    /** 1 mirrors alternate tiles, so the seams fold into a pattern. */
+    mirror: 0,
+  },
+
+  /**
+   * TIME — slit-scan: each part of the frame from a different moment.
+   * Reads the frame memory; motion smears and stretches like liquid.
+   */
+  time: {
+    /** Bypass. 0 keeps every setting but takes the stage out of the chain. */
+    enabled: 1,
+    /** Stage opacity: blends between this stage's input and its output. */
+    mix: 1,
+    /** How far back the oldest part reaches: 0 off, 1 the oldest moment kept. */
+    amount: 0,
+    /** How time lies across the frame: 0 down it, 1 across it, 2 out from the centre, 3 drifting patches. */
+    direction: 0,
+  },
+
+  /**
    * FEEDBACK — last frame's output, transformed and screened under this one.
    * The single biggest change in character available here.
    */

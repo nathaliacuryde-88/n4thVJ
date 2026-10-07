@@ -22,6 +22,8 @@ import {
   INWARD_ECHO,
   FLUTED_GLASS,
   ATLAS,
+  REPEAT,
+  TIME,
 } from './shaders';
 import { glyphStrip, glyphsFor } from '../config/charsets';
 
@@ -43,6 +45,10 @@ export interface Drive {
 }
 
 type Cfg = typeof PipelineConfig;
+
+/** How many frames the memory keeps (under a second at 60 fps), and at what size. */
+const HISTORY_FRAMES = 48;
+const HISTORY_SCALE = 0.5;
 
 /** A stage runs only if it is switched on, has opacity, and is doing something. */
 function stageLive(stage: { enabled: number; mix: number }, doingSomething: boolean): boolean {
@@ -69,6 +75,8 @@ export function stageDoing(stage: string, values: ParamValues): boolean {
     case 'pixelate': return stageLive(c.pixelate, c.pixelate.pixel > 1 || c.pixelate.levels >= 2);
     case 'noiseTile': return stageLive(c.noiseTile, c.noiseTile.size > 1);
     case 'echo': return stageLive(c.echo, c.echo.count >= 1);
+    case 'repeat': return stageLive(c.repeat, c.repeat.grid >= 2);
+    case 'time': return stageLive(c.time, c.time.amount > 0);
     case 'fluted': return stageLive(c.fluted, c.fluted.ribs >= 1);
     case 'atlas': return stageLive(c.atlas, c.atlas.columns >= 8);
     // The crossfade is always doing its job; it has no "off".
@@ -93,6 +101,8 @@ export function fxActive(values: ParamValues): boolean {
     stageLive(c.pixelate, c.pixelate.pixel > 1 || c.pixelate.levels >= 2) ||
     stageLive(c.noiseTile, c.noiseTile.size > 1) ||
     stageLive(c.echo, c.echo.count >= 1) ||
+    stageLive(c.repeat, c.repeat.grid >= 2) ||
+    stageLive(c.time, c.time.amount > 0) ||
     stageLive(c.fluted, c.fluted.ribs >= 1) ||
     stageLive(c.atlas, c.atlas.columns >= 8)
   );
@@ -110,7 +120,7 @@ export function fxActive(values: ParamValues): boolean {
  * whole chain is kept and sampled by the next frame, so the effects compound
  * on their own history rather than being re-applied to a fresh image.
  *
- *   source ─▶ feedback ─▶ displace ─▶ rgb split ─▶ kaleido ─▶ pixelate
+ *   source ─▶ repeat ─▶ time ─▶ feedback ─▶ displace ─▶ rgb split ─▶ kaleido ─▶ pixelate
  *          ─▶ noise tile ─▶ atlas ─▶ inward echo ─▶ fluted glass
  *                 ▲                                                        │
  *                 └──────────────── kept for next frame ◀──────────────────┘
@@ -167,6 +177,8 @@ export class PostPipeline {
       echo: createProgram(gl, INWARD_ECHO),
       fluted: createProgram(gl, FLUTED_GLASS),
       atlas: createProgram(gl, ATLAS),
+      repeat: createProgram(gl, REPEAT),
+      time: createProgram(gl, TIME),
     };
 
     /*
@@ -264,9 +276,70 @@ export class PostPipeline {
       this.live(c.pixelate, c.pixelate.pixel > 1 || c.pixelate.levels >= 2) ||
       this.live(c.noiseTile, c.noiseTile.size > 1) ||
       this.live(c.echo, c.echo.count >= 1) ||
+      this.repeatLive || this.timeLive ||
       this.live(c.fluted, c.fluted.ribs >= 1) ||
       this.live(c.atlas, c.atlas.columns >= 8)
     );
+  }
+
+  private get repeatLive() { return this.live(this.cfg.repeat, this.cfg.repeat.grid >= 2); }
+  private get timeLive() { return this.live(this.cfg.time, this.cfg.time.amount > 0); }
+
+  /*
+   * The frame memory: the last frames, at half size, as layers of one texture
+   * array, for the stages that show the past (Repeat, Time). Made the first
+   * time one is switched on and let go when neither is, since it is the one
+   * big allocation in the chain.
+   */
+  private history: { texture: WebGLTexture; framebuffer: WebGLFramebuffer; w: number; h: number } | null = null;
+  private head = 0;
+  private written = 0;
+
+  private remember(current: WebGLTexture) {
+    const gl = this.gl;
+    const w = Math.max(1, Math.round(this.width * HISTORY_SCALE));
+    const h = Math.max(1, Math.round(this.height * HISTORY_SCALE));
+    if (!this.history || this.history.w !== w || this.history.h !== h) {
+      this.forget();
+      const texture = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D_ARRAY, texture);
+      gl.texStorage3D(gl.TEXTURE_2D_ARRAY, 1, gl.RGBA8, w, h, HISTORY_FRAMES);
+      gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      this.history = { texture, framebuffer: gl.createFramebuffer()!, w, h };
+      this.head = 0;
+      this.written = 0;
+    }
+    const hist = this.history;
+    this.head = (this.head + 1) % HISTORY_FRAMES;
+    const program = this.use('copy');
+    bindTexture(gl, program, 'uTex', current, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, hist.framebuffer);
+    gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, hist.texture, 0, this.head);
+    gl.viewport(0, 0, hist.w, hist.h);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.written = Math.min(HISTORY_FRAMES, this.written + 1);
+  }
+
+  private forget() {
+    if (!this.history) return;
+    this.gl.deleteTexture(this.history.texture);
+    this.gl.deleteFramebuffer(this.history.framebuffer);
+    this.history = null;
+    this.written = 0;
+  }
+
+  /** Points a time stage at the frame memory. */
+  private bindHistory(program: WebGLProgram) {
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.history!.texture);
+    gl.uniform1i(gl.getUniformLocation(program, 'uHist'), 2);
+    gl.uniform1f(gl.getUniformLocation(program, 'uHead'), this.head);
+    gl.uniform1f(gl.getUniformLocation(program, 'uDepth'), HISTORY_FRAMES);
+    gl.uniform1f(gl.getUniformLocation(program, 'uWritten'), this.written);
   }
 
   private resize(width: number, height: number) {
@@ -350,6 +423,7 @@ export class PostPipeline {
     // Nothing switched on: straight to screen, no targets touched.
     if (!this.active) {
       if (this.feedbackPrimed) this.feedbackPrimed = false;
+      this.forget();
       const program = this.use('copy');
       bindTexture(gl, program, 'uTex', incoming, 0);
       drawFullscreen(gl, null, width, height);
@@ -359,6 +433,43 @@ export class PostPipeline {
     const c = this.cfg;
     let current: WebGLTexture = incoming;
     let target: RenderTarget;
+
+    // The time stages first, on the visual itself: remember this frame, then
+    // show the past. A clap pulls the tiles back into step for a moment.
+    const repeating = this.repeatLive;
+    const timing = this.timeLive;
+    if (repeating || timing) this.remember(current);
+    else this.forget();
+
+    if (repeating) {
+      const program = this.use('repeat', width, height, time);
+      bindTexture(gl, program, 'uTex', current, 0);
+      this.bindHistory(program);
+      const n = Math.max(1, Math.round(c.repeat.grid));
+      const order = Math.round(c.repeat.order);
+      const steps = order === 2 ? Math.ceil((n - 1) / 2) : n * n - 1;
+      const spread = c.repeat.delay * (1 - Math.min(1, this.drive.burst));
+      gl.uniform1f(gl.getUniformLocation(program, 'uGrid'), n);
+      gl.uniform1f(gl.getUniformLocation(program, 'uStep'), steps > 0 ? (spread * (HISTORY_FRAMES - 1)) / steps : 0);
+      gl.uniform1f(gl.getUniformLocation(program, 'uOrder'), order);
+      gl.uniform1f(gl.getUniformLocation(program, 'uMirror'), c.repeat.mirror);
+      gl.uniform1f(gl.getUniformLocation(program, 'uMix'), c.repeat.mix);
+      target = this.next();
+      drawFullscreen(gl, target, width, height);
+      current = target.texture;
+    }
+
+    if (timing) {
+      const program = this.use('time', width, height, time);
+      bindTexture(gl, program, 'uTex', current, 0);
+      this.bindHistory(program);
+      gl.uniform1f(gl.getUniformLocation(program, 'uAmount'), Math.min(1, c.time.amount));
+      gl.uniform1f(gl.getUniformLocation(program, 'uDirection'), Math.round(c.time.direction));
+      gl.uniform1f(gl.getUniformLocation(program, 'uMix'), c.time.mix);
+      target = this.next();
+      drawFullscreen(gl, target, width, height);
+      current = target.texture;
+    }
 
     if (this.live(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1)) {
       const program = this.use('colour');
@@ -508,6 +619,7 @@ export class PostPipeline {
     deleteTarget(gl, this.targets[0]);
     deleteTarget(gl, this.targets[1]);
     deleteTarget(gl, this.feedback);
+    this.forget();
     gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
 }

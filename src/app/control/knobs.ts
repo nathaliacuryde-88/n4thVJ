@@ -37,6 +37,9 @@ export const KNOB_FX: KnobFx[] = [
   // Fewer columns are bigger characters: up is chunkier.
   { name: 'Atlas', path: 'atlas.columns', from: 200, to: 24, whole: true },
   { name: 'Fluted', path: 'fluted.bend', from: 0.1, to: 2 },
+  // Past the eight on the nanoKONTROL2's knobs, but free to LEARN.
+  { name: 'Repeat', path: 'repeat.grid', from: 2, to: 8, whole: true },
+  { name: 'Time', path: 'time.amount', from: 0.05, to: 1 },
 ];
 
 /** Below this a knob counts as all the way down: off. */

@@ -448,3 +448,88 @@ void main() {
 
   fragColor = vec4(mix(here, col, uMix), 1.0);
 }`;
+
+/**
+ * The frame memory both time stages read: the last frames, newest at uHead,
+ * as layers of one texture array. `back` frames ago is layer (uHead - back),
+ * wrapping round; never further back than has been written yet.
+ */
+const HISTORY = `
+precision highp sampler2DArray;
+uniform sampler2DArray uHist;
+uniform float uHead;
+uniform float uDepth;
+uniform float uWritten;
+float layerAt(float back) {
+  back = clamp(back, 0.0, max(0.0, min(uDepth, uWritten) - 1.0));
+  return mod(uHead - back + uDepth * 4.0, uDepth);
+}
+vec3 past(vec2 uv, float back) {
+  float b0 = floor(back);
+  vec3 a = texture(uHist, vec3(uv, layerAt(b0))).rgb;
+  vec3 b = texture(uHist, vec3(uv, layerAt(b0 + 1.0))).rgb;
+  return mix(a, b, back - b0);
+}
+`;
+
+/**
+ * REPEAT — the frame tiled into a grid, each tile a moment further back.
+ *
+ * The TouchDesigner Cache-into-Tile patch: with no delay it is a plain grid
+ * of the same picture; with delay, a gesture walks across the tiles in the
+ * chosen order — reading order, down the columns, out from the centre in
+ * rings, or scattered — so the first tile and the last are in different
+ * moments. Mirroring alternate tiles makes the seams fold into a pattern.
+ */
+export const REPEAT = `${COMMON}${HISTORY}
+uniform float uGrid;
+uniform float uStep;
+uniform float uOrder;
+uniform float uMirror;
+uniform float uMix;
+
+void main() {
+  vec4 src = texture(uTex, vUv);
+  float n = max(1.0, floor(uGrid + 0.5));
+  vec2 g = vUv * n;
+  vec2 cell = floor(g);
+  vec2 f = fract(g);
+  float row = n - 1.0 - cell.y;            // the top row first
+  float k;
+  if (uOrder < 0.5) k = row * n + cell.x;            // reading order
+  else if (uOrder < 1.5) k = cell.x * n + row;       // down the columns
+  else if (uOrder < 2.5) {                           // out from the centre, in rings
+    vec2 c = abs(cell - (n - 1.0) * 0.5);
+    k = floor(max(c.x, c.y) + 0.5);
+  } else k = floor(hash(cell + 3.1) * n * n);        // scattered
+  if (uMirror > 0.5) {
+    if (mod(cell.x, 2.0) > 0.5) f.x = 1.0 - f.x;
+    if (mod(cell.y, 2.0) > 0.5) f.y = 1.0 - f.y;
+  }
+  vec3 c = past(f, k * uStep);
+  fragColor = vec4(mix(src.rgb, c, uMix), src.a);
+}`;
+
+/**
+ * TIME — slit-scan: each part of the frame from a different moment.
+ *
+ * Time is laid across the picture as a gradient — down it, across it, out
+ * from the middle, or in drifting patches — and each pixel shows the frame
+ * from that far back, blended between neighbouring frames so it flows rather
+ * than steps. Anything moving smears and stretches like something liquid.
+ */
+export const TIME = `${COMMON}${HISTORY}
+uniform float uAmount;
+uniform float uDirection;
+uniform float uMix;
+
+void main() {
+  vec4 src = texture(uTex, vUv);
+  float t;
+  if (uDirection < 0.5) t = 1.0 - vUv.y;                       // top now, bottom past
+  else if (uDirection < 1.5) t = vUv.x;                        // left now, right past
+  else if (uDirection < 2.5) t = clamp(length(vUv - 0.5) * 1.414, 0.0, 1.0);  // centre now, edges past
+  else t = valueNoise(vUv * 3.0 + vec2(uTime * 0.07, -uTime * 0.05));        // drifting patches
+  vec3 c = past(vUv, t * uAmount * (uDepth - 1.0));
+  fragColor = vec4(mix(src.rgb, c, uMix), src.a);
+}`;

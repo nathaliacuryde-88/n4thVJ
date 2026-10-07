@@ -1254,6 +1254,28 @@ export const PIPELINE_PARAMS: RendererParams = {
       ],
     },
     {
+      name: 'Repeat',
+      stage: 'repeat',
+      turnOn: { 'repeat.grid': 3 },
+      togglePath: 'repeat.enabled',
+      params: [
+        { path: 'repeat.grid', label: 'Grid', min: 0, max: 8, step: 1, labels: ['Off', 'Off', '2×2', '3×3', '4×4', '5×5', '6×6', '7×7', '8×8'] },
+        { needs: 'repeat.grid', path: 'repeat.delay', label: 'Delay', min: 0, max: 1, step: 0.01, hint: '0 all in step · 1 the last tile under a second behind' },
+        { needs: 'repeat.grid', path: 'repeat.order', label: 'Order', min: 0, max: 3, step: 1, labels: ['Reading', 'Columns', 'From centre', 'Scattered'] },
+        { needs: 'repeat.grid', path: 'repeat.mirror', label: 'Mirror', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+      ],
+    },
+    {
+      name: 'Time',
+      stage: 'time',
+      turnOn: { 'time.amount': 0.6 },
+      togglePath: 'time.enabled',
+      params: [
+        { path: 'time.amount', label: 'Stretch', min: 0, max: 1, step: 0.01, hint: 'how far back the oldest part reaches · 0 = off' },
+        { needs: 'time.amount', path: 'time.direction', label: 'Direction', min: 0, max: 3, step: 1, labels: ['Down', 'Across', 'From centre', 'Patches'] },
+      ],
+    },
+    {
       name: 'Atlas',
       stage: 'atlas',
       turnOn: { 'atlas.columns': 90 },
