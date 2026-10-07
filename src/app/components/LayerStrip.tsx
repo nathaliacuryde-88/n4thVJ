@@ -1,5 +1,5 @@
 import { VisualPattern } from '../App';
-import { BLEND_LABEL, BLEND_SHORT, BlendMode, Layer, nextBlend } from '../config/LayerConfig';
+import { BLEND_LABEL, BLEND_MODES, BlendMode, Layer } from '../config/LayerConfig';
 import { RENDERER_CATEGORIES } from '../config/RendererCategories';
 import { slotKey } from '../config/setlist';
 
@@ -40,6 +40,12 @@ export function LayerStrip({
         <span className="text-[8px] text-white/25">L cycles · [ ] fade</span>
       </div>
 
+      {layers.length === 1 && (
+        <div className="mb-1 text-[8px] leading-snug text-white/30">
+          Hold a number (or a set card) to stack a second layer — each layer above the first gets a Blend menu.
+        </div>
+      )}
+
       {/* Bottom of the stack last, so the list reads the way the image does. */}
       {layers.map((layer, index) => {
         const isSelected = index === selectedLayer;
@@ -70,21 +76,6 @@ export function LayerStrip({
                   {RENDERER_CATEGORIES[layer.pattern].short}
                 </span>
               </button>
-
-              {/* How it meets the layers under it. The bottom one has nothing under it. */}
-              {index > 0 && (
-                <button
-                  onClick={(e) => onBlendChange(index, nextBlend(layer.blend, e.shiftKey ? -1 : 1))}
-                  title={`Blend: ${BLEND_LABEL[layer.blend ?? 'screen']} — click for the next, shift-click for the previous`}
-                  className={`shrink-0 rounded px-1 text-[8px] tracking-wide transition-colors ${
-                    (layer.blend ?? 'screen') === 'screen'
-                      ? 'text-white/35 hover:bg-white/10 hover:text-white/80'
-                      : 'bg-cyan-400/20 text-cyan-200 hover:bg-cyan-400/30'
-                  }`}
-                >
-                  {BLEND_SHORT[layer.blend ?? 'screen']}
-                </button>
-              )}
 
               <span className="shrink-0 text-[8px] tabular-nums text-white/45">
                 {Math.round(layer.opacity * 100)}%
@@ -117,6 +108,27 @@ export function LayerStrip({
                 }) ${layer.opacity * 100}%, rgba(255,255,255,0.12) ${layer.opacity * 100}%)`,
               }}
             />
+
+            {/* How it meets the layers under it. The bottom one has nothing under it. */}
+            {index > 0 && (
+              <label className="mt-0.5 flex items-center justify-between gap-2 text-[8px] uppercase tracking-widest text-white/40">
+                Blend
+                <select
+                  value={layer.blend ?? 'screen'}
+                  onChange={(e) => onBlendChange(index, e.target.value as BlendMode)}
+                  title="How this layer mixes with the ones under it"
+                  className={`cursor-pointer rounded border px-1 py-0.5 text-[9px] normal-case tracking-normal focus:outline-none ${
+                    (layer.blend ?? 'screen') === 'screen'
+                      ? 'border-white/15 bg-black/60 text-white/75'
+                      : 'border-cyan-300/40 bg-cyan-400/15 text-cyan-100'
+                  }`}
+                >
+                  {BLEND_MODES.map((mode) => (
+                    <option key={mode} value={mode} className="bg-black text-white">{BLEND_LABEL[mode]}</option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
         );
       })}

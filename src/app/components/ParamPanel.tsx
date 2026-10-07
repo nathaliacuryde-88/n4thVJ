@@ -256,7 +256,7 @@ export function Slider({
               }}
               title={lfo ? 'LFO on — click to edit' : 'Give this slider an LFO: it moves on its own, in time'}
               className={`text-[10px] leading-none transition-colors ${
-                lfo ? 'text-cyan-300 animate-pulse' : 'text-white/0 group-hover:text-white/40 hover:!text-white'
+                lfo ? 'text-cyan-300 animate-pulse' : 'text-white/30 group-hover:text-white/60 hover:!text-white'
               }`}
             >
               ∿
