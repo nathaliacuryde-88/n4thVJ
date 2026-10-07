@@ -1,5 +1,5 @@
 import { VisualPattern } from '../App';
-import { Layer } from '../config/LayerConfig';
+import { BLEND_LABEL, BLEND_SHORT, BlendMode, Layer, nextBlend } from '../config/LayerConfig';
 import { RENDERER_CATEGORIES } from '../config/RendererCategories';
 import { slotKey } from '../config/setlist';
 
@@ -21,6 +21,7 @@ interface LayerStripProps {
   onSelect: (index: number) => void;
   onOpacityChange: (index: number, opacity: number) => void;
   onRemove: (index: number) => void;
+  onBlendChange: (index: number, blend: BlendMode) => void;
 }
 
 export function LayerStrip({
@@ -30,6 +31,7 @@ export function LayerStrip({
   onSelect,
   onOpacityChange,
   onRemove,
+  onBlendChange,
 }: LayerStripProps) {
   return (
     <div className="px-3 pt-2 pb-1">
@@ -68,6 +70,21 @@ export function LayerStrip({
                   {RENDERER_CATEGORIES[layer.pattern].short}
                 </span>
               </button>
+
+              {/* How it meets the layers under it. The bottom one has nothing under it. */}
+              {index > 0 && (
+                <button
+                  onClick={(e) => onBlendChange(index, nextBlend(layer.blend, e.shiftKey ? -1 : 1))}
+                  title={`Blend: ${BLEND_LABEL[layer.blend ?? 'screen']} — click for the next, shift-click for the previous`}
+                  className={`shrink-0 rounded px-1 text-[8px] tracking-wide transition-colors ${
+                    (layer.blend ?? 'screen') === 'screen'
+                      ? 'text-white/35 hover:bg-white/10 hover:text-white/80'
+                      : 'bg-cyan-400/20 text-cyan-200 hover:bg-cyan-400/30'
+                  }`}
+                >
+                  {BLEND_SHORT[layer.blend ?? 'screen']}
+                </button>
+              )}
 
               <span className="shrink-0 text-[8px] tabular-nums text-white/45">
                 {Math.round(layer.opacity * 100)}%

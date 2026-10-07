@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Layer } from '../config/LayerConfig';
+import { BLEND_OP, Layer } from '../config/LayerConfig';
 import { ColorMode } from '../config/palette';
 import { AudioData, HandData, VisualPattern } from '../App';
 import { createRenderer, VJRenderer } from './renderers/create';
@@ -452,7 +452,9 @@ export function VJCanvas({
           }
         };
 
-        ctx.globalCompositeOperation = isBase ? 'source-over' : LAYER_BLEND;
+        ctx.globalCompositeOperation = isBase
+          ? 'source-over'
+          : BLEND_OP[layersRef.current[index]?.blend ?? 'screen'] ?? LAYER_BLEND;
 
         const width = ctx.canvas.width;
         const height = ctx.canvas.height;

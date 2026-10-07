@@ -13,7 +13,7 @@ import { RENDERER_CATEGORIES } from './config/RendererCategories';
 import { LayerStrip } from './components/LayerStrip';
 import { PIPELINE_PARAMS, RENDERER_PARAMS, splitPlay } from './params/registry';
 import { AllParamValues, ParamValues, sanitizeAllParams } from './params/types';
-import { HOLD_MS, Layer, MAX_LAYERS, STACKED_OPACITY } from './config/LayerConfig';
+import { BLEND_LABEL, BLEND_MODES, HOLD_MS, Layer, MAX_LAYERS, STACKED_OPACITY, nextBlend } from './config/LayerConfig';
 import { fxActive } from './pipeline/PostPipeline';
 import { idleHands, idleLandmarks } from './hands/idle';
 import { MOTION_DEFAULT, MOTION_MAX, MOTION_MIN, shapeHands } from './hands/motion';
@@ -140,10 +140,25 @@ export default function App() {
    * holding one adds or removes a layer; L moves the selection through them, and
    * the selection is what the sliders and the colour controls act on.
    */
-  const [layers, setLayers] = useState<Layer[]>(() => [
-    { pattern: 'geometric', opacity: 1, motion: MOTION_DEFAULT },
-  ]);
-  const [selectedLayer, setSelectedLayer] = useState(0);
+  /*
+   * Starts from the stack she left, not a default: the stack is saved as it
+   * changes, so a default here was written over the remembered one on load,
+   * before going into the set could read it back — and a reload lost it.
+   */
+  const [layers, setLayers] = useState<Layer[]>(() => {
+    const saved = loadSetting<{ layers: Layer[] } | null>(
+      'vj-stack', null,
+      (v) => typeof v === 'object' && v !== null && Array.isArray((v as { layers?: unknown }).layers),
+    );
+    const kept = (saved?.layers ?? []).filter(
+      (l) => l && typeof l.pattern === 'string' && l.pattern in RENDERER_CATEGORIES && typeof l.opacity === 'number',
+    ).slice(0, MAX_LAYERS);
+    return kept.length ? kept : [{ pattern: 'geometric', opacity: 1, motion: MOTION_DEFAULT }];
+  });
+  const [selectedLayer, setSelectedLayer] = useState(() => {
+    const saved = loadSetting<{ selected?: number } | null>('vj-stack', null, (v) => typeof v === 'object' && v !== null);
+    return typeof saved?.selected === 'number' ? saved.selected : 0;
+  });
   const currentPattern = (layers[selectedLayer] ?? layers[0]).pattern;
 
   /** Tap: swap the selected layer. A pattern already on the stack is selected, not duplicated. */
@@ -744,7 +759,12 @@ export default function App() {
     const kept = (saved?.layers ?? [])
       .filter((l) => set.includes(l.pattern) && typeof l.opacity === 'number')
       .slice(0, MAX_LAYERS)
-      .map((l) => ({ pattern: l.pattern, opacity: l.opacity, motion: typeof l.motion === 'number' ? l.motion : MOTION_DEFAULT }));
+      .map((l) => ({
+        pattern: l.pattern,
+        opacity: l.opacity,
+        motion: typeof l.motion === 'number' ? l.motion : MOTION_DEFAULT,
+        ...(l.blend && (BLEND_MODES as readonly string[]).includes(l.blend) ? { blend: l.blend } : {}),
+      }));
     if (kept.length) {
       setLayers(kept);
       const sel = saved?.layers[saved.selected]?.pattern;
@@ -990,6 +1010,9 @@ export default function App() {
     ...Array.from({ length: MAX_LAYERS }, (_, i) => ({
       id: `select${i + 1}`, label: `Select layer ${i + 1}`, group: 'Layers', continuous: false,
     })),
+    ...Array.from({ length: MAX_LAYERS - 1 }, (_, i) => ({
+      id: `blend${i + 2}`, label: `Layer ${i + 2} blend mode`, group: 'Layers', continuous: false,
+    })),
     { id: 'layer.prev', label: 'Select previous layer', group: 'Layers', continuous: false },
     { id: 'layer.next', label: 'Select next layer', group: 'Layers', continuous: false },
     ...KNOB_FX.map((fx) => ({
@@ -1053,6 +1076,15 @@ export default function App() {
       else if (id === 'mode') {
         flash(audioEnabled ? 'Hands drive' : 'Audio drives');
         setAudioEnabled((a) => !a);
+      }
+      else if (/^blend\d$/.test(id)) {
+        const index = Number(id.slice(5)) - 1;
+        const layer = layers[index];
+        if (layer) {
+          const blend = nextBlend(layer.blend);
+          setLayers((prev) => prev.map((l, i) => (i === index ? { ...l, blend } : l)));
+          flash(`Layer ${index + 1} · ${BLEND_LABEL[blend]}`);
+        }
       }
       else if (id.startsWith('select')) {
         const index = Number(id.slice(6)) - 1;
@@ -1470,6 +1502,8 @@ export default function App() {
               onSelect={setSelectedLayer}
               onOpacityChange={setLayerOpacity}
               onRemove={removeLayer}
+              onBlendChange={(index, blend) =>
+                setLayers((prev) => prev.map((l, i) => (i === index ? { ...l, blend } : l)))}
             />
           }
           sections={panelSections}

@@ -29,6 +29,43 @@ export interface Layer {
    * screen has to mean "not mine to play" rather than "stop".
    */
   motion: number;
+  /** How the layer meets the ones under it. Screen when unset. */
+  blend?: BlendMode;
+}
+
+/**
+ * How a layer combines with what is under it — the canvas's own operations.
+ *
+ *   Screen      brightens, never darker: the soft default
+ *   Add         light adds up and burns toward white
+ *   Lighten     keeps whichever is brighter: black drops out, like a luma key
+ *   Multiply    darkens: the layer stains what is under it
+ *   Difference  inverts where they overlap: hard, graphic
+ *   Overlay     contrast: lights lighter, darks darker
+ *   Normal      covers, at its fader
+ */
+export const BLEND_MODES = ['screen', 'add', 'lighten', 'multiply', 'difference', 'overlay', 'normal'] as const;
+export type BlendMode = (typeof BLEND_MODES)[number];
+
+export const BLEND_LABEL: Record<BlendMode, string> = {
+  screen: 'Screen', add: 'Add', lighten: 'Lighten', multiply: 'Multiply',
+  difference: 'Difference', overlay: 'Overlay', normal: 'Normal',
+};
+
+/** Short enough to sit beside a layer's name in the strip. */
+export const BLEND_SHORT: Record<BlendMode, string> = {
+  screen: 'Scrn', add: 'Add', lighten: 'Ltn', multiply: 'Mult',
+  difference: 'Diff', overlay: 'Ovl', normal: 'Norm',
+};
+
+export const BLEND_OP: Record<BlendMode, GlobalCompositeOperation> = {
+  screen: 'screen', add: 'lighter', lighten: 'lighten', multiply: 'multiply',
+  difference: 'difference', overlay: 'overlay', normal: 'source-over',
+};
+
+export function nextBlend(mode: BlendMode | undefined, step = 1): BlendMode {
+  const i = BLEND_MODES.indexOf(mode ?? 'screen');
+  return BLEND_MODES[(i + step + BLEND_MODES.length) % BLEND_MODES.length];
 }
 
 /**
