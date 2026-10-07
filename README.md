@@ -35,15 +35,27 @@ delegate there).
 
 | | |
 |---|---|
-| **2D / 3D / TD** | Three families of renderers. Keys are scoped to the open one. |
-| **1‑9, 0, -, =, Q, W, D** | Jump to a renderer. The button row shows the key for each. |
-| **← / →** | Previous / next renderer in the open bank |
+| **1–9, 0, Q W E T Y** | Tap: switch the selected layer to that visual of the set. Hold: add it as a layer, or take it off |
+| **← / →** | Previous / next visual of the set |
+| **L** | Select the next layer |
+| **[ / ]** | Selected layer's fader −/+ |
+| **− / =** | Selected layer's hands drive −/+ |
 | **↑ / ↓** | Saturation ±5 |
-| **C** | Camera preview on/off |
-| **A** | Audio-reactive mode on/off |
+| **H** | Auto colour on/off |
 | **Ctrl / Alt / Cmd** | Colour mode: 2 colours / black & white / 1 colour |
+| **Z / Shift+Z** | More / fewer objects (dice, flowers, rows…), or zoom in / out where nothing counts |
+| **X** | All effects on/off |
+| **K / N** | Kaleido / Noise on/off |
+| **D** | Blackout |
+| **B / Shift+B** | Tap tempo / clear it |
+| **, / .** | Tempo −/+ 0.5 BPM |
+| **P** | Auto-pilot |
+| **A** | Audio drives the visuals instead of the hands (microphone on/off) |
 | **I** | Auto-motion on/off |
-| **X** | Bypass the whole FX chain |
+| **C** | Camera preview on/off |
+| **R / S** | Record / where the recording's sound comes from |
+| **O** | Projector window (**F** or double-click in it for fullscreen) |
+| **Esc** | Back to the library |
 | **Right-click** | Hide or show the whole UI |
 
 The panel on the left has two tabs. **SHAPE** holds the current renderer's own

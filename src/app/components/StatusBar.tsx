@@ -165,7 +165,7 @@ export function StatusBar({
             <div className="h-4 w-px bg-white/15" />
             <button
               onClick={onBlackout}
-              title={blackout ? 'The output is black — click to bring it back' : `Master at ${Math.round(master * 100)}% — click for blackout`}
+              title={blackout ? 'The output is black — click or D to bring it back' : `Master at ${Math.round(master * 100)}% — click or D for blackout`}
               className={`rounded-full px-2 py-1 text-[10px] tracking-wider ${
                 blackout ? 'animate-pulse bg-red-500 text-white' : 'text-amber-300 hover:bg-white/10'
               }`}

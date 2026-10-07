@@ -1178,9 +1178,38 @@ export default function App() {
         return;
       }
 
-      // Global Flow Field (D)
+      // Blackout (D) — the whole output to black and back, eased
       if (e.key.toLowerCase() === 'd') {
-        setCurrentPattern('flowfield');
+        setBlackout((b) => !b);
+        return;
+      }
+
+      // Kaleido (K) and Noise (N) on the selected visual, as their chips do
+      if (e.key.toLowerCase() === 'k' || e.key.toLowerCase() === 'n') {
+        const [name, stage] = e.key.toLowerCase() === 'k' ? ['Kaleido', 'kaleido'] : ['Noise', 'noiseTile'];
+        flash(`${name} ${stageDoing(stage, fxParams) ? 'off' : 'on'}`);
+        toggleFxStage(name);
+        return;
+      }
+
+      // More objects / zoom in (Z), fewer / zoom out (Shift+Z)
+      if (e.key.toLowerCase() === 'z') {
+        stepCount(e.shiftKey ? -1 : 1);
+        return;
+      }
+
+      // Auto colour (H)
+      if (e.key.toLowerCase() === 'h') {
+        flash(autoHueEnabled ? 'Auto colour off' : 'Auto colour on');
+        setAutoHueEnabled((a) => !a);
+        return;
+      }
+
+      // Tempo nudge (, and .), for a grid drifting off the music
+      if (e.key === ',' || e.key === '.') {
+        nudgeTempo(e.key === ',' ? -0.5 : 0.5);
+        const bpm = currentBpm();
+        if (bpm) flash(`${bpm} BPM`);
         return;
       }
 
@@ -1266,7 +1295,7 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyPress);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [set, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity, nudgeMotion, toggleRecording, toggleOutput]);
+  }, [set, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity, nudgeMotion, toggleRecording, toggleOutput, flash, toggleFxStage, stepCount, fxParams, autoHueEnabled]);
 
   // Right-click to toggle UI visibility
   useEffect(() => {
