@@ -40,6 +40,7 @@ import { DandelionRenderer } from './DandelionRenderer';
 import { JellyfishRenderer } from './JellyfishRenderer';
 import { AuroraRenderer } from './AuroraRenderer';
 import { BlendRenderer } from './BlendRenderer';
+import { DreamRenderer } from './DreamRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
 import { NatureWorldRenderer } from './NatureWorldRenderer';
 import { BigTypeRenderer } from './BigTypeRenderer';
@@ -201,6 +202,9 @@ export function createRenderer(
       break;
     case 'blend':
       renderer = new BlendRenderer(canvas, ctx);
+      break;
+    case 'dream':
+      renderer = new DreamRenderer(canvas, ctx);
       break;
     case 'watercolour':
       renderer = new WatercolourRenderer(canvas, ctx);

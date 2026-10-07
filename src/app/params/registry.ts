@@ -36,6 +36,7 @@ import { DandelionConfig } from '../config/DandelionRendererConfig';
 import { JellyfishConfig } from '../config/JellyfishRendererConfig';
 import { AuroraConfig } from '../config/AuroraRendererConfig';
 import { BlendConfig } from '../config/BlendRendererConfig';
+import { DreamConfig } from '../config/DreamRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
 import { BigTypeConfig } from '../config/BigTypeRendererConfig';
@@ -606,6 +607,71 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody folds', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hat shiver', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+
+  dream: {
+    config: DreamConfig,
+    groups: [
+      {
+        name: 'Dream',
+        params: [
+          { path: 'scene.kind', label: 'Scene', min: 0, max: 3, step: 1, labels: ['Clouds', 'Hills', 'Valley', 'Spray'] },
+          { path: 'scene.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
+          { path: 'scene.grain', label: 'Grain', min: 0, max: 2, step: 0.05, hint: 'the tooth of the spray paint' },
+          { path: 'scene.sparkles', label: 'Sparkles', min: 0, max: 1, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Clouds',
+        visibleWhen: { path: 'scene.kind', equals: [0] },
+        params: [
+          { path: 'clouds.amount', label: 'Clouds', min: 0.1, max: 1, step: 0.05 },
+          { path: 'clouds.size', label: 'Size', min: 0.5, max: 2, step: 0.05 },
+          { path: 'clouds.glow', label: 'Moonlight', min: 0, max: 1.5, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hills',
+        visibleWhen: { path: 'scene.kind', equals: [1] },
+        params: [
+          { path: 'hills.mist', label: 'Mist', min: 0, max: 1, step: 0.05 },
+          { path: 'hills.path', label: 'Path', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+        ],
+      },
+      {
+        name: 'Valley',
+        visibleWhen: { path: 'scene.kind', equals: [2] },
+        params: [
+          { path: 'valley.rainbow', label: 'Rainbow', min: 0, max: 1, step: 0.05 },
+          { path: 'valley.river', label: 'River', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+        ],
+      },
+      {
+        name: 'Your picture',
+        params: [
+          { path: 'figure.size', label: 'Size', min: 0, max: 2.5, step: 0.05, hint: 'drop a picture on the Dreamscape card · 0 hides it' },
+          { path: 'figure.height', label: 'Height', min: -1, max: 1, step: 0.05 },
+          { path: 'figure.dissolve', label: 'Dissolve', min: 0, max: 1.5, step: 0.05 },
+          { path: 'figure.cutout', label: 'Background', min: 0, max: 1, step: 1, labels: ['Keep', 'Remove'], hint: 'Remove cuts the subject out; a transparent PNG cuts cleanest' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.follow', label: 'Follows hand', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap burst', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.mid', label: 'Melody speed', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hat twinkle', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],

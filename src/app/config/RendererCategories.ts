@@ -337,6 +337,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'A',
     description: 'Curtains of light folding over a night sky — soft behind the nature visuals'
   },
+  dream: {
+    pattern: 'dream',
+    name: 'Dreamscape',
+    short: 'Dream',
+    category: '2D',
+    key: 'D',
+    description: 'Airbrushed, grainy, mystic scenes — clouds, rolling hills, a rainbow valley, sprayed arcs — and your own picture repainted in them'
+  },
   blend: {
     pattern: 'blend',
     name: 'Blend',
