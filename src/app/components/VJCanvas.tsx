@@ -10,6 +10,8 @@ import { ParamValues, withOverrides } from '../params/types';
 import { Drive, PostPipeline, fxActive } from '../pipeline/PostPipeline';
 import { PipelineConfig } from '../config/PipelineConfig';
 import { Clips } from '../config/content';
+import { lfosFor, modulate } from '../control/lfo';
+import { PIPELINE_PARAMS, RENDERER_PARAMS } from '../params/registry';
 
 /** Everything a deck is played with, as it stood on one frame. */
 interface Played {
@@ -38,6 +40,8 @@ interface Deck {
   last?: Played;
   /** Set once a frame has thrown, so the failure is reported only once. */
   reportedError?: boolean;
+  /** Whether its sliders were last sent swung by an LFO, so they can be put back. */
+  modulated?: boolean;
 }
 
 /** The deck on its way out during a crossfade. */
@@ -388,6 +392,20 @@ export function VJCanvas({
               audio: frameAudioRef.current,
               colorMode: colorModesRef.current[index],
             };
+        // Sliders with an LFO on them swing every frame around where she left
+        // them; with the last one taken off, they go back to where they sit.
+        if (!held && layersRef.current[index]?.pattern === deck.pattern) {
+          const lfos = lfosFor('p', deck.pattern);
+          const base = layerParamsRef.current?.[index] ?? {};
+          if (lfos) {
+            deck.renderer.setParams?.(modulate(base, RENDERER_PARAMS[deck.pattern], lfos));
+            deck.modulated = true;
+          } else if (deck.modulated) {
+            deck.renderer.setParams?.(base);
+            deck.modulated = false;
+          }
+        }
+
         // Remembered before the render rather than after, so a renderer that
         // throws still leaves behind what it was asked to play.
         if (!held) deck.last = played;
@@ -411,6 +429,8 @@ export function VJCanvas({
      * fades over it, while a screened layer splits its share between the two so
      * the pair never contributes more than one layer's worth of light.
      */
+    /** The visuals whose effects were last sent swung by an LFO. */
+    const fxModulated = new Set<string>();
     const compose = (ctx: CanvasRenderingContext2D, now: number) => {
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
@@ -435,10 +455,19 @@ export function VJCanvas({
          * slot — a visual on its way out is still itself.
          */
         const through = (deck: Deck): HTMLCanvasElement => {
-          const values = fxFor(deck.pattern);
+          const base = fxFor(deck.pattern);
+          const lfos = lfosFor('fx', deck.pattern);
+          const values = lfos ? modulate(base, PIPELINE_PARAMS, lfos) : base;
           if (!fxActive(values)) return deck.canvas;
           const held = pipelineFor(deck.pattern, values);
           if (!held) return deck.canvas;
+          // Effects with an LFO on them swing every frame; put back once none is.
+          if (lfos) {
+            held.pipeline.setParams(values);
+            fxModulated.add(deck.pattern);
+          } else if (fxModulated.delete(deck.pattern)) {
+            held.pipeline.setParams(base);
+          }
           try {
             held.pipeline.setDrive(driveFor(deck, index));
             held.pipeline.render(deck.canvas, now / 1000);

@@ -25,6 +25,7 @@ import { SavedSet, loadSavedSets, pick, storeSavedSets } from './config/savedSet
 import { StatusBar, PILOT_BARS } from './components/StatusBar';
 import { beatPosition, clearTempo, currentBpm, nudgeTempo, tap } from './motion/tempo';
 import { MidiTarget, setMidiHandler, setMidiReader } from './control/midi';
+import { setLfo, useLfos } from './control/lfo';
 import { COUNTS, KNOB_FX, KNOB_OFF, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, knobPosition, knobValue } from './control/knobs';
 import { stageDoing } from './pipeline/PostPipeline';
 import { getByPath } from './params/types';
@@ -1393,6 +1394,17 @@ export default function App() {
    * the music move it — split so the second is one click away mid-set rather
    * than buried among the look's sliders.
    */
+  // Which sliders carry an LFO: read here so the panel shows them.
+  const lfos = useLfos();
+  const paramLfo = useMemo(() => ({
+    get: (path: string) => lfos[`p:${currentPattern}`]?.[path],
+    set: (path: string, l: Parameters<typeof setLfo>[3]) => setLfo('p', currentPattern, path, l),
+  }), [lfos, currentPattern]);
+  const fxLfo = useMemo(() => ({
+    get: (path: string) => lfos[`fx:${currentPattern}`]?.[path],
+    set: (path: string, l: Parameters<typeof setLfo>[3]) => setLfo('fx', currentPattern, path, l),
+  }), [lfos, currentPattern]);
+
   const panelSections = useMemo<ParamSection[]>(() => {
     const entry = RENDERER_PARAMS[currentPattern];
     if (!entry) return [];
@@ -1404,7 +1416,7 @@ export default function App() {
       for (const p of paths) resetParam(p);
     };
     return [
-      { key: 'shape', label: 'SHAPE', entry: look, values, onChange: setParam, onReset: scoped(pathsOf(look)) },
+      { key: 'shape', label: 'SHAPE', entry: look, values, onChange: setParam, onReset: scoped(pathsOf(look)), lfo: paramLfo },
       {
         key: 'play',
         label: 'Hands & sound',
@@ -1414,9 +1426,9 @@ export default function App() {
             <AudioLines className="h-3 w-3" />
           </span>
         ),
-        entry: play, values, onChange: setParam, onReset: scoped(pathsOf(play)) },
+        entry: play, values, onChange: setParam, onReset: scoped(pathsOf(play)), lfo: paramLfo },
     ];
-  }, [currentPattern, paramValues, setParam, resetParam]);
+  }, [currentPattern, paramValues, setParam, resetParam, paramLfo]);
 
   if (view === 'library') {
     return (
@@ -1519,6 +1531,7 @@ export default function App() {
           onReset={resetFxParam}
           openName={openFx}
           onOpen={setOpenFx}
+          lfo={fxLfo}
           layerLabel={
             layers.length > 1
               ? `L${selectedLayer + 1} ${RENDERER_CATEGORIES[currentPattern].short}`

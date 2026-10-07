@@ -1,7 +1,7 @@
 import { Power, RotateCcw } from 'lucide-react';
 import { RendererParams } from '../params/registry';
 import { getByPath, ParamGroup, ParamValues } from '../params/types';
-import { Slider } from './ParamPanel';
+import { LfoHandle, Slider } from './ParamPanel';
 import { stageDoing } from '../pipeline/PostPipeline';
 
 /**
@@ -56,7 +56,10 @@ export function FxPanel({
   layerLabel,
   openName,
   onOpen,
+  lfo,
 }: {
+  /** The LFOs on this visual's effect sliders. */
+  lfo?: LfoHandle;
   entry: RendererParams;
   values: ParamValues;
   onChange: (path: string, value: number) => void;
@@ -219,6 +222,8 @@ export function FxPanel({
                     isDefault={values[spec.path] === undefined}
                     onChange={(v) => onChange(spec.path, v)}
                     onReset={() => onReset(spec.path)}
+                    lfo={lfo?.get(spec.path)}
+                    onLfo={lfo ? (l) => lfo.set(spec.path, l) : undefined}
                   />
                 );
               })}

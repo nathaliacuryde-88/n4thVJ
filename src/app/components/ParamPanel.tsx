@@ -3,6 +3,7 @@ import { ChevronDown, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { RendererParams } from '../params/registry';
 import { getByPath, ParamSpec, ParamValues } from '../params/types';
 import { useCustomChars } from '../config/charsets';
+import { Lfo, RATES, SHAPES, SHAPE_LABEL } from '../control/lfo';
 
 /** One tab: a set of sliders with its own values and handlers. */
 export interface ParamSection {
@@ -14,6 +15,8 @@ export interface ParamSection {
   values: ParamValues;
   onChange: (path: string, value: number) => void;
   onReset: (path?: string) => void;
+  /** The LFOs on this tab's sliders, when they can carry one. */
+  lfo?: LfoHandle;
 }
 
 /** Enough decimals to show the step, and no more. */
@@ -149,6 +152,61 @@ function ChoiceMenu({
   );
 }
 
+/** Reads and writes the LFOs of one visual's sliders (or its effects'). */
+export interface LfoHandle {
+  get: (path: string) => Lfo | undefined;
+  set: (path: string, lfo: Lfo | null) => void;
+}
+
+const RATE_LABEL: Record<number, string> = { 0.25: '¼', 0.5: '½', 1: '1', 2: '2', 4: '4', 8: '8', 16: '16' };
+
+/**
+ * A slider's LFO: its shape, how many beats a cycle takes, how far it swings.
+ * Small, under the slider, opened from the ∿ beside its value.
+ */
+function LfoEditor({ lfo, onChange }: { lfo: Lfo; onChange: (lfo: Lfo | null) => void }) {
+  const pill = (on: boolean) =>
+    `rounded px-1 py-0.5 text-[9px] leading-none transition-colors ${
+      on ? 'bg-cyan-300 text-black' : 'bg-white/10 text-white/60 hover:bg-white/20'
+    }`;
+  return (
+    <div className="-mt-1 mb-2 rounded-md border border-cyan-300/25 bg-cyan-300/[0.06] p-1.5">
+      <div className="mb-1 flex items-center gap-0.5">
+        {SHAPES.map((shape) => (
+          <button key={shape} onClick={() => onChange({ ...lfo, shape })} title={shape} className={pill(lfo.shape === shape)}>
+            {SHAPE_LABEL[shape]}
+          </button>
+        ))}
+        <button onClick={() => onChange(null)} title="Take the LFO off" className="ml-auto px-1 text-[10px] text-white/40 hover:text-white">×</button>
+      </div>
+      <div className="mb-1 flex flex-wrap items-center gap-0.5" title="Beats per cycle — locked to the tapped tempo">
+        {RATES.map((beats) => (
+          <button key={beats} onClick={() => onChange({ ...lfo, beats })} className={pill(lfo.beats === beats)}>
+            {RATE_LABEL[beats]}
+          </button>
+        ))}
+        <span className="ml-0.5 text-[8px] text-white/35">beats</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[8px] text-white/45">Depth</span>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={lfo.depth}
+          onChange={(e) => onChange({ ...lfo, depth: parseFloat(e.target.value) })}
+          className="vj-slider h-1 w-full min-w-0 flex-1 cursor-pointer appearance-none rounded-full focus:outline-none"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(103,232,249,0.9) 0%, rgba(103,232,249,0.9) ${lfo.depth * 100}%, rgba(255,255,255,0.2) ${lfo.depth * 100}%)`,
+          }}
+        />
+        <span className="w-6 text-right text-[8px] tabular-nums text-white/60">{Math.round(lfo.depth * 100)}%</span>
+      </div>
+    </div>
+  );
+}
+
 export function Slider({
   spec,
   value,
@@ -156,6 +214,8 @@ export function Slider({
   inert,
   onChange,
   onReset,
+  lfo,
+  onLfo,
 }: {
   spec: ParamSpec;
   value: number;
@@ -164,7 +224,11 @@ export function Slider({
   inert?: boolean;
   onChange: (value: number) => void;
   onReset: () => void;
+  /** Its LFO, if it has one; and how to give it one or take it off. */
+  lfo?: Lfo;
+  onLfo?: (lfo: Lfo | null) => void;
 }) {
+  const [editing, setEditing] = useState(false);
   if (spec.menu && spec.labels) {
     return <ChoiceMenu spec={spec} value={value} isDefault={isDefault} onChange={onChange} onReset={onReset} />;
   }
@@ -183,8 +247,24 @@ export function Slider({
           {spec.label}
           {!isDefault && <span className="ml-1 opacity-60">•</span>}
         </button>
-        <span className={`text-white ${spec.labels ? '' : 'tabular-nums'}`}>
-          {spec.labels?.[Math.round(value)] ?? format(value, spec.step)}
+        <span className="flex items-baseline gap-1">
+          {onLfo && (
+            <button
+              onClick={() => {
+                if (!lfo) { onLfo({ shape: 'sine', beats: 4, depth: 0.3 }); setEditing(true); }
+                else setEditing((e) => !e);
+              }}
+              title={lfo ? 'LFO on — click to edit' : 'Give this slider an LFO: it moves on its own, in time'}
+              className={`text-[10px] leading-none transition-colors ${
+                lfo ? 'text-cyan-300 animate-pulse' : 'text-white/0 group-hover:text-white/40 hover:!text-white'
+              }`}
+            >
+              ∿
+            </button>
+          )}
+          <span className={`text-white ${spec.labels ? '' : 'tabular-nums'}`}>
+            {spec.labels?.[Math.round(value)] ?? format(value, spec.step)}
+          </span>
         </span>
       </div>
       <input
@@ -199,6 +279,7 @@ export function Slider({
           backgroundImage: `linear-gradient(to right, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.85) ${fraction}%, rgba(255,255,255,0.2) ${fraction}%)`,
         }}
       />
+      {lfo && onLfo && editing && <LfoEditor lfo={lfo} onChange={(next) => { onLfo(next); if (!next) setEditing(false); }} />}
     </div>
   );
 }
@@ -351,6 +432,8 @@ export function ParamPanel({
                       isDefault={active.values[spec.path] === undefined}
                       onChange={(v) => active.onChange(spec.path, v)}
                       onReset={() => active.onReset(spec.path)}
+                      lfo={active.lfo?.get(spec.path)}
+                      onLfo={active.lfo ? (l) => active.lfo!.set(spec.path, l) : undefined}
                     />
                   );
                 })}
