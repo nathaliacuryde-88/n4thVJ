@@ -9,7 +9,7 @@ import { Library } from './components/Library';
 import { MAX_SET, keySlot, loadSetList, saveSetList, slotKey } from './config/setlist';
 import { ParamPanel, ParamSection } from './components/ParamPanel';
 import { FxPanel } from './components/FxPanel';
-import { RENDERER_CATEGORIES } from './config/RendererCategories';
+import { RENDERER_CATEGORIES, currentPattern as storedPattern } from './config/RendererCategories';
 import { LayerStrip } from './components/LayerStrip';
 import { PIPELINE_PARAMS, RENDERER_PARAMS, splitPlay } from './params/registry';
 import { AllParamValues, ParamValues, sanitizeAllParams } from './params/types';
@@ -40,7 +40,7 @@ import {
   saveText,
 } from './config/content';
 
-export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple' | 'text' | 'video' | 'mosaic' | 'chrome' | 'bloom' | 'butterflies' | 'dice' | 'atlas' | 'crowd' | 'dandelion' | 'jellyfish' | 'aurora' | 'watercolour' | 'world' | 'bigtype' | 'particleimage' | 'blend' | 'dream' | 'slap';
+export type VisualPattern = 'geometric' | 'particles' | 'waves' | 'glitch' | 'technical' | 'lottie' | 'lottie-classic' | 'chromatic' | 'halftone' | 'matrix' | 'linefield' | 'distortedcamera' | 'cyberstream' | 'facecloud' | 'face' | 'morphing' | 'cubewall' | 'smokehand-torus' | 'smokehand-hand' | 'thicklines' | 'flowfield' | 'liquidchrome' | 'network-cube' | 'elastic-net' | 'digitalblocks' | 'ripple' | 'text' | 'video' | 'mosaic' | 'chrome' | 'bloom' | 'butterflies' | 'dice' | 'atlas' | 'crowd' | 'dandelion' | 'jellyfish' | 'aurora' | 'watercolour' | 'world' | 'bigtype' | 'particleimage' | 'blend' | 'dream-clouds' | 'dream-hills' | 'dream-valley' | 'dream-spray' | 'dream-figure';
 
 export interface AudioData {
   /** Kick and sub, 20–160Hz. Scale, weight, push. */
@@ -153,9 +153,10 @@ export default function App() {
       'vj-stack', null,
       (v) => typeof v === 'object' && v !== null && Array.isArray((v as { layers?: unknown }).layers),
     );
-    const kept = (saved?.layers ?? []).filter(
-      (l) => l && typeof l.pattern === 'string' && l.pattern in RENDERER_CATEGORIES && typeof l.opacity === 'number',
-    ).slice(0, MAX_LAYERS);
+    const kept = (saved?.layers ?? [])
+      .filter((l) => l && storedPattern(l.pattern) !== null && typeof l.opacity === 'number')
+      .map((l) => ({ ...l, pattern: storedPattern(l.pattern)! }))
+      .slice(0, MAX_LAYERS);
     return kept.length ? kept : [{ pattern: 'geometric', opacity: 1, motion: MOTION_DEFAULT }];
   });
   const [selectedLayer, setSelectedLayer] = useState(() => {

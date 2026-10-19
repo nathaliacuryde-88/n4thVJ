@@ -7,7 +7,7 @@
  */
 
 import { VisualPattern } from '../App';
-import { RENDERER_CATEGORIES } from './RendererCategories';
+import { currentPattern } from './RendererCategories';
 
 /** Fifteen: enough for an hour, a visual every four minutes or so. */
 export const MAX_SET = 15;
@@ -36,9 +36,6 @@ const STARTER: VisualPattern[] = [
   'geometric', 'waves', 'particles', 'halftone', 'ripple', 'flowfield',
 ];
 
-function isPattern(value: unknown): value is VisualPattern {
-  return typeof value === 'string' && value in RENDERER_CATEGORIES;
-}
 
 export function loadSetList(): VisualPattern[] {
   try {
@@ -48,7 +45,10 @@ export function loadSetList(): VisualPattern[] {
     if (!Array.isArray(parsed)) return STARTER;
     // Drop anything renamed or removed since this was saved, and any duplicate
     // a hand-edited value might carry, rather than letting it reach a renderer.
-    const clean = parsed.filter(isPattern).filter((p, i, a) => a.indexOf(p) === i);
+    const clean = parsed
+      .map(currentPattern)
+      .filter((p): p is VisualPattern => p !== null)
+      .filter((p, i, a) => a.indexOf(p) === i);
     return clean.slice(0, MAX_SET);
   } catch {
     return STARTER;

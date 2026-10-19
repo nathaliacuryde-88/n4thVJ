@@ -337,21 +337,45 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'A',
     description: 'Curtains of light folding over a night sky — soft behind the nature visuals'
   },
-  slap: {
-    pattern: 'slap',
-    name: 'Slap',
-    short: 'Slap',
-    category: '3D',
-    key: 'S',
-    description: 'A head an open hand can slap — it dents, wobbles, flushes red, bounces round the frame and comes back'
-  },
-  dream: {
-    pattern: 'dream',
-    name: 'Dreamscape',
-    short: 'Dream',
+  'dream-clouds': {
+    pattern: 'dream-clouds',
+    name: 'Dream Clouds',
+    short: 'Clouds',
     category: '2D',
     key: 'D',
-    description: 'Airbrushed, grainy, mystic scenes — clouds, rolling hills, a rainbow valley, sprayed arcs — and your own picture repainted in them'
+    description: 'Airbrushed cumulus on a blue sky, streamers under them, lit by a teal moon that follows your hand'
+  },
+  'dream-hills': {
+    pattern: 'dream-hills',
+    name: 'Dream Hills',
+    short: 'Hills',
+    category: '2D',
+    key: 'D',
+    description: 'Rows of rolling hills flown over in spray paint, mist in the valleys, a pale path winding up'
+  },
+  'dream-valley': {
+    pattern: 'dream-valley',
+    name: 'Dream Valley',
+    short: 'Valley',
+    category: '2D',
+    key: 'D',
+    description: 'A rainbow over pastel mountains, a river winding down between soft hills'
+  },
+  'dream-spray': {
+    pattern: 'dream-spray',
+    name: 'Dream Spray',
+    short: 'Spray',
+    category: '2D',
+    key: 'D',
+    description: 'Rainbow arcs sprayed in bands, their borders stippled, a sprayed moon in front'
+  },
+  'dream-figure': {
+    pattern: 'dream-figure',
+    name: 'Dream Picture',
+    short: 'Picture',
+    category: '2D',
+    key: 'D',
+    description: 'Your own picture, cut out and repainted in spray on black — layer it over any of the Dream scenes'
   },
   blend: {
     pattern: 'blend',
@@ -411,6 +435,21 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     description: 'Glitchy digital data sorting'
   }
 };
+
+/**
+ * Visuals that were renamed or split, and what a stored set gets instead:
+ * the one Dreamscape became a visual per scene.
+ */
+const RENAMED: Record<string, VisualPattern> = {
+  dream: 'dream-clouds',
+};
+
+/** A stored pattern as it is called now, or null if it is gone. */
+export function currentPattern(value: unknown): VisualPattern | null {
+  if (typeof value !== 'string') return null;
+  if (value in RENDERER_CATEGORIES) return value as VisualPattern;
+  return RENAMED[value] ?? null;
+}
 
 /**
  * Get all renderers of a specific category

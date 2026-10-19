@@ -499,7 +499,7 @@ export function Library({
             const supply =
               info.pattern === 'text' || info.pattern === 'bigtype'
                 ? 'text'
-                : info.pattern === 'video' || info.pattern === 'mosaic' || info.pattern === 'particleimage' || info.pattern === 'dream'
+                : info.pattern === 'video' || info.pattern === 'mosaic' || info.pattern === 'particleimage' || info.pattern === 'dream-figure'
                   ? 'file'
                   : null;
 
@@ -590,7 +590,8 @@ export function Library({
                       {clips[info.pattern] ? 'REPLACE' : 'UPLOAD'}
                       <input
                         type="file"
-                        accept="video/*,image/*"
+                        // Her picture is a still; the others take video too.
+                        accept={info.pattern === 'dream-figure' ? 'image/*' : 'video/*,image/*'}
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];

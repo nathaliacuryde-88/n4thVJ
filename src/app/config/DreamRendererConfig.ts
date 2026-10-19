@@ -1,13 +1,11 @@
 /**
  * Dreamscape: airbrushed, grainy, mystic scenes in the manner of risograph
- * and spray-paint illustration — clouds, rolling hills, a rainbow valley, and
- * sprayed rainbow arcs — drawn live, with a picture of her own repainted in
- * the scene's colours.
+ * and spray-paint illustration, each its own visual — Clouds, Hills, Valley,
+ * Spray — and a fifth, Picture: her own picture repainted in spray, alone on
+ * black, to layer over any of them.
  */
 export const DreamConfig = {
   scene: {
-    /** 0 Clouds, 1 Hills, 2 Valley, 3 Spray. */
-    kind: 0,
     /** How fast it all moves. The finger count still sets the tempo. */
     speed: 1,
     /** The tooth of the spray paint: 0 smooth, 1 the references, 2 coarse. */
@@ -48,6 +46,8 @@ export const DreamConfig = {
     dissolve: 0.3,
     /** 1 cuts the subject out of its background; 0 keeps the whole picture, its edges dissolving. */
     cutout: 1,
+    /** Whose colours it is sprayed in: 0 Clouds, 1 Hills, 2 Valley, 3 Spray. */
+    palette: 3,
   },
 
   hands: {

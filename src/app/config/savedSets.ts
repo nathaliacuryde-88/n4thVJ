@@ -1,7 +1,7 @@
 import type { Look, VisualPattern } from '../App';
 import type { Layer } from './LayerConfig';
 import type { AllParamValues } from '../params/types';
-import { RENDERER_CATEGORIES } from './RendererCategories';
+import { currentPattern } from './RendererCategories';
 
 /**
  * Sets she has saved by name: the visuals and their key order, and for each
@@ -31,12 +31,21 @@ export function loadSavedSets(): SavedSet[] {
       .filter((s): s is SavedSet => typeof s === 'object' && s !== null && typeof s.name === 'string' && Array.isArray(s.set))
       .map((s) => ({
         ...s,
-        // Anything renamed or removed since it was saved drops out quietly.
-        set: s.set.filter((p) => p in RENDERER_CATEGORIES),
+        // Anything renamed since it was saved is called by its new name;
+        // anything removed drops out quietly.
+        set: s.set.map(currentPattern).filter((p): p is VisualPattern => p !== null)
+          .filter((p, i, a) => a.indexOf(p) === i),
         params: s.params ?? {},
         fx: s.fx ?? {},
         looks: s.looks ?? {},
-        stack: s.stack ?? null,
+        stack: s.stack
+          ? {
+              ...s.stack,
+              layers: s.stack.layers
+                .map((l) => ({ ...l, pattern: currentPattern(l.pattern) }))
+                .filter((l): l is Layer => l.pattern !== null),
+            }
+          : null,
       }));
   } catch {
     return [];

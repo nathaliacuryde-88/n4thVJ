@@ -135,6 +135,17 @@ export async function loadClips(): Promise<Record<string, { file: Blob; name: st
       }
       clearClip(LEGACY_ID).catch(() => {});
     }
+    // The Dreamscape's picture, from when it was one visual, goes to the
+    // visual that is now just her picture.
+    const oldDream = out.dream;
+    if (oldDream) {
+      delete out.dream;
+      if (!out['dream-figure']) {
+        out['dream-figure'] = oldDream;
+        saveClip('dream-figure', oldDream.file, oldDream.name).catch(() => {});
+      }
+      clearClip('dream').catch(() => {});
+    }
     return out;
   } catch {
     return {};

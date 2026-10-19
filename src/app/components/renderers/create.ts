@@ -41,7 +41,6 @@ import { JellyfishRenderer } from './JellyfishRenderer';
 import { AuroraRenderer } from './AuroraRenderer';
 import { BlendRenderer } from './BlendRenderer';
 import { DreamRenderer } from './DreamRenderer';
-import { SlapRenderer } from './SlapRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
 import { NatureWorldRenderer } from './NatureWorldRenderer';
 import { BigTypeRenderer } from './BigTypeRenderer';
@@ -93,9 +92,10 @@ export interface VJRenderer {
  */
 export const HOLDS_CONTEXT: ReadonlySet<string> = new Set([
   'atlas', 'aurora', 'bigtype', 'blend', 'bloom', 'butterflies', 'chrome', 'crowd',
-  'cubewall', 'dandelion', 'dice', 'digitalblocks', 'distortedcamera', 'dream',
+  'cubewall', 'dandelion', 'dice', 'digitalblocks', 'distortedcamera', 'dream-clouds', 'dream-hills',
+  'dream-valley', 'dream-spray', 'dream-figure',
   'elastic-net', 'jellyfish', 'liquidchrome', 'morphing', 'world', 'network-cube',
-  'particleimage', 'ripple', 'slap', 'smokehand-torus', 'smokehand-hand', 'watercolour',
+  'particleimage', 'ripple', 'smokehand-torus', 'smokehand-hand', 'watercolour',
 ]);
 
 export function createRenderer(
@@ -219,11 +219,20 @@ export function createRenderer(
     case 'blend':
       renderer = new BlendRenderer(canvas, ctx);
       break;
-    case 'dream':
-      renderer = new DreamRenderer(canvas, ctx);
+    case 'dream-clouds':
+      renderer = new DreamRenderer(canvas, ctx, 0);
       break;
-    case 'slap':
-      renderer = new SlapRenderer(canvas, ctx);
+    case 'dream-hills':
+      renderer = new DreamRenderer(canvas, ctx, 1);
+      break;
+    case 'dream-valley':
+      renderer = new DreamRenderer(canvas, ctx, 2);
+      break;
+    case 'dream-spray':
+      renderer = new DreamRenderer(canvas, ctx, 3);
+      break;
+    case 'dream-figure':
+      renderer = new DreamRenderer(canvas, ctx, 4);
       break;
     case 'watercolour':
       renderer = new WatercolourRenderer(canvas, ctx);

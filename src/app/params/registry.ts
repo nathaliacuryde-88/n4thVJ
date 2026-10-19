@@ -37,7 +37,6 @@ import { JellyfishConfig } from '../config/JellyfishRendererConfig';
 import { AuroraConfig } from '../config/AuroraRendererConfig';
 import { BlendConfig } from '../config/BlendRendererConfig';
 import { DreamConfig } from '../config/DreamRendererConfig';
-import { SlapConfig } from '../config/SlapRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
 import { BigTypeConfig } from '../config/BigTypeRendererConfig';
@@ -51,6 +50,43 @@ export interface RendererParams {
   /** The defaults object. Slider defaults are read from it by path. */
   config: object;
   groups: ParamGroup[];
+}
+
+/**
+ * The Dreamscape visuals share one renderer and one set of sliders: the
+ * spray paint, the hands, the sound — and each its own scene's few.
+ */
+function dreamParams(own: ParamGroup | null): RendererParams {
+  return {
+    config: DreamConfig,
+    groups: [
+      {
+        name: 'Dream',
+        params: [
+          { path: 'scene.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
+          { path: 'scene.grain', label: 'Grain', min: 0, max: 2, step: 0.05, hint: 'the tooth of the spray paint' },
+          { path: 'scene.sparkles', label: 'Sparkles', min: 0, max: 1, step: 0.05 },
+        ],
+      },
+      ...(own ? [own] : []),
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.follow', label: 'Follows hand', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap burst', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.mid', label: 'Melody speed', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hat twinkle', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  };
 }
 
 export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
@@ -613,102 +649,39 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     ],
   },
 
-  slap: {
-    config: SlapConfig,
-    groups: [
-      {
-        name: 'Head',
-        params: [
-          { path: 'head.size', label: 'Size', min: 0.4, max: 2.5, step: 0.05 },
-          { path: 'head.bounce', label: 'Bounce', min: 0, max: 1, step: 0.05, hint: 'off the edges of the frame' },
-          { path: 'head.back', label: 'Comes back', min: 0.2, max: 3, step: 0.05, hint: 'how soon and how fast it returns to the middle' },
-          { path: 'head.squash', label: 'Dent & wobble', min: 0, max: 2, step: 0.05 },
-          { path: 'head.blush', label: 'Blush', min: 0, max: 2, step: 0.05 },
-        ],
-      },
-      {
-        name: 'Hands',
-        params: [
-          { path: 'hands.slap', label: 'Slap force', min: 0, max: 2.5, step: 0.05 },
-          { path: 'hands.speed', label: 'Swing needed', min: 0.3, max: 2, step: 0.05, hint: 'how fast an open hand must move to slap' },
-          { path: 'hands.clap', label: 'Clap slap', min: 0, max: 2, step: 0.05 },
-          { path: 'hands.show', label: 'Show hand', min: 0, max: 1, step: 0.05, hint: 'draws your hand as a glove' },
-        ],
-      },
-      {
-        name: 'Sound',
-        params: [
-          { path: 'sound.beat', label: 'Kick knock', min: 0, max: 2, step: 0.05 },
-          { path: 'sound.bass', label: 'Bass bob', min: 0, max: 2, step: 0.05 },
-        ],
-      },
+  'dream-clouds': dreamParams({
+    name: 'Clouds',
+    params: [
+      { path: 'clouds.amount', label: 'Clouds', min: 0.1, max: 1, step: 0.05 },
+      { path: 'clouds.size', label: 'Size', min: 0.5, max: 2, step: 0.05 },
+      { path: 'clouds.glow', label: 'Moonlight', min: 0, max: 1.5, step: 0.05 },
     ],
-  },
-
-  dream: {
-    config: DreamConfig,
-    groups: [
-      {
-        name: 'Dream',
-        params: [
-          { path: 'scene.kind', label: 'Scene', min: 0, max: 3, step: 1, labels: ['Clouds', 'Hills', 'Valley', 'Spray'] },
-          { path: 'scene.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
-          { path: 'scene.grain', label: 'Grain', min: 0, max: 2, step: 0.05, hint: 'the tooth of the spray paint' },
-          { path: 'scene.sparkles', label: 'Sparkles', min: 0, max: 1, step: 0.05 },
-        ],
-      },
-      {
-        name: 'Clouds',
-        visibleWhen: { path: 'scene.kind', equals: [0] },
-        params: [
-          { path: 'clouds.amount', label: 'Clouds', min: 0.1, max: 1, step: 0.05 },
-          { path: 'clouds.size', label: 'Size', min: 0.5, max: 2, step: 0.05 },
-          { path: 'clouds.glow', label: 'Moonlight', min: 0, max: 1.5, step: 0.05 },
-        ],
-      },
-      {
-        name: 'Hills',
-        visibleWhen: { path: 'scene.kind', equals: [1] },
-        params: [
-          { path: 'hills.mist', label: 'Mist', min: 0, max: 1, step: 0.05 },
-          { path: 'hills.path', label: 'Path', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
-        ],
-      },
-      {
-        name: 'Valley',
-        visibleWhen: { path: 'scene.kind', equals: [2] },
-        params: [
-          { path: 'valley.rainbow', label: 'Rainbow', min: 0, max: 1, step: 0.05 },
-          { path: 'valley.river', label: 'River', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
-        ],
-      },
-      {
-        name: 'Your picture',
-        params: [
-          { path: 'figure.size', label: 'Size', min: 0, max: 2.5, step: 0.05, hint: 'drop a picture on the Dreamscape card · 0 hides it' },
-          { path: 'figure.height', label: 'Height', min: -1, max: 1, step: 0.05 },
-          { path: 'figure.dissolve', label: 'Dissolve', min: 0, max: 1.5, step: 0.05 },
-          { path: 'figure.cutout', label: 'Background', min: 0, max: 1, step: 1, labels: ['Keep', 'Remove'], hint: 'Remove cuts the subject out; a transparent PNG cuts cleanest' },
-        ],
-      },
-      {
-        name: 'Hands',
-        params: [
-          { path: 'hands.follow', label: 'Follows hand', min: 0, max: 2, step: 0.05 },
-          { path: 'hands.clap', label: 'Clap burst', min: 0, max: 2, step: 0.05 },
-        ],
-      },
-      {
-        name: 'Sound',
-        params: [
-          { path: 'sound.beat', label: 'Kick', min: 0, max: 2, step: 0.05 },
-          { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
-          { path: 'sound.mid', label: 'Melody speed', min: 0, max: 2, step: 0.05 },
-          { path: 'sound.high', label: 'Hat twinkle', min: 0, max: 2, step: 0.05 },
-        ],
-      },
+  }),
+  'dream-hills': dreamParams({
+    name: 'Hills',
+    params: [
+      { path: 'hills.mist', label: 'Mist', min: 0, max: 1, step: 0.05 },
+      { path: 'hills.path', label: 'Path', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
     ],
-  },
+  }),
+  'dream-valley': dreamParams({
+    name: 'Valley',
+    params: [
+      { path: 'valley.rainbow', label: 'Rainbow', min: 0, max: 1, step: 0.05 },
+      { path: 'valley.river', label: 'River', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+    ],
+  }),
+  'dream-spray': dreamParams(null),
+  'dream-figure': dreamParams({
+    name: 'Your picture',
+    params: [
+      { path: 'figure.size', label: 'Size', min: 0, max: 2.5, step: 0.05, hint: 'drop a picture on the Dream Picture card · 0 hides it' },
+      { path: 'figure.height', label: 'Height', min: -1, max: 1, step: 0.05 },
+      { path: 'figure.dissolve', label: 'Dissolve', min: 0, max: 1.5, step: 0.05 },
+      { path: 'figure.cutout', label: 'Background', min: 0, max: 1, step: 1, labels: ['Keep', 'Remove'], hint: 'Remove cuts the subject out; a transparent PNG cuts cleanest' },
+      { path: 'figure.palette', label: 'Colours', min: 0, max: 3, step: 1, labels: ['Clouds', 'Hills', 'Valley', 'Spray'], hint: 'sprayed in the colours of a Dreamscape scene' },
+    ],
+  }),
 
   blend: {
     config: BlendConfig,

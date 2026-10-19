@@ -3,25 +3,25 @@ import { AudioData, HandData } from '../../App';
 import { DreamConfig } from '../../config/DreamRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { Playing, drawUnavailable, makeRenderer, turnFrom } from './inflated/style';
-import { SCENES, VERT } from './dream/shaders';
+import { PICTURE_SCENE, SCENES, VERT } from './dream/shaders';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  * DREAMSCAPE
  * ═══════════════════════════════════════════════════════════════════════════
  * Airbrushed, grainy, a little mystic: illustration in the manner of spray
- * paint and risograph, drawn live (see dream/shaders.ts). Four scenes:
+ * paint and risograph, drawn live (see dream/shaders.ts). Five visuals, each
+ * on its own card, all drawn by this one class:
  *
  *   Clouds   cumulus with flat bases and streamers, lit by a teal moon
  *   Hills    rows of rolling hills flown over, mist in the valleys, a path
  *   Valley   a rainbow over pastel mountains, a river winding down to us
- *   Spray    rainbow arcs sprayed in bands, a stippled figure in front
- *
- * And her own picture: drop one on the card in the library — a horse, a
- * drawing, a figure, a transparent PNG best of all — and it is cut out and
- * repainted in whichever scene is up, in that scene's colours, its edge
- * dissolving into spray. Among the clouds it floats; in the hills it stands
- * on the path; in the Spray scene it is the subject.
+ *   Spray    rainbow arcs sprayed in bands, a stippled moon in front
+ *   Picture  her own picture alone on black, to layer over the others: drop
+ *            one on its card in the library — a horse, a drawing, a figure,
+ *            a transparent PNG best of all — and it is cut out and repainted
+ *            in spray, in the colours of whichever scene she picks, its edge
+ *            dissolving
  *
  * The hands: the finger count sets the tempo through the shared clock; the
  * moon, the path and the picture turn toward a hand; a clap bursts — the
@@ -49,6 +49,7 @@ const FIGURE_PLACE: { x: number; y: number; h: number }[] = [
   { x: 0, y: -0.2, h: 0.15 },
   { x: 0, y: -0.04, h: 0.17 },
   { x: -0.04, y: 0, h: 0.4 },
+  { x: 0, y: 0, h: 0.4 },
 ];
 
 /** The whole picture, in texture space. */
@@ -74,6 +75,8 @@ export class DreamRenderer {
   private materials: (THREE.ShaderMaterial | null)[] = SCENES.map(() => null);
   private playing = new Playing(0.6);
   private failed = false;
+  /** Which scene this visual is: an index into SCENES. */
+  private kind: number;
 
   // Her picture.
   private url: string | null = null;
@@ -102,7 +105,8 @@ export class DreamRenderer {
   private aim = new THREE.Vector2();
   private handOn = 0;
 
-  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, kind: number) {
+    this.kind = Math.max(0, Math.min(SCENES.length - 1, kind));
     this.canvas = canvas;
     this.ctx = ctx;
     this.blank = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
@@ -239,7 +243,8 @@ export class DreamRenderer {
 
   private update(handData: HandData, colors: string[], audioData: AudioData | undefined, width: number, height: number) {
     const { cfg, uniforms: u } = this;
-    const kind = Math.max(0, Math.min(SCENES.length - 1, Math.round(cfg.scene.kind)));
+    const kind = this.kind;
+    const picture = kind === PICTURE_SCENE;
     this.mesh.material = this.materialFor(kind);
 
     const play = this.playing;
@@ -333,22 +338,23 @@ export class DreamRenderer {
     u.uRing.value = this.ring;
     u.uRingAmp.value = this.ringAmp;
 
-    // Her picture, in this scene's place and colours.
+    // Her picture, on its own visual, in the colours of the scene she picks;
+    // the scenes draw without it. (Spray's moon still stands where it would.)
     const place = FIGURE_PLACE[kind];
-    const colours = FIGURE_COLOURS[kind];
-    const h = place.h * cfg.figure.size;
+    const colours = FIGURE_COLOURS[picture ? Math.max(0, Math.min(3, Math.round(cfg.figure.palette))) : kind];
+    const h = place.h * (picture ? cfg.figure.size : 1);
     const bob = Math.sin(this.time * 0.7) * 0.012;
     const cx = (place.x + (kind === 0 ? 0.1 * (aspect - 1) : 0)) + this.aim.x * 0.12;
-    const cy = place.y + cfg.figure.height * 0.3 + bob + this.aim.y * 0.06;
+    const cy = place.y + (picture ? cfg.figure.height * 0.3 : 0) + bob + this.aim.y * 0.06;
     const cut = cfg.figure.cutout >= 0.5;
     const shape = cut ? this.cutAspect : this.figureAspect;
     (u.uFigRect.value as THREE.Vector4).set(cx, cy, h * shape, h);
     (u.uFigCrop.value as THREE.Vector4).copy(cut ? this.cutBox : WHOLE);
     (u.uFigLum.value as THREE.Vector4).copy(this.lumRange);
     u.uFigCut.value = cut ? 1 : 0;
-    u.uFigOn.value = this.figure && h > 0.001 ? 1 : 0;
+    u.uFigOn.value = picture && this.figure && h > 0.001 ? 1 : 0;
     u.uFig.value = this.figure ?? this.blank;
-    u.uFigDissolve.value = Math.min(1.5, cfg.figure.dissolve * 0.6 + burst * 0.9);
+    u.uFigDissolve.value = Math.min(1.5, (picture ? cfg.figure.dissolve : 0.3) * 0.6 + burst * 0.9);
     (u.uFigA.value as THREE.Vector3).copy(rgb(colours[0]));
     (u.uFigB.value as THREE.Vector3).copy(rgb(colours[1]));
     (u.uFigC.value as THREE.Vector3).copy(rgb(colours[2]));

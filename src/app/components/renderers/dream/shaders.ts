@@ -660,4 +660,40 @@ void main() {
   gl_FragColor = finish(col, sparkles(p, 5.0, uSparkle * 0.18));
 }`;
 
-export const SCENES = [CLOUDS, HILLS, VALLEY, SPRAY];
+// ── PICTURE ─────────────────────────────────────────────────────────────────
+/*
+ * Her picture alone, on black, so it layers over anything: cut out and
+ * repainted in spray, its edge dissolving, a few sparkles round it. With no
+ * picture yet, the sprayed moon stands in.
+ */
+export const PICTURE = /* glsl */ `
+${COMMON}
+
+void main() {
+  vec2 p = frame();
+  vec3 col = vec3(0.0);
+  if (uFigOn > 0.5) {
+    drawFigure(p, col);
+  } else {
+    vec2 q = (p - uFigRect.xy) / (uFigRect.w * 0.75);
+    float rr = length(q);
+    if (rr < 1.2) {
+      vec3 n = vec3(q, sqrt(max(0.0, 1.0 - rr * rr)));
+      float lum = clamp(dot(n, normalize(vec3(-0.5, 0.6, 0.65))) * 0.85 + 0.2, 0.0, 1.0);
+      float a = smoothstep(0.0, 0.35, (1.0 - rr) * 5.0 + (grain(5.0) - 0.5) * (1.2 + uFigDissolve * 3.0));
+      float s = sprayT(lum, 6.0);
+      vec3 m = s < 0.333 ? mix(uFigA, uFigB, s * 3.0)
+             : s < 0.667 ? mix(uFigB, uFigC, s * 3.0 - 1.0)
+             : mix(uFigC, uFigD, s * 3.0 - 2.0);
+      col = mix(col, m, a);
+    }
+  }
+  // No grain over the black, so the picture sits clean on whatever is below.
+  float sp = sparkles(p, 5.0, uSparkle * 0.25);
+  gl_FragColor = vec4(tone(mix(col, vec3(1.0), clamp(sp, 0.0, 1.0))), 1.0);
+}`;
+
+/** Clouds, Hills, Valley, Spray, and her picture alone. */
+export const SCENES = [CLOUDS, HILLS, VALLEY, SPRAY, PICTURE];
+/** Which of SCENES is her picture alone. */
+export const PICTURE_SCENE = 4;
