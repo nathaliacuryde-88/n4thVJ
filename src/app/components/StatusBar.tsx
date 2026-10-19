@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Activity, Gauge, Plane } from 'lucide-react';
+import { Activity, Gauge, Plane, Wifi, WifiOff } from 'lucide-react';
+import { useOffline } from '../offline/offline';
 import { beatPosition, clearTempo, tap, useTempo } from '../motion/tempo';
 import { KNOB_FX } from '../control/knobs';
 import { MidiTarget, NANO_LAYOUT, applyMap, describe, enableMidi, learn, nanoKontrol2Map, unbind, useMidi } from '../control/midi';
@@ -16,6 +17,8 @@ import { MidiTarget, NANO_LAYOUT, applyMap, describe, enableMidi, learn, nanoKon
  *   FPS        how the machine is coping; amber, then red, when a stack is
  *              heavier than it can draw smoothly
  *   MIDI       a hardware controller, and what each of its controls does
+ *   OFFLINE    whether the set could run with no internet: a tick once
+ *              everything is kept, and a warning while the Wi-Fi is gone
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -52,6 +55,7 @@ export function StatusBar({
   const dot = useRef<HTMLSpanElement | null>(null);
   const progress = useRef<HTMLDivElement | null>(null);
   const [fps, setFps] = useState(60);
+  const offline = useOffline();
 
   // One loop for the beat dot, the auto-pilot's progress and the frame rate —
   // written straight to the DOM, so the bar does not re-render every frame.
@@ -145,6 +149,30 @@ export function StatusBar({
           <Gauge className="h-3 w-3" />
           {fps}
         </span>
+
+        {offline.state !== 'unsupported' && (
+          <>
+            <div className="h-4 w-px bg-white/15" />
+            {/* Offline */}
+            <span
+              className={`flex items-center gap-1 px-1.5 text-[10px] tracking-wider ${
+                offline.state === 'ready' ? (offline.online ? 'text-emerald-300/80' : 'text-emerald-300') : offline.online ? 'text-white/40' : 'text-amber-300'
+              }`}
+              title={
+                offline.state === 'ready'
+                  ? offline.online
+                    ? 'Ready to run with no internet: everything is kept on this computer'
+                    : 'No internet — running from the copy kept on this computer'
+                  : offline.online
+                    ? 'Keeping a copy of everything for playing with no internet… (wait a moment with the camera on)'
+                    : 'No internet, and the copy is not complete: do not reload'
+              }
+            >
+              {offline.online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {offline.state === 'ready' ? 'OFFLINE OK' : offline.online ? 'OFFLINE…' : 'NO WIFI'}
+            </span>
+          </>
+        )}
 
         <div className="h-4 w-px bg-white/15" />
 
