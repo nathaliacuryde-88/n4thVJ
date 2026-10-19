@@ -1,0 +1,11 @@
+// Cloudflare: serves the built VJ (dist/) as static files. `npm run build`
+// makes dist/; `npx wrangler deploy` publishes it.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "n4thvj",
+  "compatibility_date": "2026-10-19",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}
