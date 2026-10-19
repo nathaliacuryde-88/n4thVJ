@@ -4,7 +4,7 @@ A browser VJ instrument: 25 visualisers you drive with your hands in front
 of a webcam, or with whatever the microphone is hearing. Everything runs locally
 in the page — the camera and audio streams never leave the machine.
 
-### → **https://nathaliacuryde-88.github.io/n4thVJ/**
+
 
 Allow the camera when the browser asks — hand tracking is what most of the
 renderers react to.
