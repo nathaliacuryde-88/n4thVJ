@@ -1,0 +1,20 @@
+<!doctype html><html><body style="margin:0;background:#222;display:grid;grid-template-columns:repeat(3,640px);gap:4px">
+<script type="module">
+import { DataRenderer } from '/src/app/components/renderers/DataRenderer.ts';
+import { advanceClock, useLayerClock } from '/src/app/motion/clock.ts';
+const combos = [[1,1],[2,2],[3,3],[4,1],[3,2],[2,3]];
+const rs = combos.map(([source, shape]) => {
+  const c = document.createElement('canvas'); c.width = 640; c.height = 360; document.body.appendChild(c);
+  const r = new DataRenderer(c, c.getContext('2d'));
+  r.setParams({ 'data.source': source, 'data.shape': shape });
+  return r;
+});
+let n = 0;
+function frame() {
+  advanceClock(1 / 60, [1]); useLayerClock(0);
+  for (const r of rs) r.render({ left: null, right: null }, ['#4d2cff', '#fff'], undefined);
+  window.frames_ = ++n;
+  requestAnimationFrame(frame);
+}
+frame();
+</script></body></html>
