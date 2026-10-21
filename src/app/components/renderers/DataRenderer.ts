@@ -381,7 +381,7 @@ export class DataRenderer {
     // The fine lines and the little numbers.
     for (const v of views) this.drawGrid(v.view, v.shape, v.alpha, cx, cy, R);
     for (const v of views) this.drawLabels(v.view, v.shape, v.values, v.alpha, v.focus, cx, cy, R, height);
-    this.drawTitle(views, cx, cy, height);
+    this.drawTitle(views, cx, cy, R, height);
   }
 
   /** Each view's values, eased toward the data so they grow in and drift. */
@@ -660,22 +660,30 @@ export class DataRenderer {
     return i % every === 0 || i === focus || i === view.now;
   }
 
-  private drawTitle(views: { view: View; shape: number; alpha: number }[], cx: number, cy: number, height: number) {
+  /**
+   * Only the little line, in the middle of the shape: what the data is,
+   * broken at its dots to fit inside the heart of the chart.
+   */
+  private drawTitle(views: { view: View; shape: number; alpha: number }[], cx: number, cy: number, R: number, height: number) {
     const ctx = this.ctx;
-    const fs = Math.max(14, height * 0.034);
+    const fs = Math.max(9, height * 0.012);
+    const room = R * 0.56;
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.font = `400 ${fs}px ${FONT}`;
     for (const { view, shape, alpha } of views) {
+      const lines: string[] = [];
+      for (const part of view.subtitle.split(' · ')) {
+        const last = lines[lines.length - 1];
+        if (last !== undefined && ctx.measureText(`${last} · ${part}`).width <= room) lines[lines.length - 1] = `${last} · ${part}`;
+        else lines.push(part);
+      }
       // Over the bloom's bright heart the words are dark, as the reference has them.
-      const dark = shape === BLOOM;
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = dark ? LABEL_DARK : LABEL_LIGHT;
-      ctx.font = `500 ${fs}px ${FONT}`;
-      ctx.fillText(view.title, cx, cy - fs * 0.25);
-      ctx.globalAlpha = alpha * 0.8;
-      ctx.font = `400 ${Math.max(8, fs * 0.32)}px ${FONT}`;
-      ctx.fillText(view.subtitle, cx, cy + fs * 0.55);
+      ctx.globalAlpha = alpha * 0.9;
+      ctx.fillStyle = shape === BLOOM ? LABEL_DARK : LABEL_LIGHT;
+      const lead = fs * 1.3;
+      lines.forEach((line, k) => ctx.fillText(line, cx, cy + (k - (lines.length - 1) / 2) * lead));
     }
     ctx.restore();
   }
