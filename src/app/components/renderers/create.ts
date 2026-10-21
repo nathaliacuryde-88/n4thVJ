@@ -41,6 +41,7 @@ import { JellyfishRenderer } from './JellyfishRenderer';
 import { AuroraRenderer } from './AuroraRenderer';
 import { BlendRenderer } from './BlendRenderer';
 import { DreamRenderer } from './DreamRenderer';
+import { DataRenderer } from './DataRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
 import { NatureWorldRenderer } from './NatureWorldRenderer';
 import { BigTypeRenderer } from './BigTypeRenderer';
@@ -218,6 +219,9 @@ export function createRenderer(
       break;
     case 'blend':
       renderer = new BlendRenderer(canvas, ctx);
+      break;
+    case 'data':
+      renderer = new DataRenderer(canvas, ctx);
       break;
     case 'dream-clouds':
       renderer = new DreamRenderer(canvas, ctx, 0);

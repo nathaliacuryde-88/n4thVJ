@@ -337,6 +337,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'A',
     description: 'Curtains of light folding over a night sky — soft behind the nature visuals'
   },
+  data: {
+    pattern: 'data',
+    name: 'Data Bloom',
+    short: 'Data',
+    category: '2D',
+    key: 'B',
+    description: 'The numbers of the day as a glowing chart — the music now, the sky, Stuttgart\'s weather and air by the hour'
+  },
   'dream-clouds': {
     pattern: 'dream-clouds',
     name: 'Dream Clouds',

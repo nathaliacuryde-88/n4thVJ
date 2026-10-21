@@ -16,3 +16,5 @@ served from [NPC-88/3dfiles](https://github.com/NPC-88/3dfiles), pinned by commi
 
 This project began as a Figma Make export; the shadcn/ui component library and the
 Unsplash photography that export shipped with are no longer part of it.
+| [Open-Meteo](https://open-meteo.com/) | [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/) — the weather and air data in Data Bloom |
+| [SunCalc](https://github.com/mourner/suncalc) by Vladimir Agafonkin | BSD-2-Clause — the sun and moon formulas behind Data Bloom's Sky (src/app/data/sky.ts) |

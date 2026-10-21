@@ -37,6 +37,7 @@ import { JellyfishConfig } from '../config/JellyfishRendererConfig';
 import { AuroraConfig } from '../config/AuroraRendererConfig';
 import { BlendConfig } from '../config/BlendRendererConfig';
 import { DreamConfig } from '../config/DreamRendererConfig';
+import { DataConfig } from '../config/DataRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
 import { BigTypeConfig } from '../config/BigTypeRendererConfig';
@@ -649,6 +650,43 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     ],
   },
 
+  data: {
+    config: DataConfig,
+    groups: [
+      {
+        name: 'Data',
+        params: [
+          { path: 'data.source', label: 'Data', min: 0, max: 4, step: 1, labels: ['Auto', 'Sound', 'Sky', 'Weather', 'Air'], hint: 'Auto takes turns; weather and air are Stuttgart, kept for offline' },
+          { path: 'data.every', label: 'Change every', min: 10, max: 300, step: 5, hint: 'seconds, then on the next kick' },
+          { path: 'data.shape', label: 'Shape', min: 0, max: 3, step: 1, labels: ['Auto', 'Bloom', 'Rings', 'Radar'], hint: 'Auto changes with the data and on a clap' },
+        ],
+      },
+      {
+        name: 'Look',
+        params: [
+          { path: 'look.size', label: 'Size', min: 0.4, max: 1.4, step: 0.05 },
+          { path: 'look.glow', label: 'Glow', min: 0.2, max: 2.5, step: 0.05 },
+          { path: 'look.grid', label: 'Grid', min: 0, max: 1, step: 0.05 },
+          { path: 'look.labels', label: 'Numbers', min: 0, max: 1, step: 0.05 },
+          { path: 'look.spin', label: 'Spin', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.focus', label: 'Hand lights', min: 0, max: 2, step: 0.05, hint: 'the part under your hand grows' },
+          { path: 'hands.clap', label: 'Clap changes shape', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick pulse', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
   'dream-clouds': dreamParams({
     name: 'Clouds',
     params: [

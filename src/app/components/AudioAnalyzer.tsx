@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnalyserState, analyse, createState } from '../audio/analyse';
+import { publishSpectrum } from '../audio/spectrum';
 
 interface AudioAnalyzerProps {
   onAudioData: (data: ReturnType<typeof analyse>) => void;
@@ -118,6 +119,7 @@ export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: A
       if (!analyser || !data || !context) return;
 
       analyser.getByteFrequencyData(data);
+      publishSpectrum(data, context.sampleRate, sensitivityRef.current);
       onAudioData(
         analyse(data, context.sampleRate, stateRef.current, sensitivityRef.current, Date.now()),
       );
