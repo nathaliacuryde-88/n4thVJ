@@ -44,6 +44,7 @@ import { DreamRenderer } from './DreamRenderer';
 import { DataRenderer } from './DataRenderer';
 import { SmearRenderer } from './SmearRenderer';
 import { TonightRenderer } from './TonightRenderer';
+import { MacroRenderer } from './MacroRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
 import { NatureWorldRenderer } from './NatureWorldRenderer';
 import { BigTypeRenderer } from './BigTypeRenderer';
@@ -98,7 +99,7 @@ export const HOLDS_CONTEXT: ReadonlySet<string> = new Set([
   'cubewall', 'dandelion', 'dice', 'digitalblocks', 'distortedcamera', 'dream-clouds', 'dream-hills',
   'dream-valley', 'dream-spray', 'dream-figure', 'dream-sea', 'dream-mountains',
   'elastic-net', 'jellyfish', 'liquidchrome', 'morphing', 'world', 'network-cube',
-  'particleimage', 'ripple', 'smear', 'smokehand-torus', 'smokehand-hand', 'watercolour',
+  'particleimage', 'ripple', 'smear', 'macro', 'smokehand-torus', 'smokehand-hand', 'watercolour',
 ]);
 
 export function createRenderer(
@@ -221,6 +222,9 @@ export function createRenderer(
       break;
     case 'blend':
       renderer = new BlendRenderer(canvas, ctx);
+      break;
+    case 'macro':
+      renderer = new MacroRenderer(canvas, ctx);
       break;
     case 'tonight':
       renderer = new TonightRenderer(canvas, ctx);

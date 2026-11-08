@@ -337,6 +337,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'A',
     description: 'Curtains of light folding over a night sky — soft behind the nature visuals'
   },
+  macro: {
+    pattern: 'macro',
+    name: 'Macro',
+    short: 'Macro',
+    category: 'TD',
+    key: 'W',
+    description: 'Close, film-like abstractions — ink bleeding through a wing, petals out of focus, filaments, a prism over grey petals'
+  },
   tonight: {
     pattern: 'tonight',
     name: "Tonight's Sky",

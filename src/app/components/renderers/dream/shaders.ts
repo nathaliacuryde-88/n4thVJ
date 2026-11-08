@@ -739,7 +739,8 @@ void main() {
   float horizon = -0.06;
   float glow;
   vec3 col = nightSky(p, horizon, glow);
-  float sp = sparkles(p, 6.0, uSparkle * 0.55) * smoothstep(horizon, horizon + 0.25, p.y);
+  // No sparkles over the sea: just the moon.
+  float sp = 0.0;
   if (p.y < horizon) {
     // Depth: small near us, growing toward the horizon.
     float d = horizon - p.y;
