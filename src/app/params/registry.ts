@@ -690,6 +690,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
   'macro-petals': macroParams(false),
   'macro-filaments': macroParams(false),
   'macro-prism': macroParams(false),
+  'macro-rings': macroParams(false),
+  'macro-water': macroParams(false),
   tonight: {
     config: TonightConfig,
     groups: [

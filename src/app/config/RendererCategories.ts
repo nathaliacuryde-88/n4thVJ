@@ -369,6 +369,22 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'W',
     description: 'Dark petals and leaves against pale light, a prism\'s rainbow sliding over them'
   },
+  'macro-rings': {
+    pattern: 'macro-rings',
+    name: 'Macro Rings',
+    short: 'Rings',
+    category: 'TD',
+    key: 'W',
+    description: 'Rings spreading through grainy sand, a smear of strong colour dragged along them'
+  },
+  'macro-water': {
+    pattern: 'macro-water',
+    name: 'Macro Water',
+    short: 'Water',
+    category: 'TD',
+    key: 'W',
+    description: 'Light reflected on moving water, broken by ripples into glowing cells and ribbons'
+  },
   tonight: {
     pattern: 'tonight',
     name: "Tonight's Sky",

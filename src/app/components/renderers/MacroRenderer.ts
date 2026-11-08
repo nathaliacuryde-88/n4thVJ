@@ -45,7 +45,7 @@ export class MacroRenderer {
   private kick = 0;
   private breath = 0;
   private hand = new THREE.Vector3();
-  /** Which of the four this visual is: 0 Ink wing, 1 Petals, 2 Filaments, 3 Prism. */
+  /** Which this visual is: 0 Ink wing, 1 Petals, 2 Filaments, 3 Prism, 4 Rings, 5 Water. */
   private style: number;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, style: number) {

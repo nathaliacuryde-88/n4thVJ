@@ -200,6 +200,89 @@ vec3 prism(vec2 p, float t) {
   return col;
 }
 
+// ── RINGS ───────────────────────────────────────────────────────────────────
+/* Rings spreading through sand: soft concentric bands from a centre off the
+   frame, a grain of coloured specks over everything, and a smear of strong
+   colour dragged along the rings as if something passed through them. */
+vec3 rings(vec2 p, float t) {
+  vec2 c = vec2(-0.75, -0.62) + uHand.z * (uHand.xy - vec2(0.5)) * 0.3;
+  vec2 d = p - c;
+  float r = length(d);
+  float ang = atan(d.y, d.x);
+  vec2 w = warp(p * 1.3, t * 0.4);
+  float wob = (w.x - 0.5) * 0.06;
+  // The rings: travelling outward at the clock's pace, deeper with the bass.
+  float phase = (r + wob) * 26.0 - t * 1.2 - uKick * 1.5;
+  float ring = 0.5 + 0.5 * sin(phase);
+  vec3 cream = vec3(0.95, 0.86, 0.72);
+  vec3 pink = vec3(0.93, 0.66, 0.6);
+  vec3 ochre = vec3(0.86, 0.55, 0.28);
+  vec3 col = mix(cream, pink, smoothstep(0.2, 1.2, ang + 0.3 + (w.y - 0.5)));
+  float fade = 1.0 - smoothstep(0.3, 2.4, r);
+  col = mix(col, ochre * 0.88, smoothstep(0.45, 1.0, ring) * (0.6 + uBass * 0.25) * fade);
+  col = mix(col, vec3(0.98, 0.9, 0.82), smoothstep(0.5, 0.0, ring) * 0.35 * fade);
+  // The smear: strokes of colour along the rings, each a sliver in radius
+  // and long in angle, dragged as by a hand going round.
+  float centre = 0.95 + 0.15 * sin(t * 0.05);
+  for (int i = 0; i < 7; i++) {
+    float fi = float(i);
+    float rr = centre + (hash(vec2(fi, 1.0)) - 0.5) * 0.42;
+    float aa = 0.62 + (hash(vec2(fi, 2.0)) - 0.5) * 0.28 + sin(t * 0.07 + fi) * 0.04;
+    float spread = 0.16 + 0.12 * hash(vec2(fi, 3.0));
+    float thick = 0.018 + 0.02 * hash(vec2(fi, 4.0));
+    float m = exp(-pow((r - rr) / thick, 2.0)) * exp(-pow((ang - aa) / spread, 2.0));
+    vec3 sc = fi < 2.0 ? vec3(0.82, 0.06, 0.05) : fi < 4.0 ? vec3(0.93, 0.68, 0.08) : fi < 5.0 ? vec3(0.08, 0.32, 0.1) : vec3(0.85, 0.35, 0.08);
+    col = mix(col, sc, clamp(m * 1.3, 0.0, 0.95));
+  }
+  // A wider soft haze of orange round the smear.
+  float haze = exp(-pow((r - centre) / 0.35, 2.0)) * exp(-pow((ang - 0.62) / 0.4, 2.0));
+  col = mix(col, vec3(0.88, 0.42, 0.12), haze * 0.45);
+  // Sand: specks of colour, each grain its own.
+  vec2 g = floor(gl_FragCoord.xy / max(1.0, uRes.y / 700.0));
+  float h1 = hash(g + floor(uReal * 3.0) * 0.0);
+  float h2 = hash(g * 1.7 + 3.1);
+  vec3 speck = h2 < 0.33 ? vec3(0.95, 0.4, 0.35) : h2 < 0.66 ? vec3(0.98, 0.9, 0.7) : vec3(0.6, 0.45, 0.25);
+  col = mix(col, speck, step(0.55, h1) * 0.35 * uDetail);
+  return col;
+}
+
+// ── WATER ───────────────────────────────────────────────────────────────────
+/* Light reflected on moving water: a bright band broken by ripples into
+   cells and wobbling ribbons, dark lines running through it, the water
+   between grey-green, a dark shore above. */
+vec3 water(vec2 p, float t) {
+  // The water from above: small waves crossing, moving at the clock's pace.
+  vec2 q = p * vec2(1.0, 1.25);
+  float wave = fbm(q * 3.0 + vec2(t * 0.15, t * 0.08))
+             + 0.6 * fbm(q * 6.0 - vec2(t * 0.11, -t * 0.17))
+             + 0.25 * sin(q.x * 9.0 + q.y * 4.0 - t * 0.9);
+  // A lit wall or sky reflected as bands; the waves bend them into wobbling
+  // ribbons that break into blobs and rings.
+  float fine = fbm(q * 11.0 + vec2(-t * 0.3, t * 0.2));
+  float bend = (wave - 0.9) * (0.2 + uBass * 0.08) + (fine - 0.5) * 0.05;
+  float stripes = sin((p.y + bend) * 62.0 + (p.x + bend * 0.5) * 8.0);
+  // Where the light falls: a wide diagonal, the rest grey water, a dark
+  // bank across the top corner.
+  float diag = p.y - p.x * 0.45 + (wave - 0.9) * 0.15;
+  float lightZone = smoothstep(0.32, 0.12, diag) * smoothstep(-0.75, -0.45, diag);
+  float bank = smoothstep(0.18, 0.34, diag);
+  vec3 waterC = vec3(0.4, 0.41, 0.38) + (wave - 0.9) * 0.12 + stripes * 0.02;
+  vec3 col = mix(waterC, vec3(0.13, 0.1, 0.06) + (wave - 0.9) * 0.08, bank);
+  // The ribbons: a bright rim, a deeper red inside, a dark hole where a crest
+  // turns away.
+  float rib = smoothstep(0.35, 0.6, stripes);
+  float core = smoothstep(0.8, 0.95, stripes);
+  vec3 bright = vec3(1.0, 0.26, 0.1) * (1.0 + uKick * 0.2);
+  vec3 deep = vec3(0.6, 0.08, 0.05);
+  vec3 lit = mix(bright, deep, core * 0.75);
+  col = mix(col, lit, rib * lightZone * (0.92 + uBurst * 0.08));
+  // Fainter ribbons trailing out of the light.
+  col = mix(col, bright * 0.75, rib * smoothstep(0.55, 0.25, abs(diag + 0.1)) * (1.0 - lightZone) * 0.35);
+  // Glints of warm light in the dark water by the bank.
+  col += vec3(0.9, 0.72, 0.3) * smoothstep(0.9, 0.98, stripes) * bank * smoothstep(1.1, 1.3, wave) * 0.6;
+  return col;
+}
+
 void main() {
   vec2 p = (vUv - 0.5) * vec2(uRes.x / uRes.y, 1.0) / uZoom;
   float t = uTime * uFlow;
@@ -207,7 +290,9 @@ void main() {
   if (uStyle < 0.5) col = inkWing(p, t);
   else if (uStyle < 1.5) col = petals(p, t);
   else if (uStyle < 2.5) col = filaments(p, t);
-  else col = prism(p, t);
+  else if (uStyle < 3.5) col = prism(p, t);
+  else if (uStyle < 4.5) col = rings(p, t);
+  else col = water(p, t);
   col = hueTurn(col, uTurn);
   // Film: a soft vignette and a fine moving grain.
   float v = smoothstep(1.3, 0.35, length((vUv - 0.5) * vec2(uRes.x / uRes.y, 1.0)));
