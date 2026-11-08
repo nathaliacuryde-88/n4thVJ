@@ -56,6 +56,39 @@ export interface RendererParams {
   groups: ParamGroup[];
 }
 
+/** The Macro visuals share one renderer and its sliders; only the wing has veins. */
+function macroParams(veins: boolean): RendererParams {
+  return {
+    config: MacroConfig,
+    groups: [
+      {
+        name: 'Macro',
+        params: [
+          { path: 'look.flow', label: 'Flow', min: 0, max: 3, step: 0.05 },
+          { path: 'look.zoom', label: 'Closer', min: 0.5, max: 3, step: 0.05 },
+          { path: 'look.detail', label: 'Detail', min: 0, max: 2, step: 0.05 },
+          ...(veins ? [{ path: 'look.veins', label: 'Veins', min: 0, max: 1.5, step: 0.05 }] : []),
+          { path: 'look.grain', label: 'Grain', min: 0, max: 1, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.follow', label: 'Follows hand', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap light', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick pulse', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass breath', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  };
+}
+
 /**
  * The Dreamscape visuals share one renderer and one set of sliders: the
  * spray paint, the hands, the sound — and each its own scene's few.
@@ -653,36 +686,10 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     ],
   },
 
-  macro: {
-    config: MacroConfig,
-    groups: [
-      {
-        name: 'Macro',
-        params: [
-          { path: 'look.style', label: 'Style', min: 0, max: 3, step: 1, labels: ['Ink wing', 'Petals', 'Filaments', 'Prism'] },
-          { path: 'look.flow', label: 'Flow', min: 0, max: 3, step: 0.05 },
-          { path: 'look.zoom', label: 'Closer', min: 0.5, max: 3, step: 0.05 },
-          { path: 'look.detail', label: 'Detail', min: 0, max: 2, step: 0.05 },
-          { path: 'look.veins', label: 'Veins', min: 0, max: 1.5, step: 0.05 },
-          { path: 'look.grain', label: 'Grain', min: 0, max: 1, step: 0.05 },
-        ],
-      },
-      {
-        name: 'Hands',
-        params: [
-          { path: 'hands.follow', label: 'Follows hand', min: 0, max: 2, step: 0.05 },
-          { path: 'hands.clap', label: 'Clap light', min: 0, max: 2, step: 0.05 },
-        ],
-      },
-      {
-        name: 'Sound',
-        params: [
-          { path: 'sound.beat', label: 'Kick pulse', min: 0, max: 2, step: 0.05 },
-          { path: 'sound.bass', label: 'Bass breath', min: 0, max: 2, step: 0.05 },
-        ],
-      },
-    ],
-  },
+  'macro-ink': macroParams(true),
+  'macro-petals': macroParams(false),
+  'macro-filaments': macroParams(false),
+  'macro-prism': macroParams(false),
   tonight: {
     config: TonightConfig,
     groups: [

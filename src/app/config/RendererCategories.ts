@@ -337,18 +337,42 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'A',
     description: 'Curtains of light folding over a night sky — soft behind the nature visuals'
   },
-  macro: {
-    pattern: 'macro',
-    name: 'Macro',
-    short: 'Macro',
+  'macro-ink': {
+    pattern: 'macro-ink',
+    name: 'Macro Ink Wing',
+    short: 'Ink Wing',
     category: 'TD',
     key: 'W',
-    description: 'Close, film-like abstractions — ink bleeding through a wing, petals out of focus, filaments, a prism over grey petals'
+    description: 'Ink bleeding through a butterfly wing on wet paper — orange rim, feathered black, a peach and cyan heart, an eye'
+  },
+  'macro-petals': {
+    pattern: 'macro-petals',
+    name: 'Macro Petals',
+    short: 'Petals',
+    category: 'TD',
+    key: 'W',
+    description: 'Petals so close and out of focus they are mostly colour, freckled, drifting'
+  },
+  'macro-filaments': {
+    pattern: 'macro-filaments',
+    name: 'Macro Filaments',
+    short: 'Filaments',
+    category: 'TD',
+    key: 'W',
+    description: 'Thousands of fine filaments fanning into a dark slit, cream to orange to navy, a void behind'
+  },
+  'macro-prism': {
+    pattern: 'macro-prism',
+    name: 'Macro Prism',
+    short: 'Prism',
+    category: 'TD',
+    key: 'W',
+    description: 'Dark petals and leaves against pale light, a prism\'s rainbow sliding over them'
   },
   tonight: {
     pattern: 'tonight',
     name: "Tonight's Sky",
-    short: 'Sky',
+    short: 'Stars',
     category: '2D',
     key: 'N',
     description: 'The real sky over Stuttgart tonight — stars, constellations, the moon in its phase, the planets — soft and glowing'
@@ -490,6 +514,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
  */
 const RENAMED: Record<string, VisualPattern> = {
   dream: 'dream-clouds',
+  macro: 'macro-ink',
 };
 
 /** A stored pattern as it is called now, or null if it is gone. */

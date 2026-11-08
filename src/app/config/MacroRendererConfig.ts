@@ -5,8 +5,6 @@
  */
 export const MacroConfig = {
   look: {
-    /** 0 Ink wing, 1 Petals, 2 Filaments, 3 Prism. */
-    style: 0,
     /** How fast it all flows; the finger count still sets the tempo. */
     flow: 1,
     /** How close we are. */

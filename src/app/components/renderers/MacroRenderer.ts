@@ -10,7 +10,8 @@ import { MACRO, VERT } from './macro/shaders';
  * MACRO
  * ═══════════════════════════════════════════════════════════════════════════
  * Abstractions that read as film rather than illustration: the camera very
- * close to something living. Four, after references she brought:
+ * close to something living. Four visuals, each on its own card so they can
+ * be layered, after references she brought:
  *
  *   Ink wing   ink bleeding through a butterfly's wing on wet paper — an
  *              orange rim, a feathered black band, a peach and cyan heart,
@@ -44,8 +45,11 @@ export class MacroRenderer {
   private kick = 0;
   private breath = 0;
   private hand = new THREE.Vector3();
+  /** Which of the four this visual is: 0 Ink wing, 1 Petals, 2 Filaments, 3 Prism. */
+  private style: number;
 
-  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, style: number) {
+    this.style = style;
     this.canvas = canvas;
     this.ctx = ctx;
     this.geometry = new THREE.BufferGeometry();
@@ -121,7 +125,7 @@ export class MacroRenderer {
     (u.uRes.value as THREE.Vector2).set(width, height);
     u.uTime.value = this.time;
     u.uReal.value = (performance.now() / 1000) % 1000;
-    u.uStyle.value = Math.round(cfg.look.style);
+    u.uStyle.value = this.style;
     u.uFlow.value = cfg.look.flow;
     u.uDetail.value = cfg.look.detail;
     u.uVeins.value = cfg.look.veins;

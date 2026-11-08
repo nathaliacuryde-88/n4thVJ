@@ -99,7 +99,7 @@ export const HOLDS_CONTEXT: ReadonlySet<string> = new Set([
   'cubewall', 'dandelion', 'dice', 'digitalblocks', 'distortedcamera', 'dream-clouds', 'dream-hills',
   'dream-valley', 'dream-spray', 'dream-figure', 'dream-sea', 'dream-mountains',
   'elastic-net', 'jellyfish', 'liquidchrome', 'morphing', 'world', 'network-cube',
-  'particleimage', 'ripple', 'smear', 'macro', 'smokehand-torus', 'smokehand-hand', 'watercolour',
+  'particleimage', 'ripple', 'smear', 'macro-ink', 'macro-petals', 'macro-filaments', 'macro-prism', 'smokehand-torus', 'smokehand-hand', 'watercolour',
 ]);
 
 export function createRenderer(
@@ -223,8 +223,17 @@ export function createRenderer(
     case 'blend':
       renderer = new BlendRenderer(canvas, ctx);
       break;
-    case 'macro':
-      renderer = new MacroRenderer(canvas, ctx);
+    case 'macro-ink':
+      renderer = new MacroRenderer(canvas, ctx, 0);
+      break;
+    case 'macro-petals':
+      renderer = new MacroRenderer(canvas, ctx, 1);
+      break;
+    case 'macro-filaments':
+      renderer = new MacroRenderer(canvas, ctx, 2);
+      break;
+    case 'macro-prism':
+      renderer = new MacroRenderer(canvas, ctx, 3);
       break;
     case 'tonight':
       renderer = new TonightRenderer(canvas, ctx);

@@ -255,14 +255,18 @@ export function Controls({
     setNaming(true);
   };
 
+  // A long set packs the bar tighter and nudges it right, clear of the
+  // status bar in the corner; the bar is the most important thing up here.
+  const compact = set.length > 10;
+
   return (
     <>
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* TOP - VISUAL PATTERN SELECTOR (Similar to Color Bar) */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
-        <div className="bg-black/70 backdrop-blur-sm rounded-full py-2 px-6 border border-white/20 font-mono">
-          <div className="flex items-center gap-4">
+      <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 ${compact ? 'ml-[80px]' : ''}`}>
+        <div className={`bg-black/70 backdrop-blur-sm rounded-full py-2 border border-white/20 font-mono ${compact ? 'px-3' : 'px-6'}`}>
+          <div className={`flex items-center ${compact ? 'gap-2' : 'gap-4'}`}>
             {/* Back to the library */}
             <button
               onClick={onOpenLibrary}
@@ -307,14 +311,14 @@ export function Controls({
                 </form>
               )}
             </div>
-            {setName && (
+            {setName && !compact && (
               <span className="max-w-[90px] truncate text-[9px] text-white/35" title="The saved set you are in">{setName}</span>
             )}
 
             <div className="w-px h-6 bg-white/20" />
 
             {/* The set, on the keys the library gave it */}
-            <div className="flex items-center gap-1.5">
+            <div className={`flex items-center ${compact ? 'gap-0.5' : 'gap-1.5'}`}>
               {set.map((pattern, index) => {
                 const layerIndex = layers.findIndex((l) => l.pattern === pattern);
                 const isSelected = layerIndex === selectedLayer;
@@ -337,7 +341,7 @@ export function Controls({
                     onDragOver={(e) => { if (dragging) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
                     onDrop={(e) => { e.preventDefault(); setDragging(null); }}
                     onDragEnd={() => setDragging(null)}
-                    className={`relative flex w-[44px] shrink-0 cursor-grab flex-col items-center gap-0.5 group/set active:cursor-grabbing ${dragging === pattern ? 'opacity-40' : ''}`}
+                    className={`relative flex ${compact ? 'w-[36px]' : 'w-[44px]'} shrink-0 cursor-grab flex-col items-center gap-0.5 group/set active:cursor-grabbing ${dragging === pattern ? 'opacity-40' : ''}`}
                     title={`${RENDERER_CATEGORIES[pattern].name} (${slotKey(index)})${
                       layerIndex !== -1 ? ` — layer ${layerIndex + 1}` : ''
                     } · hold to stack · drag to reorder`}
@@ -345,7 +349,7 @@ export function Controls({
                     {/* A still of the visual, so the key is recognised by what it
                         plays, its key in the corner. */}
                     <span
-                      className={`relative flex h-[26px] w-[40px] items-center justify-center overflow-hidden rounded-md text-xs transition-all ${
+                      className={`relative flex h-[26px] ${compact ? 'w-[34px]' : 'w-[40px]'} items-center justify-center overflow-hidden rounded-md text-xs transition-all ${
                         isSelected
                           ? 'ring-2 ring-white shadow-lg shadow-white/40'
                           : isStacked
@@ -382,7 +386,7 @@ export function Controls({
                 decision about the room, not about one visual. */}
             <div className="w-px h-6 bg-white/20" />
             <div className="flex items-center gap-1.5" title="How hard the hands drive every visual (- and =)">
-              <span className="text-[8px] tracking-widest text-white/35">HANDS</span>
+              {!compact && <span className="text-[8px] tracking-widest text-white/35">HANDS</span>}
               <input
                 type="range"
                 aria-label="Hand motion"
@@ -391,18 +395,18 @@ export function Controls({
                 step={0.05}
                 value={motion}
                 onChange={(e) => onMotionChange(parseFloat(e.target.value))}
-                className="vj-slider h-1 w-16 cursor-pointer appearance-none rounded-full focus:outline-none"
+                className={`vj-slider h-1 ${compact ? 'w-12' : 'w-16'} cursor-pointer appearance-none rounded-full focus:outline-none`}
                 style={{
                   background: `linear-gradient(to right, rgba(255,255,255,0.85) ${
                     (motion / 2) * 100
                   }%, rgba(255,255,255,0.15) ${(motion / 2) * 100}%)`,
                 }}
               />
-              <span className={`w-7 text-[9px] tabular-nums ${
+              {!compact && <span className={`w-7 text-[9px] tabular-nums ${
                 motion > 1.35 ? 'text-amber-300' : motion < 0.65 ? 'text-cyan-300' : 'text-white/55'
               }`}>
                 {Math.round(motion * 100)}%
-              </span>
+              </span>}
             </div>
 
             {/* Which layer the sliders are pointed at. Only worth the space once
@@ -416,9 +420,9 @@ export function Controls({
                   className="px-2 py-1 rounded text-[10px] whitespace-nowrap bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-all"
                 >
                   L{selectedLayer + 1}/{layers.length}
-                  <span className="text-emerald-300/60">
+                  {!compact && <span className="text-emerald-300/60">
                     {' '}{Math.round((layers[selectedLayer]?.opacity ?? 1) * 100)}%
-                  </span>
+                  </span>}
                 </button>
               </>
             )}
