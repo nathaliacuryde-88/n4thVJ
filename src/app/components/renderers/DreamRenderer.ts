@@ -43,6 +43,7 @@ const FIGURE_COLOURS: string[][] = [
   ['#123e8c', '#248ba7', '#eab4aa', '#fbe8e0'], // spray: pink and blue
 ];
 
+
 /** Where her picture stands in each scene, and how tall (half height, frame units). */
 const FIGURE_PLACE: { x: number; y: number; h: number }[] = [
   { x: 0.2, y: 0.06, h: 0.2 },
@@ -50,6 +51,8 @@ const FIGURE_PLACE: { x: number; y: number; h: number }[] = [
   { x: 0, y: -0.04, h: 0.17 },
   { x: -0.04, y: 0, h: 0.4 },
   { x: 0, y: 0, h: 0.4 },
+  { x: 0, y: 0, h: 0.2 },
+  { x: 0, y: 0, h: 0.2 },
 ];
 
 /** The whole picture, in texture space. */
@@ -159,6 +162,9 @@ export class DreamRenderer {
       // Spray
       uRing: { value: 3 },
       uRingAmp: { value: 0 },
+      // Sea, Mountains
+      uSwell: { value: 1 },
+      uRidges: { value: 6 },
     };
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
@@ -337,11 +343,15 @@ export class DreamRenderer {
     // Spray
     u.uRing.value = this.ring;
     u.uRingAmp.value = this.ringAmp;
+    // Sea, Mountains
+    u.uSwell.value = cfg.sea.swell;
+    u.uRidges.value = cfg.mountains.ridges;
+    if (kind >= 5) u.uMist.value = cfg.mountains.mist * (1 + this.breath * 0.15);
 
     // Her picture, on its own visual, in the colours of the scene she picks;
     // the scenes draw without it. (Spray's moon still stands where it would.)
     const place = FIGURE_PLACE[kind];
-    const colours = FIGURE_COLOURS[picture ? Math.max(0, Math.min(3, Math.round(cfg.figure.palette))) : kind];
+    const colours = FIGURE_COLOURS[picture ? Math.max(0, Math.min(3, Math.round(cfg.figure.palette))) : Math.min(kind, 3)];
     const h = place.h * (picture ? cfg.figure.size : 1);
     const bob = Math.sin(this.time * 0.7) * 0.012;
     const cx = (place.x + (kind === 0 ? 0.1 * (aspect - 1) : 0)) + this.aim.x * 0.12;

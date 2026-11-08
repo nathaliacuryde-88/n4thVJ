@@ -39,6 +39,7 @@ import { BlendConfig } from '../config/BlendRendererConfig';
 import { DreamConfig } from '../config/DreamRendererConfig';
 import { DataConfig } from '../config/DataRendererConfig';
 import { SmearConfig } from '../config/SmearRendererConfig';
+import { TonightConfig } from '../config/TonightRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
 import { BigTypeConfig } from '../config/BigTypeRendererConfig';
@@ -651,6 +652,46 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     ],
   },
 
+  tonight: {
+    config: TonightConfig,
+    groups: [
+      {
+        name: 'Sky',
+        params: [
+          { path: 'view.look', label: 'Looking', min: 0, max: 4, step: 1, labels: ['South', 'East', 'North', 'West', 'Up'] },
+          { path: 'view.width', label: 'Field', min: 60, max: 200, step: 5, hint: 'degrees of sky across the frame' },
+          { path: 'view.drift', label: 'Drift', min: 0, max: 2, step: 0.05 },
+          { path: 'view.ground', label: 'Ground', min: 0, max: 1, step: 1, labels: ['Black', 'Night'], hint: 'Black to layer it over another visual' },
+          { path: 'time.speed', label: 'Time', min: 0, max: 30, step: 0.5, hint: 'minutes of sky per second' },
+          { path: 'time.hours', label: 'Later', min: 0, max: 12, step: 0.5, hint: 'hours ahead of now' },
+        ],
+      },
+      {
+        name: 'Look',
+        params: [
+          { path: 'look.size', label: 'Stars', min: 0.4, max: 2.5, step: 0.05 },
+          { path: 'look.lines', label: 'Lines', min: 0, max: 1, step: 0.05 },
+          { path: 'look.labels', label: 'Names', min: 0, max: 1, step: 0.05 },
+          { path: 'look.moon', label: 'Moon', min: 0.5, max: 3, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.pan', label: 'Hand pans', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Shooting star', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick shine', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hat twinkle', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
   smear: {
     config: SmearConfig,
     groups: [
@@ -750,6 +791,21 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     ],
   }),
   'dream-spray': dreamParams(null),
+  'dream-sea': dreamParams({
+    name: 'Sea',
+    params: [
+      { path: 'sea.swell', label: 'Swell', min: 0, max: 2.5, step: 0.05, hint: 'bass lifts it further, like a tide' },
+      { path: 'clouds.glow', label: 'Moonlight', min: 0, max: 1.5, step: 0.05 },
+    ],
+  }),
+  'dream-mountains': dreamParams({
+    name: 'Mountains',
+    params: [
+      { path: 'mountains.ridges', label: 'Ridges', min: 2, max: 8, step: 1 },
+      { path: 'mountains.mist', label: 'Mist', min: 0, max: 1.5, step: 0.05 },
+      { path: 'clouds.glow', label: 'Moonlight', min: 0, max: 1.5, step: 0.05 },
+    ],
+  }),
   'dream-figure': dreamParams({
     name: 'Your picture',
     params: [

@@ -694,6 +694,126 @@ void main() {
 }`;
 
 /** Clouds, Hills, Valley, Spray, and her picture alone. */
-export const SCENES = [CLOUDS, HILLS, VALLEY, SPRAY, PICTURE];
+// ── NIGHT: the sky over the sea and the mountains ────────────────────────────
+/*
+ * A night sky the sea and the mountains share: deep blue, lighter toward the
+ * horizon, a soft moon (it follows the hand) with a wide halo, stars.
+ */
+const NIGHT_SKY = /* glsl */ `
+const vec3 NIGHT_TOP = vec3(0.012, 0.025, 0.075);
+const vec3 NIGHT_LOW = vec3(0.075, 0.13, 0.27);
+const vec3 MOONLIGHT = vec3(0.93, 0.95, 1.0);
+
+vec3 nightSky(vec2 p, float horizon, out float moonGlow) {
+  float t = smoothstep(horizon - 0.02, 0.62, p.y);
+  vec3 col = mix(NIGHT_LOW, NIGHT_TOP, pow(t, 0.7));
+  // A breath of cloud, barely there.
+  col += (fbm(p * vec2(1.2, 3.0) + vec2(uDrift * 0.5, 0.0)) - 0.5) * 0.035;
+  vec2 m = uSun;
+  float d = length(p - m);
+  moonGlow = exp(-d * 4.5) * (0.55 + uBass * 0.35) * uGlow;
+  col += MOONLIGHT * moonGlow * 0.35;
+  float disc = smoothstep(0.052, 0.046, d);
+  col = mix(col, MOONLIGHT, disc);
+  return col;
+}
+`;
+
+/*
+ * SEA: a moonlit horizon, swells breathing toward us in soft rounded bands,
+ * a path of silver light under the moon. Bass lifts the swell like a tide;
+ * each kick sets the moon path glittering; a clap rolls a long wave in.
+ */
+export const SEA = /* glsl */ `
+${COMMON}
+uniform float uDrift, uGlow, uFly, uBreath, uWave, uWaveAmp, uSwell, uPanX;
+uniform vec2 uSun;
+${NIGHT_SKY}
+
+const vec3 DEEP = vec3(0.01, 0.03, 0.09);
+const vec3 SWELL = vec3(0.07, 0.14, 0.29);
+const vec3 CREST = vec3(0.32, 0.45, 0.68);
+
+void main() {
+  vec2 p = frame();
+  float horizon = -0.06;
+  float glow;
+  vec3 col = nightSky(p, horizon, glow);
+  float sp = sparkles(p, 6.0, uSparkle * 0.55) * smoothstep(horizon, horizon + 0.25, p.y);
+  if (p.y < horizon) {
+    // Depth: small near us, growing toward the horizon.
+    float d = horizon - p.y;
+    float z = 0.22 / d;
+    float x = (p.x + uPanX * 0.3) * z * 0.6;
+    float amp = uSwell * (0.7 + uBreath * 0.9 + uPulse * 0.3);
+    // Rounded swells rolling in at the clock's pace: wide near, fine far,
+    // fading out before they get too fine to hold.
+    float phase = z * 1.6 - uFly * 0.5 + (fbm(vec2(x * 0.5, z * 0.3)) - 0.5) * 1.6 * amp;
+    float wave = uWaveAmp * exp(-pow(z - (12.0 - uWave * 1.2), 2.0) * 0.08);
+    float face = 0.5 + 0.5 * cos(phase * 6.2832);
+    float far = smoothstep(18.0, 2.0, z);
+    float lit = pow(face, 2.5) * far * (0.55 + amp * 0.35) + wave * 0.5 * far;
+    vec3 sea = mix(DEEP, SWELL, (0.35 + 0.65 * face) * far);
+    sea = spray(sea, CREST, clamp(lit * 0.7, 0.0, 1.0));
+    // The moon's path: narrow at the horizon, widening toward us, silver on
+    // the swells, glittering on the kick.
+    float under = exp(-pow((p.x - uSun.x) / (0.03 + d * 0.45), 2.0));
+    float glint = step(0.7 - uPulse * 0.3 - uFlash * 0.2, grain(3.0)) * face;
+    sea += MOONLIGHT * under * (0.1 + 0.25 * face + glint * 0.6) * (0.5 + glow);
+    // A soft line of haze where the sea meets the sky.
+    sea = mix(sea, NIGHT_LOW * 1.25, smoothstep(horizon - 0.05, horizon, p.y) * 0.85);
+    col = sea;
+  }
+  gl_FragColor = finish(col, sp);
+}`;
+
+/*
+ * MOUNTAINS: ridgelines in deep blue, layer behind layer, rounded and soft
+ * (no peaks to cut the eye), mist pooled in every valley, drifting slowly
+ * past. Bass thickens the mist; a clap sends a wave of light over the
+ * ridges; the hand steers the drift.
+ */
+export const MOUNTAINS = /* glsl */ `
+${COMMON}
+uniform float uDrift, uGlow, uFly, uBreath, uWave, uWaveAmp, uMist, uPanX, uRidges;
+uniform vec2 uSun;
+${NIGHT_SKY}
+
+const vec3 FAR = vec3(0.24, 0.33, 0.55);
+const vec3 NEAR = vec3(0.015, 0.03, 0.08);
+const vec3 MIST = vec3(0.55, 0.64, 0.82);
+
+void main() {
+  vec2 p = frame();
+  float glow;
+  vec3 col = nightSky(p, -0.1, glow);
+  float sp = sparkles(p, 6.0, uSparkle * 0.6) * smoothstep(-0.05, 0.3, p.y);
+  float n = clamp(uRidges, 2.0, 8.0);
+  for (int i = 0; i < 8; i++) {
+    float fi = float(i);
+    if (fi >= n) break;
+    float k = fi / max(1.0, n - 1.0);          // 0 far, 1 near
+    float speed = 0.05 + k * k * 0.5;
+    float x = p.x + uFly * speed * 0.2 + uPanX * (0.1 + k * 0.4) + fi * 3.7;
+    // Smooth ridges: low octaves only, so the tops stay rounded.
+    float h = 0.12 - k * 0.42
+      + 0.22 * (noise(vec2(x * (1.1 + k * 0.6), fi * 5.1)) - 0.5) * (1.0 + k * 0.5)
+      + 0.1 * (noise(vec2(x * 2.6, fi * 2.3)) - 0.5);
+    h += uWaveAmp * 0.04 * exp(-pow((x - uWave * 0.4), 2.0) * 3.0);
+    if (p.y < h) {
+      vec3 rc = mix(FAR, NEAR, pow(k, 0.8));
+      // Moonlight catches the tops of the far ridges.
+      rc += MOONLIGHT * glow * (1.0 - k) * 0.12 * smoothstep(h - 0.06, h, p.y);
+      // Mist pooled at the foot of each ridge, thicker with the bass.
+      // Mist pools at the foot of the far ridges; the near ones stay dark.
+      float pool = smoothstep(0.02, 0.28, h - p.y) * uMist * pow(1.0 - k, 1.6) * 0.6 * (1.0 + uBreath * 0.35);
+      rc = mix(rc, MIST, clamp(pool, 0.0, 0.8));
+      col = rc;
+    }
+  }
+  gl_FragColor = finish(col, sp);
+}`;
+
+export const SCENES = [CLOUDS, HILLS, VALLEY, SPRAY, PICTURE, SEA, MOUNTAINS];
 /** Which of SCENES is her picture alone. */
 export const PICTURE_SCENE = 4;

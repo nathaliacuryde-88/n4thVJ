@@ -43,6 +43,7 @@ import { BlendRenderer } from './BlendRenderer';
 import { DreamRenderer } from './DreamRenderer';
 import { DataRenderer } from './DataRenderer';
 import { SmearRenderer } from './SmearRenderer';
+import { TonightRenderer } from './TonightRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
 import { NatureWorldRenderer } from './NatureWorldRenderer';
 import { BigTypeRenderer } from './BigTypeRenderer';
@@ -95,7 +96,7 @@ export interface VJRenderer {
 export const HOLDS_CONTEXT: ReadonlySet<string> = new Set([
   'atlas', 'aurora', 'bigtype', 'blend', 'bloom', 'butterflies', 'chrome', 'crowd',
   'cubewall', 'dandelion', 'dice', 'digitalblocks', 'distortedcamera', 'dream-clouds', 'dream-hills',
-  'dream-valley', 'dream-spray', 'dream-figure',
+  'dream-valley', 'dream-spray', 'dream-figure', 'dream-sea', 'dream-mountains',
   'elastic-net', 'jellyfish', 'liquidchrome', 'morphing', 'world', 'network-cube',
   'particleimage', 'ripple', 'smear', 'smokehand-torus', 'smokehand-hand', 'watercolour',
 ]);
@@ -220,6 +221,15 @@ export function createRenderer(
       break;
     case 'blend':
       renderer = new BlendRenderer(canvas, ctx);
+      break;
+    case 'tonight':
+      renderer = new TonightRenderer(canvas, ctx);
+      break;
+    case 'dream-sea':
+      renderer = new DreamRenderer(canvas, ctx, 5);
+      break;
+    case 'dream-mountains':
+      renderer = new DreamRenderer(canvas, ctx, 6);
       break;
     case 'smear':
       renderer = new SmearRenderer(canvas, ctx);

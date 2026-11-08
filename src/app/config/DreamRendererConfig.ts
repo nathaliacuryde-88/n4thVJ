@@ -37,6 +37,18 @@ export const DreamConfig = {
     river: 1,
   },
 
+  sea: {
+    /** How high the swells breathe; bass lifts them further, like a tide. */
+    swell: 1,
+  },
+
+  mountains: {
+    /** How many ridgelines, far to near. */
+    ridges: 6,
+    /** Mist pooled in the valleys. */
+    mist: 0.8,
+  },
+
   figure: {
     /** How big her picture stands; 0 hides it. */
     size: 1,

@@ -337,6 +337,30 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'A',
     description: 'Curtains of light folding over a night sky — soft behind the nature visuals'
   },
+  tonight: {
+    pattern: 'tonight',
+    name: "Tonight's Sky",
+    short: 'Sky',
+    category: '2D',
+    key: 'N',
+    description: 'The real sky over Stuttgart tonight — stars, constellations, the moon in its phase, the planets — soft and glowing'
+  },
+  'dream-sea': {
+    pattern: 'dream-sea',
+    name: 'Dream Sea',
+    short: 'Sea',
+    category: '2D',
+    key: 'D',
+    description: 'A moonlit horizon, swells breathing in like a tide with the bass, a silver path under the moon'
+  },
+  'dream-mountains': {
+    pattern: 'dream-mountains',
+    name: 'Dream Mountains',
+    short: 'Mountains',
+    category: '2D',
+    key: 'D',
+    description: 'Rounded ridgelines in deep blue, layer behind layer, mist pooled in the valleys, drifting past at night'
+  },
   smear: {
     pattern: 'smear',
     name: 'Smear',
