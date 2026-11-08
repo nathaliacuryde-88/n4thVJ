@@ -99,98 +99,78 @@ export function StatusBar({
 
   return (
     <div className="absolute left-6 top-4 z-[55] font-mono">
-      <div className="flex items-center gap-1 rounded-full border border-white/20 bg-black/70 px-2 py-1.5 backdrop-blur-sm">
-        {/* Tap tempo */}
+      <div className="flex items-center gap-0.5 rounded-full border border-white/20 bg-black/70 px-1.5 py-1 backdrop-blur-sm">
+        {/* Tap tempo: the dot flashes on the beat; the number once there is one. */}
         <button
           onClick={(e) => (e.shiftKey ? clearTempo() : tap())}
-          title={bpm ? `Tempo ${bpm} BPM — tap on the beat to re-sync (B), shift-click to clear (Shift+B)` : 'Tap on the beat, four times or more, to set the tempo (B)'}
-          className="flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] tracking-wider text-white/70 hover:bg-white/10"
+          title={bpm ? `Tempo ${bpm} BPM — tap on the beat to re-sync (B), shift-click to clear (Shift+B)` : 'Tap tempo: tap here on the beat, four times or more (B)'}
+          className="flex h-6 min-w-6 items-center justify-center gap-1 rounded-full px-1.5 text-[10px] text-white/70 hover:bg-white/10"
         >
           <span ref={dot} className="h-1.5 w-1.5 rounded-full bg-white" style={{ opacity: 0.15 }} />
-          {bpm ? <span className="tabular-nums text-white">{bpm.toFixed(0)}</span> : 'TAP'}
-          {bpm && <span className="text-white/40">BPM</span>}
+          {bpm && <span className="tabular-nums text-white">{bpm.toFixed(0)}</span>}
         </button>
 
-        <div className="h-4 w-px bg-white/15" />
-
-        {/* Auto-pilot */}
+        {/* Auto-pilot: the plane; its bars only while it flies. Right-click for longer. */}
         <div className="relative flex items-center">
           <button
             onClick={onPilotToggle}
-            title={pilotOn ? 'Auto-pilot is stepping through the set — click to stop (P)' : 'Auto-pilot: step through the set on its own (P)'}
-            className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] tracking-wider ${
+            onContextMenu={(e) => { e.preventDefault(); onPilotBars(PILOT_BARS[(PILOT_BARS.indexOf(pilotBars) + 1) % PILOT_BARS.length]); }}
+            title={`${pilotOn ? 'Auto-pilot is stepping through the set — click to stop' : 'Auto-pilot: step through the set on its own'} (P). Every ${pilotBars} bars — right-click for longer`}
+            className={`flex h-6 items-center justify-center gap-1 rounded-full px-1.5 text-[10px] ${
               pilotOn ? 'bg-cyan-400 text-black' : 'text-white/55 hover:bg-white/10 hover:text-white/85'
             }`}
           >
-            <Plane className="h-3 w-3" />
-            AUTOPILOT
-          </button>
-          <button
-            onClick={() => onPilotBars(PILOT_BARS[(PILOT_BARS.indexOf(pilotBars) + 1) % PILOT_BARS.length])}
-            title={`Change visual every ${pilotBars} bars${bpm ? '' : ' (about 2 seconds a bar until a tempo is tapped)'} — click for longer`}
-            className="rounded-full px-1.5 py-1 text-[10px] tabular-nums text-white/55 hover:bg-white/10 hover:text-white"
-          >
-            {pilotBars}b
+            <Plane className="h-3.5 w-3.5" />
+            {pilotOn && <span className="tabular-nums">{pilotBars}</span>}
           </button>
           {pilotOn && (
-            <div className="absolute -bottom-1 left-2 right-2 h-[2px] overflow-hidden rounded bg-white/10">
+            <div className="absolute -bottom-1 left-1 right-1 h-[2px] overflow-hidden rounded bg-white/10">
               <div ref={progress} className="h-full bg-cyan-300" style={{ width: 0 }} />
             </div>
           )}
         </div>
 
-        <div className="h-4 w-px bg-white/15" />
-
-        {/* Health */}
+        {/* Health: green smooth, amber heavy, red struggling. */}
         <span
-          className={`flex items-center gap-1 px-1.5 text-[10px] tabular-nums ${health}`}
-          title={fps >= 50 ? 'Running smoothly' : fps >= 30 ? 'Heavy — fewer layers, points or effects would help' : 'Struggling — take a layer or an effect off'}
+          className={`flex h-6 w-6 items-center justify-center ${health}`}
+          title={`${fps} fps — ${fps >= 50 ? 'running smoothly' : fps >= 30 ? 'heavy: fewer layers, points or effects would help' : 'struggling: take a layer or an effect off'}`}
         >
-          <Gauge className="h-3 w-3" />
-          {fps}
+          <Gauge className="h-3.5 w-3.5" />
         </span>
 
+        {/* Offline: green when the set could run with no internet. */}
         {offline.state !== 'unsupported' && (
-          <>
-            <div className="h-4 w-px bg-white/15" />
-            {/* Offline */}
-            <span
-              className={`flex items-center gap-1 px-1.5 text-[10px] tracking-wider ${
-                offline.state === 'ready' ? (offline.online ? 'text-emerald-300/80' : 'text-emerald-300') : offline.online ? 'text-white/40' : 'text-amber-300'
-              }`}
-              title={
-                offline.state === 'ready'
-                  ? offline.online
-                    ? 'Ready to run with no internet: everything is kept on this computer'
-                    : 'No internet — running from the copy kept on this computer'
-                  : offline.online
-                    ? 'Keeping a copy of everything for playing with no internet… (wait a moment with the camera on)'
-                    : 'No internet, and the copy is not complete: do not reload'
-              }
-            >
-              {offline.online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-              {offline.state === 'ready' ? 'OFFLINE OK' : offline.online ? 'OFFLINE…' : 'NO WIFI'}
-            </span>
-          </>
+          <span
+            className={`flex h-6 w-6 items-center justify-center ${
+              offline.state === 'ready' ? 'text-emerald-300' : offline.online ? 'text-white/35' : 'animate-pulse text-amber-300'
+            }`}
+            title={
+              offline.state === 'ready'
+                ? offline.online
+                  ? 'Ready to run with no internet: everything is kept on this computer'
+                  : 'No internet — running from the copy kept on this computer'
+                : offline.online
+                  ? 'Keeping a copy of everything for playing with no internet… (wait a moment with the camera on)'
+                  : 'No internet, and the copy is not complete: do not reload'
+            }
+          >
+            {offline.online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+          </span>
         )}
 
-        <div className="h-4 w-px bg-white/15" />
-
-        {/* MIDI */}
+        {/* MIDI: green when a controller is connected. */}
         <button
           onClick={() => { void enableMidi(); setMidiOpen((o) => !o); }}
-          title="A MIDI controller: map its faders and pads to the controls"
-          className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] tracking-wider ${
+          title={midi.enabled && midi.devices.length ? `MIDI: ${midi.devices.join(', ')} — click to map` : 'MIDI controller: click to connect and map its faders and pads'}
+          className={`flex h-6 w-6 items-center justify-center rounded-full ${
             midi.enabled && midi.devices.length ? 'text-emerald-300 hover:bg-white/10' : 'text-white/55 hover:bg-white/10 hover:text-white/85'
           }`}
         >
-          <Activity className="h-3 w-3" />
-          MIDI
+          <Activity className="h-3.5 w-3.5" />
         </button>
 
         {(blackout || master < 1) && (
           <>
-            <div className="h-4 w-px bg-white/15" />
             <button
               onClick={onBlackout}
               title={blackout ? 'The output is black — click or D to bring it back' : `Master at ${Math.round(master * 100)}% — click or D for blackout`}
