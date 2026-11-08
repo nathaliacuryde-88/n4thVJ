@@ -38,6 +38,7 @@ import { AuroraConfig } from '../config/AuroraRendererConfig';
 import { BlendConfig } from '../config/BlendRendererConfig';
 import { DreamConfig } from '../config/DreamRendererConfig';
 import { DataConfig } from '../config/DataRendererConfig';
+import { SmearConfig } from '../config/SmearRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
 import { BigTypeConfig } from '../config/BigTypeRendererConfig';
@@ -650,6 +651,45 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     ],
   },
 
+  smear: {
+    config: SmearConfig,
+    groups: [
+      {
+        name: 'Smear',
+        params: [
+          { path: 'smear.style', label: 'Style', min: 0, max: 3, step: 1, labels: ['Drip', 'Stretch', 'Bands', 'Melt'] },
+          { path: 'smear.length', label: 'Length', min: 0.05, max: 1.5, step: 0.05 },
+          { path: 'smear.bands', label: 'Bands', min: 1, max: 40, step: 1 },
+          { path: 'smear.seams', label: 'Seams', min: 0, max: 1, step: 0.05, hint: 'how much the bands slip against each other' },
+          { path: 'smear.grain', label: 'Grain', min: 0, max: 1, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Source',
+        params: [
+          { path: 'source.kind', label: 'Smears', min: 0, max: 2, step: 1, labels: ['Shapes', 'Camera', 'Your clip'], hint: 'drop a clip or picture on the Smear card' },
+          { path: 'source.palette', label: 'Ground', min: 0, max: 1, step: 1, labels: ['Paper', 'Ink'] },
+          { path: 'source.count', label: 'Shapes', min: 2, max: 10, step: 1 },
+          { path: 'source.size', label: 'Size', min: 0.4, max: 2.5, step: 0.05 },
+          { path: 'source.drift', label: 'Drift', min: 0, max: 3, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.follow', label: 'Hand drags', min: 0, max: 2, step: 0.05, hint: 'the bands under your hand smear longest' },
+          { path: 'hands.clap', label: 'Clap reshuffle', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick stretch', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass drag', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
   data: {
     config: DataConfig,
     groups: [

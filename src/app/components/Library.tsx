@@ -499,7 +499,7 @@ export function Library({
             const supply =
               info.pattern === 'text' || info.pattern === 'bigtype'
                 ? 'text'
-                : info.pattern === 'video' || info.pattern === 'mosaic' || info.pattern === 'particleimage' || info.pattern === 'dream-figure'
+                : info.pattern === 'video' || info.pattern === 'mosaic' || info.pattern === 'particleimage' || info.pattern === 'dream-figure' || info.pattern === 'smear'
                   ? 'file'
                   : null;
 

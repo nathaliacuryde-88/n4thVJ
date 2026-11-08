@@ -42,6 +42,7 @@ import { AuroraRenderer } from './AuroraRenderer';
 import { BlendRenderer } from './BlendRenderer';
 import { DreamRenderer } from './DreamRenderer';
 import { DataRenderer } from './DataRenderer';
+import { SmearRenderer } from './SmearRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
 import { NatureWorldRenderer } from './NatureWorldRenderer';
 import { BigTypeRenderer } from './BigTypeRenderer';
@@ -96,7 +97,7 @@ export const HOLDS_CONTEXT: ReadonlySet<string> = new Set([
   'cubewall', 'dandelion', 'dice', 'digitalblocks', 'distortedcamera', 'dream-clouds', 'dream-hills',
   'dream-valley', 'dream-spray', 'dream-figure',
   'elastic-net', 'jellyfish', 'liquidchrome', 'morphing', 'world', 'network-cube',
-  'particleimage', 'ripple', 'smokehand-torus', 'smokehand-hand', 'watercolour',
+  'particleimage', 'ripple', 'smear', 'smokehand-torus', 'smokehand-hand', 'watercolour',
 ]);
 
 export function createRenderer(
@@ -219,6 +220,9 @@ export function createRenderer(
       break;
     case 'blend':
       renderer = new BlendRenderer(canvas, ctx);
+      break;
+    case 'smear':
+      renderer = new SmearRenderer(canvas, ctx);
       break;
     case 'data':
       renderer = new DataRenderer(canvas, ctx);

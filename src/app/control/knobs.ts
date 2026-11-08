@@ -69,6 +69,7 @@ export const COUNTS: Record<string, { path: string; step: number }[]> = {
   butterflies: [{ path: 'flight.count', step: 1 }],
   particleimage: [{ path: 'points.count', step: 0.1 }],
   bigtype: [{ path: 'type.repeat', step: 1 }],
+  smear: [{ path: 'source.count', step: 1 }],
   world: [
     { path: 'world.flowers', step: 1 },
     { path: 'world.butterflies', step: 1 },

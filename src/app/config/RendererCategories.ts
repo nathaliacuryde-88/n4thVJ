@@ -337,6 +337,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'A',
     description: 'Curtains of light folding over a night sky — soft behind the nature visuals'
   },
+  smear: {
+    pattern: 'smear',
+    name: 'Smear',
+    short: 'Smear',
+    category: 'TD',
+    key: 'M',
+    description: 'Soft colour, the camera or your clip dragged into long vertical streaks, in bands that slip against each other'
+  },
   data: {
     pattern: 'data',
     name: 'Data Bloom',
