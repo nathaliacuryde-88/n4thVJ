@@ -18,6 +18,7 @@ varying vec2 vUv;
 uniform vec2 uRes;
 uniform float uTime, uReal, uStyle, uFlow, uDetail, uVeins, uGrain, uBass, uKick, uBurst, uTurn, uZoom;
 uniform vec3 uHand;
+uniform vec4 uDrops[8];       // ripples: x, y, when, how hard
 
 float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float noise(vec2 p) {
@@ -201,48 +202,59 @@ vec3 prism(vec2 p, float t) {
 }
 
 // ── RINGS ───────────────────────────────────────────────────────────────────
-/* Rings spreading through sand: soft concentric bands from a centre off the
-   frame, a grain of coloured specks over everything, and a smear of strong
-   colour dragged along the rings as if something passed through them. */
-vec3 rings(vec2 p, float t) {
-  vec2 c = vec2(-0.75, -0.62) + uHand.z * (uHand.xy - vec2(0.5)) * 0.3;
-  vec2 d = p - c;
-  float r = length(d);
-  float ang = atan(d.y, d.x);
-  vec2 w = warp(p * 1.3, t * 0.4);
-  float wob = (w.x - 0.5) * 0.06;
-  // The rings: travelling outward at the clock's pace, deeper with the bass.
-  float phase = (r + wob) * 26.0 - t * 1.2 - uKick * 1.5;
-  float ring = 0.5 + 0.5 * sin(phase);
-  vec3 cream = vec3(0.95, 0.86, 0.72);
-  vec3 pink = vec3(0.93, 0.66, 0.6);
-  vec3 ochre = vec3(0.86, 0.55, 0.28);
-  vec3 col = mix(cream, pink, smoothstep(0.2, 1.2, ang + 0.3 + (w.y - 0.5)));
-  float fade = 1.0 - smoothstep(0.3, 2.4, r);
-  col = mix(col, ochre * 0.88, smoothstep(0.45, 1.0, ring) * (0.6 + uBass * 0.25) * fade);
-  col = mix(col, vec3(0.98, 0.9, 0.82), smoothstep(0.5, 0.0, ring) * 0.35 * fade);
-  // The smear: strokes of colour along the rings, each a sliver in radius
-  // and long in angle, dragged as by a hand going round.
-  float centre = 0.95 + 0.15 * sin(t * 0.05);
-  for (int i = 0; i < 7; i++) {
-    float fi = float(i);
-    float rr = centre + (hash(vec2(fi, 1.0)) - 0.5) * 0.42;
-    float aa = 0.62 + (hash(vec2(fi, 2.0)) - 0.5) * 0.28 + sin(t * 0.07 + fi) * 0.04;
-    float spread = 0.16 + 0.12 * hash(vec2(fi, 3.0));
-    float thick = 0.018 + 0.02 * hash(vec2(fi, 4.0));
-    float m = exp(-pow((r - rr) / thick, 2.0)) * exp(-pow((ang - aa) / spread, 2.0));
-    vec3 sc = fi < 2.0 ? vec3(0.82, 0.06, 0.05) : fi < 4.0 ? vec3(0.93, 0.68, 0.08) : fi < 5.0 ? vec3(0.08, 0.32, 0.1) : vec3(0.85, 0.35, 0.08);
-    col = mix(col, sc, clamp(m * 1.3, 0.0, 0.95));
+/* Real ripples on still water, seen from above: drops fall (on the kick, on
+   a clap, under the hand, now and then on their own) and rings of waves run
+   out from each, fading as they spread. The surface has height: the sky
+   reflects in it, a light glints off the crests, and the stones on the
+   bottom swim through it. */
+float dropHeight(vec2 p, float t) {
+  float h = 0.0;
+  for (int i = 0; i < 8; i++) {
+    vec4 d = uDrops[i];
+    float age = t - d.z;
+    if (d.w <= 0.0 || age < 0.0 || age > 9.0) continue;
+    float r = length(p - d.xy);
+    float front = age * 0.32;
+    float x = r - front;
+    // A train of waves behind the front, wider and lower as it travels.
+    float width = 0.08 + age * 0.05;
+    float env = exp(-x * x / (width * width)) * step(-width * 3.0, x) ;
+    env += exp(-pow((x + width * 1.5) / (width * 1.6), 2.0)) * 0.6;
+    h += sin(x * 150.0 / (1.0 + age * 0.3)) * env * d.w / (1.0 + age * 1.4 + r * 2.0);
   }
-  // A wider soft haze of orange round the smear.
-  float haze = exp(-pow((r - centre) / 0.35, 2.0)) * exp(-pow((ang - 0.62) / 0.4, 2.0));
-  col = mix(col, vec3(0.88, 0.42, 0.12), haze * 0.45);
-  // Sand: specks of colour, each grain its own.
-  vec2 g = floor(gl_FragCoord.xy / max(1.0, uRes.y / 700.0));
-  float h1 = hash(g + floor(uReal * 3.0) * 0.0);
-  float h2 = hash(g * 1.7 + 3.1);
-  vec3 speck = h2 < 0.33 ? vec3(0.95, 0.4, 0.35) : h2 < 0.66 ? vec3(0.98, 0.9, 0.7) : vec3(0.6, 0.45, 0.25);
-  col = mix(col, speck, step(0.55, h1) * 0.35 * uDetail);
+  return h;
+}
+float waterHeight(vec2 p, float t) {
+  // The still surface is never quite still: a faint breath of wind.
+  float wind = (fbm(p * 3.0 + vec2(t * 0.05, t * 0.03)) - 0.5) * 0.006;
+  wind += sin(p.x * 40.0 + p.y * 25.0 + t * 1.3 + fbm(p * 4.0) * 6.0) * 0.0004 * uDetail;
+  return dropHeight(p, t) * 0.018 * (1.0 + uBass * 0.5) + wind;
+}
+vec3 rings(vec2 p, float t) {
+  float e = 0.0025;
+  float h0 = waterHeight(p, t);
+  float hx = waterHeight(p + vec2(e, 0.0), t) - h0;
+  float hy = waterHeight(p + vec2(0.0, e), t) - h0;
+  vec3 n = normalize(vec3(-hx / e, -hy / e, 1.0));
+  // The bottom: pale stones and sand, seen through the water and bent by it.
+  vec2 under = p + n.xy * 0.08;
+  float stones = fbm(under * 3.0);
+  vec3 bottom = mix(vec3(0.1, 0.14, 0.13), vec3(0.34, 0.34, 0.28), smoothstep(0.35, 0.75, stones));
+  // Light gathering on the bottom where the surface curves like a lens.
+  float lens = clamp(-(hx + hy) / e * 0.6, -1.0, 1.0);
+  bottom *= 1.0 + lens * 0.5;
+  vec3 tint = vec3(0.1, 0.3, 0.32);
+  vec3 seen = mix(bottom, tint, 0.65);
+  // The sky in the surface: pale where a slope faces the light, deep where it turns away.
+  vec3 L = normalize(vec3(-0.45, 0.6, 0.65));
+  float facing = dot(n.xy, L.xy) * 6.0;
+  vec3 sky = mix(vec3(0.05, 0.13, 0.16), vec3(0.78, 0.86, 0.88), smoothstep(-0.6, 0.9, facing + 0.15));
+  float fresnel = 0.25 + 0.6 * pow(1.0 - n.z, 0.6);
+  vec3 col = mix(seen, sky, fresnel);
+  // Glints off the crests.
+  vec3 R = reflect(-L, n);
+  float spec = pow(max(R.z, 0.0), 220.0);
+  col += vec3(1.0, 0.96, 0.88) * spec * (1.4 + uKick);
   return col;
 }
 
