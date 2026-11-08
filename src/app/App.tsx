@@ -217,6 +217,24 @@ export default function App() {
   }, []);
 
   /** Take a layer off by position, rather than by which pattern it holds. */
+  /** Moves a layer to another place in the stack; the selection follows the layer it was on. */
+  const moveLayer = useCallback((from: number, to: number) => {
+    if (from === to) return;
+    setLayers((prev) => {
+      if (from < 0 || from >= prev.length || to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+    setSelectedLayer((sel) => {
+      if (sel === from) return to;
+      if (from < sel && to >= sel) return sel - 1;
+      if (from > sel && to <= sel) return sel + 1;
+      return sel;
+    });
+  }, []);
+
   const removeLayer = useCallback((index: number) => {
     setLayers((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
     setSelectedLayer((sel) => (sel > index ? sel - 1 : Math.min(sel, layers.length - 2)));
@@ -1518,6 +1536,7 @@ export default function App() {
               onSelect={setSelectedLayer}
               onOpacityChange={setLayerOpacity}
               onRemove={removeLayer}
+              onMove={moveLayer}
               onBlendChange={(index, blend) =>
                 setLayers((prev) => prev.map((l, i) => (i === index ? { ...l, blend } : l)))}
             />

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { VisualPattern } from '../App';
 import { BLEND_LABEL, BLEND_MODES, BlendMode, Layer } from '../config/LayerConfig';
 import { RENDERER_CATEGORIES } from '../config/RendererCategories';
@@ -11,6 +12,9 @@ import { slotKey } from '../config/setlist';
  * L key in a tooltip, so it read as though every control moved both layers at
  * once. The strip makes the selection visible, gives each layer its own fader
  * in reach, and names what the panel underneath is editing.
+ *
+ * Listed as the image stacks: the top layer first, the base last. Drag a
+ * layer by its grip to change what lies over what.
  */
 
 interface LayerStripProps {
@@ -22,6 +26,8 @@ interface LayerStripProps {
   onOpacityChange: (index: number, opacity: number) => void;
   onRemove: (index: number) => void;
   onBlendChange: (index: number, blend: BlendMode) => void;
+  /** Moves a layer to another place in the stack (0 is the base). */
+  onMove: (from: number, to: number) => void;
 }
 
 export function LayerStrip({
@@ -32,7 +38,18 @@ export function LayerStrip({
   onOpacityChange,
   onRemove,
   onBlendChange,
+  onMove,
 }: LayerStripProps) {
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [over, setOver] = useState<number | null>(null);
+  const drop = () => {
+    if (dragging !== null && over !== null && dragging !== over) onMove(dragging, over);
+    setDragging(null);
+    setOver(null);
+  };
+  // Top of the image first.
+  const order = layers.map((_, i) => layers.length - 1 - i);
+
   return (
     <div className="px-3 pt-2 pb-1">
       <div className="mb-1.5 flex items-baseline justify-between">
@@ -46,18 +63,40 @@ export function LayerStrip({
         </div>
       )}
 
-      {/* Bottom of the stack last, so the list reads the way the image does. */}
-      {layers.map((layer, index) => {
+      {/* The top of the stack first, the base last: the list reads the way the image does. */}
+      {order.map((index) => {
+        const layer = layers[index];
         const isSelected = index === selectedLayer;
         const key = set.indexOf(layer.pattern);
+        // Where a dragged layer would land: a line above or below this one.
+        const landing = dragging !== null && over === index && dragging !== index
+          ? (dragging < index ? 'border-t-2 border-t-cyan-300' : 'border-b-2 border-b-cyan-300')
+          : 'border-y-2 border-y-transparent';
         return (
           <div
             key={`${layer.pattern}-${index}`}
-            className={`mb-1 rounded px-1.5 py-1 transition-colors ${
+            onDragOver={(e) => { if (dragging !== null) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setOver(index); } }}
+            onDrop={(e) => { e.preventDefault(); drop(); }}
+            className={`mb-1 rounded px-1.5 py-1 transition-colors ${landing} ${
               isSelected ? 'bg-white/[0.11]' : 'hover:bg-white/[0.05]'
-            }`}
+            } ${dragging === index ? 'opacity-40' : ''}`}
           >
             <div className="flex items-center gap-1.5">
+              {layers.length > 1 && (
+                <span
+                  draggable
+                  onDragStart={(e) => {
+                    setDragging(index);
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', String(index));
+                  }}
+                  onDragEnd={() => { setDragging(null); setOver(null); }}
+                  title="Drag to move this layer up or down the stack"
+                  className="shrink-0 cursor-grab select-none text-[10px] leading-none text-white/30 hover:text-white/80 active:cursor-grabbing"
+                >
+                  ⠿
+                </span>
+              )}
               <button
                 onClick={() => onSelect(index)}
                 title={isSelected ? 'Editing this layer' : 'Edit this layer'}
@@ -109,7 +148,7 @@ export function LayerStrip({
               }}
             />
 
-            {/* How it meets the layers under it. The bottom one has nothing under it. */}
+            {/* How it meets the layers under it. The base has nothing under it. */}
             {index > 0 && (
               <label className="mt-0.5 flex items-center justify-between gap-2 text-[8px] uppercase tracking-widest text-white/40">
                 Blend

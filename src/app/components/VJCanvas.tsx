@@ -677,6 +677,33 @@ export function VJCanvas({
       return { renderer, canvas, pattern };
     };
 
+    // A layer that only moved in the stack keeps its running deck: match each
+    // layer to a slot already playing its pattern before building anything.
+    const old = slots.slice();
+    const taken = new Set<number>();
+    const matched = layers.map(({ pattern }) => {
+      const j = old.findIndex((s, k) => s && !taken.has(k) && s.current.pattern === pattern);
+      if (j === -1) return null;
+      taken.add(j);
+      return old[j];
+    });
+    // What is left over is reused in place (and crossfades) or retired.
+    const spare = old.map((s, k) => (taken.has(k) ? null : s));
+    slots.length = 0;
+    layers.forEach((_, index) => {
+      const keep = matched[index] ?? spare[index] ?? undefined;
+      if (keep) {
+        slots[index] = keep;
+        if (!matched[index]) spare[index] = null;
+      }
+    });
+    for (const gone of spare) {
+      if (!gone) continue;
+      if (gone.outgoing) dropClock(gone.outgoing.lane);
+      gone.outgoing?.renderer.destroy?.();
+      gone.current.renderer.destroy?.();
+    }
+
     layers.forEach(({ pattern }, index) => {
       const slot = slots[index];
       if (slot?.current.pattern === pattern) return;
