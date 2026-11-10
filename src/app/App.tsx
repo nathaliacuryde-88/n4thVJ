@@ -1510,7 +1510,7 @@ export default function App() {
       {/* Camera Feed - Always running for hand tracking, but only visible when showCamera is true */}
       {/* In a portrait window (a phone-shaped screen recording) the corner is 20%
           smaller and sits below the strip Instagram covers at the top. */}
-      <div className={`absolute top-4 right-4 origin-top-right portrait:top-[14vh] portrait:scale-80 ${showCamera ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className={`absolute top-4 right-4 origin-top-right portrait:top-[calc(14vh-55px)] portrait:scale-80 ${showCamera ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <CameraFeed onVideoReady={setVideoElement} />
       </div>
 
