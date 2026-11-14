@@ -16,14 +16,16 @@
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-const VERSION = 'a0292c646cea';
+const VERSION = 'ecfffdeb2265';
 const CACHE = `n4thvj-${VERSION}`;
 /** The build's files, relative to dist/. */
-const FILES = ["assets/StrichpunktSans-Black-qOOqGWSg.ttf","assets/StrichpunktSans-Bold-BChX3JrT.ttf","assets/dandelion-hJsSsoAd.bin","assets/dice-RHNB3vh8.fbx","assets/index-Dx6n9Zmr.css","assets/index-_2NOcJoO.js","boot.js","favicon.svg"];
+const FILES = ["assets/StrichpunktSans-Black-qOOqGWSg.ttf","assets/StrichpunktSans-Bold-BChX3JrT.ttf","assets/dandelion-hJsSsoAd.bin","assets/dice-RHNB3vh8.fbx","assets/index-BF2nn_IS.js","assets/index-CM8IZ4iK.css","boot.js","favicon.svg","hand-worker.js"];
 
 /** What the visuals fetch from elsewhere: hand and face tracking, models, fonts. */
 const EXTERNAL = [
   'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14',
+  // The same library as a plain script, for the hand-tracking worker.
+  'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.cjs',
   'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm/vision_wasm_internal.js',
   'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm/vision_wasm_internal.wasm',
   'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm/vision_wasm_nosimd_internal.js',
