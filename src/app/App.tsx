@@ -94,12 +94,22 @@ export interface Hand {
   fingerCount?: number;
   /** MediaPipe hand landmarks (21 points). */
   landmarks?: Array<{ x: number; y: number; z: number }>;
+  /** How pinched thumb and index are, 0 apart to 1 touching. */
+  pinch?: number;
+  /** How open the hand is, 0 a fist to 1 spread flat. Continuous, unlike the finger count. */
+  openness?: number;
+  /** How close to the camera, 0 at arm's length and beyond to 1 right up to the lens. */
+  depth?: number;
+  /** Which way the hand points, in radians: 0 up, positive clockwise as she sees it. */
+  angle?: number;
 }
 
 export interface HandData {
   left: Hand | null;
   right: Hand | null;
   distanceBetweenHands?: number;
+  /** The tilt of the line between the two hands, in radians: 0 level, positive with her right hand lower. */
+  twist?: number;
   /** True when hands rapidly come together - triggers vibration + explosion. */
   clapping?: boolean;
   /** 0-1, how strong the clap was. */

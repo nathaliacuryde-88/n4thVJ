@@ -442,6 +442,12 @@ export class Playing {
   openness: number;
   aim = { x: 0, y: 0 };
   spread = 0.4;
+  /** How close the nearest hand is to the camera: 0 far, 1 at the lens. Rests at 0.35. */
+  depth = 0.35;
+  /** The hands' turn, in radians: the tilt between two hands, or one hand's own. */
+  turn = 0;
+  /** Thumb and index together, 0 to 1. */
+  pinch = 0;
   burst = 0;
   bump = 0;
   bass = 0;
@@ -496,6 +502,13 @@ export class Playing {
     this.aim.x += (tx - this.aim.x) * follow;
     this.aim.y += (ty - this.aim.y) * follow;
     this.spread += ((handData.distanceBetweenHands ?? 0.4) - this.spread) * follow;
+
+    const depths = hands.map((h) => h!.depth).filter((d): d is number => d !== undefined);
+    this.depth += ((depths.length ? Math.max(...depths) : 0.35) - this.depth) * follow;
+    const turn = handData.twist ?? (hands.length === 1 ? hands[0]!.angle ?? 0 : 0);
+    this.turn += (turn - this.turn) * follow;
+    const pinch = hands.length ? Math.max(...hands.map((h) => h!.pinch ?? 0)) : 0;
+    this.pinch += (pinch - this.pinch) * (1 - Math.exp(-dt * 10));
 
     const clap = handData.clapping ? (handData.clapIntensity ?? 1) : 0;
     this.burst = Math.max(this.burst * Math.exp(-dt * 2.2), clap);
