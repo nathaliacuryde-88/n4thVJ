@@ -409,6 +409,22 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'W',
     description: 'A disc of stars turning; the hand tilts it, the core flares on the kick, a clap throws the stars out'
   },
+  'flight-mountains': {
+    pattern: 'flight-mountains',
+    name: 'Mountain Flight',
+    short: 'Ridges',
+    category: '3D',
+    key: 'W',
+    description: 'Flying low over mountains, mist and lakes at dusk; the hand steers, each kick sends light across the land'
+  },
+  'flight-sea': {
+    pattern: 'flight-sea',
+    name: 'Sea Flight',
+    short: 'Swell',
+    category: '3D',
+    key: 'W',
+    description: 'Low over open water under a long swell, islands far off; the bass raises the sea'
+  },
   tonight: {
     pattern: 'tonight',
     name: "Tonight's Sky",

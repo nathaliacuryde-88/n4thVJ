@@ -41,6 +41,7 @@ import { DataConfig } from '../config/DataRendererConfig';
 import { SmearConfig } from '../config/SmearRendererConfig';
 import { TonightConfig } from '../config/TonightRendererConfig';
 import { SwarmConfig } from '../config/SwarmRendererConfig';
+import { TerrainConfig } from '../config/TerrainRendererConfig';
 import { MacroConfig } from '../config/MacroRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
@@ -84,6 +85,41 @@ function macroParams(veins: boolean): RendererParams {
         params: [
           { path: 'sound.beat', label: 'Kick pulse', min: 0, max: 2, step: 0.05 },
           { path: 'sound.bass', label: 'Bass breath', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  };
+}
+
+/** Mountain Flight and Sea Flight share one renderer; the sea has no water level to set. */
+function flightParams(mountains: boolean): RendererParams {
+  return {
+    config: TerrainConfig,
+    groups: [
+      {
+        name: 'Land',
+        params: [
+          { path: 'land.height', label: mountains ? 'Height' : 'Swell', min: 0.2, max: 2, step: 0.05 },
+          { path: 'land.rugged', label: mountains ? 'Rugged' : 'Islands', min: 0, max: 1, step: 0.05, hint: mountains ? 'soft hills to sharp ridges' : undefined },
+          ...(mountains ? [{ path: 'land.water', label: 'Water', min: 0, max: 1, step: 0.05 }] : []),
+          { path: 'light.hour', label: 'Hour', min: 0, max: 1, step: 0.05, hint: 'night, blue hour, last sun' },
+          { path: 'light.mist', label: 'Mist', min: 0, max: 3, step: 0.05 },
+          { path: 'flight.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
+          { path: 'flight.altitude', label: 'Altitude', min: 0.3, max: 4, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.steer', label: 'Hand flies', min: 0, max: 1, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap light', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick ring', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: mountains ? 'Bass light' : 'Bass swell', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],
@@ -730,6 +766,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
   'swarm-flock': swarmParams('Follows hand', 'Kick draws in'),
   'swarm-plankton': swarmParams('Hand stirs', 'Kick ring'),
   'swarm-galaxy': swarmParams('Hand tilts', 'Kick flare'),
+  'flight-mountains': flightParams(true),
+  'flight-sea': flightParams(false),
   tonight: {
     config: TonightConfig,
     groups: [
