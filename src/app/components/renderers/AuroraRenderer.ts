@@ -37,6 +37,7 @@ export class AuroraRenderer {
   private time = 0;
   private flare = 0;
   private handOn = 0;
+  private real = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, host: MotifHost | null = null) {
     this.canvas = canvas;
@@ -106,6 +107,8 @@ export class AuroraRenderer {
     sky.set('uShimmer', play.high * cfg.sound.high);
     sky.set('uNight', cfg.sky.night);
     sky.set('uFlare', this.flare);
+    this.real += dt;
+    (sky.uniforms.uGrain.value as THREE.Vector2).set(Math.max(0, Math.min(1, cfg.sky.grain)), Math.floor(this.real * 12) % 997);
     (sky.uniforms.uHand.value as THREE.Vector3).set(
       ((play.aim.x + 1) / 2) * aspect, 0.5 + play.aim.y / 2, this.handOn * cfg.hands.follow);
   }

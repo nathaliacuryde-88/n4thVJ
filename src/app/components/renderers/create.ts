@@ -51,6 +51,8 @@ import { FluidRenderer } from './FluidRenderer';
 import { AnemoneRenderer } from './AnemoneRenderer';
 import { FirstLineRenderer } from './FirstLineRenderer';
 import { MyceliumRenderer } from './MyceliumRenderer';
+import { CellRenderer } from './CellRenderer';
+import { StandbyRenderer } from './StandbyRenderer';
 import { ConstellationRenderer } from './ConstellationRenderer';
 import { MachineRenderer } from './MachineRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
@@ -107,7 +109,7 @@ export const HOLDS_CONTEXT: ReadonlySet<string> = new Set([
   'cubewall', 'dandelion', 'dice', 'digitalblocks', 'distortedcamera', 'dream-clouds', 'dream-hills',
   'dream-valley', 'dream-spray', 'dream-figure', 'dream-sea', 'dream-mountains',
   'elastic-net', 'jellyfish', 'liquidchrome', 'morphing', 'world', 'network-cube',
-  'particleimage', 'ripple', 'smear', 'macro-ink', 'macro-petals', 'macro-filaments', 'macro-prism', 'macro-rings', 'macro-water', 'swarm-flock', 'swarm-plankton', 'swarm-galaxy', 'flight-mountains', 'flight-sea', 'ink', 'anemone', 'smokehand-torus', 'smokehand-hand', 'watercolour',
+  'particleimage', 'ripple', 'smear', 'macro-ink', 'macro-petals', 'macro-filaments', 'macro-prism', 'macro-rings', 'macro-water', 'swarm-flock', 'swarm-plankton', 'swarm-galaxy', 'flight-mountains', 'flight-sea', 'ink', 'anemone', 'cells', 'smokehand-torus', 'smokehand-hand', 'watercolour',
 ]);
 
 export function createRenderer(
@@ -275,6 +277,12 @@ export function createRenderer(
       break;
     case 'mycelium':
       renderer = new MyceliumRenderer(canvas, ctx);
+      break;
+    case 'cells':
+      renderer = new CellRenderer(canvas, ctx);
+      break;
+    case 'standby':
+      renderer = new StandbyRenderer(canvas, ctx);
       break;
     case 'constellation':
       renderer = new ConstellationRenderer(canvas, ctx);

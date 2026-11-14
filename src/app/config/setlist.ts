@@ -2,18 +2,19 @@
  * The set: which visuals are on the keyboard tonight, and in what order.
  *
  * The library picks them; the VJ page plays them. Slot order *is* the key
- * order: the number row first (1 to 9, then 0), and past ten the letters just
- * under it — Q W E T Y. R is skipped because R records.
+ * order: the number row first (1 to 9, then 0), and past ten the letters that
+ * are not already a shortcut — Q W E T Y U along the top row (R records, I and
+ * O and P are taken), then F J V M.
  */
 
 import { VisualPattern } from '../App';
 import { currentPattern } from './RendererCategories';
 
-/** Fifteen: enough for an hour, a visual every four minutes or so. */
-export const MAX_SET = 15;
+/** Twenty: a key each, and enough for a long night. */
+export const MAX_SET = 20;
 
 /** The keys past the number row, in order. */
-const LETTERS = ['Q', 'W', 'E', 'T', 'Y'];
+const LETTERS = ['Q', 'W', 'E', 'T', 'Y', 'U', 'F', 'J', 'V', 'M'];
 
 const STORAGE_KEY = 'vj-setlist';
 

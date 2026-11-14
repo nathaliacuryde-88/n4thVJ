@@ -15,8 +15,6 @@ export const ConstellationConfig = {
   },
 
   hands: {
-    /** The hands are drawn star by star, joint to joint. */
-    hands: 1,
     /** A clap scatters the figure into the sky; it gathers again. */
     clap: 1,
   },

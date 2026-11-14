@@ -13,6 +13,8 @@ export const AuroraConfig = {
     brightness: 1,
     /** The night behind them, with its stars. 0 is black, which stacks cleanly. */
     night: 1,
+    /** Grain: 0 the smooth light of a photograph, 1 broken into grain and dots like a print. */
+    grain: 0,
   },
 
   hands: {

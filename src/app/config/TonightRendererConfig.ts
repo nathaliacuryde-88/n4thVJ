@@ -1,6 +1,7 @@
 /**
  * Tonight's Sky: the real sky over Stuttgart — stars, constellations, the
- * moon in its phase, the planets — soft and glowing.
+ * Milky Way, the moon in its phase, the planets — with depth, so the view can
+ * leave the ground and go in among them.
  */
 export const TonightConfig = {
   time: {
@@ -8,6 +9,13 @@ export const TonightConfig = {
     speed: 2,
     /** Hours ahead of now: show the sky later tonight. */
     hours: 0,
+  },
+
+  flight: {
+    /** How far in the hand and the music can take the view. 0: the sky stays a ceiling. */
+    dive: 1,
+    /** How fast the open field beyond the constellations is flown. */
+    speed: 1,
   },
 
   view: {
@@ -25,22 +33,22 @@ export const TonightConfig = {
     /** How big the stars glow. */
     size: 1,
     /** The constellation lines. */
-    lines: 0.8,
+    lines: 0.55,
     /** The names. */
-    labels: 0.8,
+    labels: 0.4,
     /** The moon's size. */
     moon: 1,
   },
 
   hands: {
-    /** How far the hand pans the view. */
+    /** How far the hand turns the view, and shifts it once it is in among the stars. */
     pan: 1,
-    /** A clap sends a shooting star. */
+    /** A clap is a jump forward, and a shooting star. */
     clap: 1,
   },
 
   sound: {
-    /** Each kick brightens the stars. */
+    /** Each kick brightens the stars and pushes the view forward. */
     beat: 1,
     /** Bass breathes the glow. */
     bass: 1,

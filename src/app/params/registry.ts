@@ -46,6 +46,8 @@ import { FluidConfig } from '../config/FluidRendererConfig';
 import { AnemoneConfig } from '../config/AnemoneRendererConfig';
 import { FirstLineConfig } from '../config/FirstLineRendererConfig';
 import { MyceliumConfig } from '../config/MyceliumRendererConfig';
+import { CellConfig } from '../config/CellRendererConfig';
+import { StandbyConfig } from '../config/StandbyRendererConfig';
 import { ConstellationConfig } from '../config/ConstellationRendererConfig';
 import { MachineConfig } from '../config/MachineRendererConfig';
 import { MacroConfig } from '../config/MacroRendererConfig';
@@ -748,6 +750,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sky.height', label: 'Height', min: 0, max: 1.5, step: 0.05 },
           { path: 'sky.brightness', label: 'Brightness', min: 0, max: 2, step: 0.05 },
           { path: 'sky.night', label: 'Night', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+          { path: 'sky.grain', label: 'Grain', min: 0, max: 1, step: 0.05, hint: 'breaks the light into grain and dots, like a print' },
         ],
       },
       {
@@ -852,7 +855,6 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Hands',
         params: [
-          { path: 'hands.hands', label: 'Hands drawn', min: 0, max: 1, step: 0.05 },
           { path: 'hands.clap', label: 'Clap scatters', min: 0, max: 2, step: 0.05 },
         ],
       },
@@ -889,6 +891,64 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         params: [
           { path: 'sound.beat', label: 'Kick swell', min: 0, max: 2, step: 0.05 },
           { path: 'sound.arc', label: 'Build loosens', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+  cells: {
+    config: CellConfig,
+    groups: [
+      {
+        name: 'Cells',
+        params: [
+          { path: 'look.style', label: 'Style', min: 0, max: 2, step: 1, labels: ['Glass', 'Paper', 'Line'], hint: 'rounded and translucent, flat cut shapes, or outlines only' },
+          { path: 'look.palette', label: 'Palette', min: 0, max: 3, step: 1, labels: ['Reel', 'Ember', 'Lagoon', 'Ink'] },
+          { path: 'cells.size', label: 'Size', min: 0.4, max: 2, step: 0.05 },
+          { path: 'cells.crowd', label: 'Crowd', min: 2, max: 24, step: 1, hint: 'how many at once before the oldest make room' },
+          { path: 'cells.pace', label: 'Pace', min: 0.2, max: 3, step: 0.05, hint: 'how often one divides without a beat' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.gather', label: 'Follow hand', min: 0, max: 1, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap divides', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick divides', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass swell', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+  standby: {
+    config: StandbyConfig,
+    groups: [
+      {
+        name: 'Field',
+        params: [
+          { path: 'grid.detail', label: 'Detail', min: 0, max: 1, step: 0.05, hint: 'finer dots' },
+          { path: 'grid.field', label: 'Field', min: 0, max: 1.5, step: 0.05, hint: '0 = only what the hand lights' },
+          { path: 'grid.figure', label: 'Figure', min: 0, max: 1, step: 0.05, hint: 'your own outline, faintly, in the dots' },
+          { path: 'grid.words', label: 'Words', min: 0, max: 1, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.light', label: 'Light', min: 0.3, max: 2.5, step: 0.05, hint: 'how wide an open hand lights' },
+          { path: 'hands.close', label: 'Fist closes', min: 0, max: 1, step: 0.05, hint: '1 = all the way to a point' },
+          { path: 'hands.clap', label: 'Clap ring', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick ring', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.quiet', label: 'Quiet closes', min: 0, max: 1, step: 0.05, hint: 'as the music empties out, the picture folds' },
         ],
       },
     ],
@@ -981,6 +1041,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Sky',
         params: [
+          { path: 'flight.dive', label: 'Dive', min: 0, max: 1.5, step: 0.05, hint: 'how far in the hand and the music take you; 0 = the sky stays flat' },
+          { path: 'flight.speed', label: 'Speed', min: 0, max: 3, step: 0.05, hint: 'how fast the stars are flown through' },
           { path: 'view.look', label: 'Looking', min: 0, max: 4, step: 1, labels: ['South', 'East', 'North', 'West', 'Up'] },
           { path: 'view.width', label: 'Field', min: 60, max: 200, step: 5, hint: 'degrees of sky across the frame' },
           { path: 'view.drift', label: 'Drift', min: 0, max: 2, step: 0.05 },
@@ -1001,14 +1063,14 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Hands',
         params: [
-          { path: 'hands.pan', label: 'Hand pans', min: 0, max: 2, step: 0.05 },
-          { path: 'hands.clap', label: 'Shooting star', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+          { path: 'hands.pan', label: 'Hand steers', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap jumps', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
         ],
       },
       {
         name: 'Sound',
         params: [
-          { path: 'sound.beat', label: 'Kick shine', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.beat', label: 'Kick push', min: 0, max: 2, step: 0.05 },
           { path: 'sound.bass', label: 'Bass glow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hat twinkle', min: 0, max: 2, step: 0.05 },
         ],

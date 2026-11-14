@@ -45,16 +45,23 @@ const BUILT_IN_KEY = 'vj-builtin-sets';
  *
  *   1 Void      First Line, Network Cube                    keys 1–2
  *   2 Universe  Tonight's Sky, Galaxy, Aurora               keys 3–5
- *   3 Water     Plankton, Ink                               keys 6–7
- *   4 Plants    Mycelium, Anemone, Nature World             keys 8, 9, 0
- *   5 Human     Constellation (her own outline), Ripple     keys Q, W
- *   6 Code      Atlas, Elastic Net                          keys E, T
- *   7 Machine   Machine Vision                              key Y
+ *   3 Water     Plankton, Cell Division, Ink                keys 6–8
+ *   4 Plants    Mycelium, Anemone, Nature World             keys 9, 0, Q
+ *   5 Human     Constellation (her own outline), Ripple     keys W, E
+ *   6 Code      Atlas, Elastic Net                          keys T, Y
+ *   7 Machine   Machine Vision, and Standby to close on     keys U, F
  *
  * The set's order is the layer order, so what comes earlier in the story sits
  * underneath what comes later. Everything on black, in the sea palette, so
  * any two neighbours stack. It opens on the line alone.
  */
+/**
+ * A ready-made set that has been reworked since it was first handed over. A
+ * newer one replaces her copy only if she has not touched it; a set she has
+ * saved over is hers and is left alone.
+ */
+const REVISION: Record<string, number> = { Origem: 2 };
+
 const BUILT_IN: SavedSet[] = [
   {
     name: 'Listening Field',
@@ -89,11 +96,12 @@ const BUILT_IN: SavedSet[] = [
     savedAt: 0,
     set: [
       'line', 'network-cube', 'tonight', 'swarm-galaxy', 'aurora',
-      'swarm-plankton', 'ink', 'mycelium', 'anemone', 'world',
-      'constellation', 'ripple', 'atlas', 'elastic-net', 'machine',
+      'swarm-plankton', 'cells', 'ink', 'mycelium', 'anemone', 'world',
+      'constellation', 'ripple', 'atlas', 'elastic-net', 'machine', 'standby',
     ],
     params: {
-      tonight: { 'view.ground': 0, 'look.lines': 0.6 },
+      tonight: { 'view.ground': 0 },
+      aurora: { 'sky.grain': 0.45 },
       'swarm-galaxy': { 'look.style': 2, 'look.trail': 0.1, 'look.backdrop': 0 },
       'swarm-plankton': { 'look.style': 1, 'look.backdrop': 0, 'look.palette': 2 },
       ink: { 'look.palette': 2, 'look.backdrop': 0 },
@@ -113,10 +121,19 @@ export function loadSavedSets(): SavedSet[] {
   const sets = readSavedSets();
   try {
     const given: string[] = JSON.parse(localStorage.getItem(BUILT_IN_KEY) || '[]');
-    const fresh = BUILT_IN.filter((b) => !given.includes(b.name) && !sets.some((s) => s.name === b.name));
-    if (fresh.length) {
-      localStorage.setItem(BUILT_IN_KEY, JSON.stringify([...given, ...fresh.map((b) => b.name)]));
-      return [...sets, ...fresh].sort((a, b) => a.name.localeCompare(b.name));
+    const mark = (b: SavedSet) => ((REVISION[b.name] ?? 1) > 1 ? `${b.name}@${REVISION[b.name]}` : b.name);
+    const due = BUILT_IN.filter((b) => !given.includes(mark(b)));
+    if (due.length) {
+      // New ones are added; a reworked one takes the place of an untouched copy.
+      const fresh = due.filter((b) => {
+        const hers = sets.find((s) => s.name === b.name);
+        return !hers || hers.savedAt === 0;
+      });
+      localStorage.setItem(BUILT_IN_KEY, JSON.stringify([...given, ...due.map(mark)]));
+      if (fresh.length) {
+        return [...sets.filter((s) => !fresh.some((b) => b.name === s.name)), ...fresh]
+          .sort((a, b) => a.name.localeCompare(b.name));
+      }
     }
   } catch {
     // Storage blocked: no ready-made sets this time.

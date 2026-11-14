@@ -60,6 +60,7 @@ vec3 hueTurn(vec3 c, float degrees) {
 const AURORA_FRAG = /* glsl */ `
 ${COMMON}
 uniform float uHue, uHeight, uBright, uShimmer, uNight, uCurtains, uFlare;
+uniform vec2 uGrain;  // how much, and a number that changes a few times a second
 uniform vec3 uHand;   // x, y in frame units, and how present
 
 vec3 curtainColour(float h) {
@@ -112,6 +113,17 @@ void main() {
   light *= uBright * (1.0 + uFlare * 1.5);
   vec3 col = night * uNight + light;
   col = 1.0 - exp(-col * 1.35);
+  if (uGrain.x > 0.001) {
+    // Grain, in specks about two pixels of a 1080 frame, holding still for a
+    // moment at a time as film grain does. It roughens the light, and where
+    // the light is thin it breaks it into dots, the way a print would.
+    vec2 speck = floor(gl_FragCoord.xy / max(1.0, uRes.y / 620.0));
+    float n = hash(speck + uGrain.y * 7.13);
+    float lum = dot(col, vec3(0.3, 0.59, 0.11));
+    col *= 1.0 + (n - 0.5) * 1.5 * uGrain.x;
+    float dots = smoothstep(n - 0.1, n + 0.1, lum * 1.7 + 0.12);
+    col = mix(col, col * dots * 1.3, uGrain.x * 0.75);
+  }
   col += (hash(gl_FragCoord.xy + uTime) - 0.5) / 255.0 * 2.0;
   gl_FragColor = vec4(col, 1.0);
 }`;
@@ -226,6 +238,7 @@ export class SkyLayer {
       uNight: { value: 1 },
       uCurtains: { value: 3 },
       uFlare: { value: 0 },
+      uGrain: { value: new THREE.Vector2() },
       uHand: { value: new THREE.Vector3() },
       // Watercolour
       uWind: { value: new THREE.Vector2() },

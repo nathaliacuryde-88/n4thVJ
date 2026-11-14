@@ -447,7 +447,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     short: 'Body',
     category: '2D',
     key: 'W',
-    description: 'Your figure found among the stars: the ones where you stand light up and join; your hands drawn joint by joint'
+    description: 'Your figure found among the stars: the ones where you stand light up and join; and the stars under your hands with them'
   },
   machine: {
     pattern: 'machine',
@@ -456,6 +456,22 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     category: '2D',
     key: 'W',
     description: 'The room as the tool reads it: the camera in dots, the person boxed, every joint numbered, what it hears in words'
+  },
+  cells: {
+    pattern: 'cells',
+    name: 'Cell Division',
+    short: 'Cells',
+    category: 'TD',
+    key: 'W',
+    description: 'One cell, then two, then four: each lengthens, narrows at the waist and parts. They keep to the hand, a fist presses them together, and they divide on the kick'
+  },
+  standby: {
+    pattern: 'standby',
+    name: 'Standby',
+    short: 'Standby',
+    category: '2D',
+    key: 'W',
+    description: 'The quiet one, to end on: a field of dots, a light where the hand is, and a fist that closes the picture to a line and then a point'
   },
   anemone: {
     pattern: 'anemone',

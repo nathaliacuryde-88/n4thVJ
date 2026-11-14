@@ -17,9 +17,9 @@ import { Playing } from './inflated/style';
  * beside the hand tracking (hands/presence.ts). The stars themselves never
  * move to follow her; she moves across them, and different ones light.
  *
- * HER HANDS are drawn exactly, star by star at each joint, because the hand
- * tracker knows them to the knuckle. They are the brightest part of the
- * figure, and they work even when the outline does not.
+ * HER HANDS are found the same way and never drawn over the sky: the stars
+ * that lie under her fingers light, from the hand tracker's own points, so
+ * the hands are part of the figure even when the outline is not there.
  *
  * A CLAP scatters the figure's stars out into the sky, and they find their
  * way back. Each kick swells them; the hats set odd ones glinting; the bass
@@ -35,12 +35,6 @@ type Cfg = typeof ConstellationConfig;
 /** The grid the stars are scattered over, at Stars 1. */
 const COLUMNS = 84;
 const ROWS = 47;
-/** The joints of a hand, as pairs, for the lines between its stars. */
-const BONES = [
-  [0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [5, 9], [9, 10], [10, 11], [11, 12],
-  [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17],
-];
-
 interface Star {
   x: number; y: number;        // 0 to 1 across and down
   size: number;
@@ -159,11 +153,22 @@ export class ConstellationRenderer {
     const bar = 0.5 - 0.22 * play.build;
     const shown = Math.max(0.05, Math.min(1, cfg.sky.stars));
     const stars = this.stars;
+    // Her hands, as the points the tracker gives: the stars under them light too.
+    const joints: { x: number; y: number }[] = [];
+    if (!handData.synthetic) {
+      for (const hand of [handData.left, handData.right]) {
+        if (hand?.landmarks && hand.landmarks.length >= 21) joints.push(...hand.landmarks);
+      }
+    }
+    const reach = 0.026;
+    const wide = W / H;
     for (const star of stars) {
       if (star.rank > shown) continue;
       let there: number;
       if (mask) {
         there = presenceAt(mask, star.x, star.y);
+      } else if (joints.length) {
+        there = 0;
       } else {
         // Nobody to find: a slow shape of its own, so the sky is not empty of figures.
         const cx = 0.5 + 0.22 * Math.sin(t * 0.13);
@@ -173,6 +178,11 @@ export class ConstellationRenderer {
         const angle = Math.atan2(dy, dx);
         const radius = 0.2 + 0.07 * Math.sin(angle * 3 + t * 0.3) + 0.04 * Math.sin(angle * 5 - t * 0.21);
         there = Math.hypot(dx, dy) < radius ? 1 : 0;
+      }
+      for (let j = 0; j < joints.length && there < 1; j++) {
+        const dx = (star.x - joints[j].x) * wide;
+        const dy = star.y - joints[j].y;
+        if (dx * dx + dy * dy < reach * reach) there = 1;
       }
       const want = there > bar ? Math.min(1, (there - bar) / 0.25) : 0;
       star.lit += (want - star.lit) * ease(want > star.lit ? 9 : 3.5);
@@ -252,29 +262,6 @@ export class ConstellationRenderer {
       ctx.drawImage(star.lit > 0.3 ? this.tinted : this.glow, px(star) - size, py(star) - size, size * 2, size * 2);
     }
 
-    // The hands, joint by joint.
-    const strength = cfg.hands.hands;
-    if (strength > 0.01) {
-      for (const hand of [handData.left, handData.right]) {
-        const points = hand?.landmarks;
-        if (!points || points.length < 21) continue;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = Math.max(0.8, 1.2 * unit);
-        ctx.globalAlpha = Math.min(1, 0.55 * strength);
-        ctx.beginPath();
-        for (const [a, b2] of BONES) {
-          ctx.moveTo(points[a].x * W, points[a].y * H);
-          ctx.lineTo(points[b2].x * W, points[b2].y * H);
-        }
-        ctx.stroke();
-        for (let i = 0; i < 21; i++) {
-          const tip = i % 4 === 0 && i > 0;
-          const size = unit * (tip ? 11 : 7) * (1 + 0.5 * this.swell);
-          ctx.globalAlpha = Math.min(1, strength);
-          ctx.drawImage(this.tinted, points[i].x * W - size, points[i].y * H - size, size * 2, size * 2);
-        }
-      }
-    }
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
