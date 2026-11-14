@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { AudioData, HandData } from '../../App';
 import { SwarmConfig } from '../../config/SwarmRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
-import { Playing, drawUnavailable, makeRenderer, turnFrom } from './inflated/style';
+import { InflatedLook, Playing, Shared, drawUnavailable, makeRenderer, turnFrom } from './inflated/style';
 import {
   COPY_FRAG, FADE_FRAG, POINT_FRAG, POINT_VERT, POSITION_FRAG, PRESENT_FRAG, QUAD_VERT, VELOCITY_FRAG,
 } from './swarm/shaders';
@@ -99,6 +99,12 @@ export class SwarmRenderer {
   private wave = 99;
   private waveAmp = 0;
   private view = new THREE.Vector2();
+  /** The flower family's palettes and grounds, for the beads. */
+  private look = new InflatedLook();
+  private shared: Shared = this.look.shared();
+  private started = false;
+  private colourTime = 0;
+  private drawnAs = -1;
 
   /** `style`: 0 Murmuration, 1 Plankton, 2 Galaxy. */
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, style: number) {
@@ -138,6 +144,8 @@ export class SwarmRenderer {
         uSize: { value: 1 }, uBlur: { value: 1 }, uFocus: { value: FAR }, uPixels: { value: 720 },
         uTime: { value: 0 }, uSparkle: { value: 0 }, uKick: { value: 0 }, uBass: { value: 0 },
         uEnergy: { value: 0.5 }, uLight: { value: 1 },
+        uLook: { value: 0 }, uT: { value: 0 },
+        uPalA: this.shared.uPalA, uPalB: this.shared.uPalB, uPalMix: this.shared.uPalMix,
       },
     });
     this.simMesh = new THREE.Mesh(this.quad, this.copyMaterial);
@@ -165,6 +173,7 @@ export class SwarmRenderer {
   }
 
   destroy() {
+    this.look.dispose();
     this.dropSim();
     this.accum?.dispose();
     this.quad.dispose();
@@ -385,6 +394,45 @@ export class SwarmRenderer {
 
     // ── draw ─────────────────────────────────────────────────────────────
     if (this.surface.width !== width || this.surface.height !== height) renderer.setSize(width, height, false);
+    const drawAs = Math.max(0, Math.min(2, Math.round(cfg.look.style)));
+    if (drawAs !== this.drawnAs) {
+      // Beads are solid and hide what is behind them; light adds up.
+      this.drawnAs = drawAs;
+      const solid = drawAs < 2;
+      this.pointMaterial.blending = solid ? THREE.NoBlending : THREE.AdditiveBlending;
+      this.pointMaterial.transparent = !solid;
+      this.pointMaterial.depthTest = solid;
+      this.pointMaterial.depthWrite = solid;
+      this.pointMaterial.needsUpdate = true;
+    }
+    const u = this.pointMaterial.uniforms;
+    u.uLook.value = drawAs;
+    u.uPos.value = sim.pos[sim.at].texture;
+    u.uVel.value = sim.vel[sim.at].texture;
+    u.uSize.value = cfg.look.size;
+    u.uPixels.value = height;
+    u.uTime.value = this.time + this.wander;
+    u.uSparkle.value = play.hat * cfg.sound.sparkle;
+    u.uKick.value = kick;
+    u.uBass.value = play.bass;
+    u.uEnergy.value = play.energy;
+
+    if (drawAs < 2) {
+      this.look.update(colors, cfg.look.palette, frame, !this.started, drawAs === 1 ? 1 : 0);
+      this.started = true;
+      this.look.apply(this.shared, 0.32, 0.16);
+      // The colours travel slowly round the palette; a kick moves them on.
+      this.colourTime += (Math.max(0, play.step) * 0.6 + frame * kick * 0.8) / 12;
+      u.uT.value = this.colourTime;
+      renderer.setRenderTarget(null);
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear();
+      renderer.render(this.scene, this.camera);
+      this.look.backdrop(this.ctx, width, height, cfg.look.backdrop);
+      this.ctx.drawImage(this.surface, 0, 0, width, height);
+      return;
+    }
+
     if (!this.accum || this.accum.width !== width || this.accum.height !== height) {
       this.accum?.dispose();
       this.accum = new THREE.WebGLRenderTarget(width, height, {
@@ -392,23 +440,14 @@ export class SwarmRenderer {
         minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
       });
       renderer.setRenderTarget(this.accum);
+      renderer.setClearColor(0x000000, 1);
       renderer.clear();
     }
     // How much of the last frame's light is kept: none of it with Trail at
     // zero, about half a second's worth at full.
     const keep = Math.exp(-frame / (0.012 + cfg.look.trail * 0.5));
-    const u = this.pointMaterial.uniforms;
-    u.uPos.value = sim.pos[sim.at].texture;
-    u.uVel.value = sim.vel[sim.at].texture;
-    u.uSize.value = cfg.look.size;
     u.uBlur.value = cfg.look.blur;
     u.uFocus.value = this.distance;
-    u.uPixels.value = height;
-    u.uTime.value = this.time + this.wander;
-    u.uSparkle.value = play.hat * cfg.sound.sparkle;
-    u.uKick.value = kick;
-    u.uBass.value = play.bass;
-    u.uEnergy.value = play.energy;
     // The same light whatever the count, and whatever the trail: more
     // points are each fainter, and what lingers is added in smaller parts.
     u.uLight.value = 1.6 * Math.pow(65536 / (side * side), 0.85) * (1 - keep);
@@ -427,6 +466,7 @@ export class SwarmRenderer {
     present.uExposure.value = 1.15 + 0.5 * play.drop;
     this.simMesh.material = this.presentMaterial;
     renderer.setRenderTarget(null);
+    renderer.setClearColor(0x000000, 1);
     renderer.render(this.simScene, this.quadCamera);
 
     this.ctx.globalCompositeOperation = 'source-over';

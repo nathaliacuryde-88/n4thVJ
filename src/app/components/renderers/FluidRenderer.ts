@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import { AudioData, HandData } from '../../App';
 import { FluidConfig } from '../../config/FluidRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
-import { Playing, drawUnavailable, makeRenderer, turnFrom } from './inflated/style';
+import { InflatedLook, Playing, Shared, drawUnavailable, hexToHsl, makeRenderer, turnFrom } from './inflated/style';
 import {
-  ADVECT_FRAG, CURL_FRAG, DIVERGENCE_FRAG, FORCE_FRAG, GRADIENT_FRAG, INK_FRAG, PRESSURE_FRAG,
+  ADVECT_FRAG, CURL_FRAG, DIVERGENCE_FRAG, FORCE_FRAG, GRADIENT_FRAG, INK_FRAG, MARBLE_FRAG, PRESSURE_FRAG,
   QUAD_VERT, SCALE_FRAG, SHOW_FRAG, VORTICITY_FRAG,
 } from './fluid/shaders';
 
@@ -79,6 +79,11 @@ export class FluidRenderer {
   private lastHat = 0;
   private lastDrop = 0;
   private blooms = 0;
+  /** The flower family's palettes, for the marbled look. */
+  private look = new InflatedLook();
+  private shared: Shared = this.look.shared();
+  private started = false;
+  private colourTime = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
     this.canvas = canvas;
@@ -97,6 +102,10 @@ export class FluidRenderer {
       pressure: make(PRESSURE_FRAG, { uPressure: { value: null }, uDivergence: { value: null }, uTexel: texel() }),
       gradient: make(GRADIENT_FRAG, { uPressure: { value: null }, uVelocity: { value: null }, uTexel: texel() }),
       scale: make(SCALE_FRAG, { uTex: { value: null }, uBy: { value: 1 } }),
+      marble: make(MARBLE_FRAG, {
+        uDye: { value: null }, uPalA: this.shared.uPalA, uPalB: this.shared.uPalB, uPalMix: this.shared.uPalMix,
+        uBands: { value: 1 }, uT: { value: 0 }, uGround: { value: new THREE.Vector3() },
+      }),
       show: make(SHOW_FRAG, { uDye: { value: null }, uTexel: texel(), uTurn: { value: 0 }, uSat: { value: 1 }, uExposure: { value: 1 } }),
     };
     this.mesh = new THREE.Mesh(this.quad, this.materials.show);
@@ -122,6 +131,7 @@ export class FluidRenderer {
   }
 
   destroy() {
+    this.look.dispose();
     this.dropTargets();
     this.quad.dispose();
     for (const m of Object.values(this.materials)) m.dispose();
@@ -221,7 +231,14 @@ export class FluidRenderer {
     const wide = cfg.ink.width;
     // Which ink, drifting slowly along the row and nudged by how bright the sound is.
     const shade = this.real * 0.05 + play.bright * 1.5;
+    const marble = Math.round(cfg.look.style) === 0;
     const ink = (index: number, strength: number, into: THREE.Vector3) => {
+      if (marble) {
+        // As marbling: how much, and where on the palette — six inks spaced round it.
+        const tone = (((index / INKS.length) % 1) + 1) % 1;
+        into.set(strength, strength * tone, 0);
+        return;
+      }
       const at = ((index % INKS.length) + INKS.length) % INKS.length;
       const a = INKS[Math.floor(at)];
       const b = INKS[(Math.floor(at) + 1) % INKS.length];
@@ -286,7 +303,8 @@ export class FluidRenderer {
       for (const k of [3, 4]) {
         this.points[k].set(0.08 + 0.84 * Math.random(), 0.1 + 0.8 * Math.random(), 0.011 * wide);
         this.pushes[k].set(0, 0, 0.12);
-        this.inks[k].set(0.5 * hat * amount, 0.55 * hat * amount, 0.6 * hat * amount);
+        if (marble) ink(shade + 2 + k, 0.5 * hat * amount, this.inks[k]);
+        else this.inks[k].set(0.5 * hat * amount, 0.55 * hat * amount, 0.6 * hat * amount);
       }
     }
     this.lastHat = hat;
@@ -366,11 +384,30 @@ export class FluidRenderer {
 
     // ── show it ──────────────────────────────────────────────────────────
     const turn = turnFrom(colors);
-    m.show.uniforms.uDye.value = dye.read.texture;
-    m.show.uniforms.uTurn.value = (turn.hue * Math.PI) / 180;
-    m.show.uniforms.uSat.value = Math.min(1.4, turn.sat);
-    m.show.uniforms.uExposure.value = 1.5 + 0.5 * play.drop;
-    this.run(renderer, m.show, null);
+    if (marble) {
+      this.look.update(colors, cfg.look.palette, frame, !this.started);
+      this.started = true;
+      this.look.apply(this.shared, 0, 0);
+      // The colours travel slowly round the palette, and a kick moves them on.
+      this.colourTime += (dt * 0.25 + frame * kick * 0.6) / 12;
+      m.marble.uniforms.uDye.value = dye.read.texture;
+      m.marble.uniforms.uBands.value = cfg.look.bands;
+      m.marble.uniforms.uT.value = this.colourTime;
+      // The ground: black to stack, or up to the palette's own dark.
+      const ground = m.marble.uniforms.uGround.value as THREE.Vector3;
+      const k = Math.max(0, Math.min(1, cfg.look.backdrop));
+      const [h, sat, l] = hexToHsl(['#1a0d33', '#2a0a0c', '#0b1430', '#070a1c'][Math.max(0, Math.min(3, Math.round(cfg.look.palette)))]);
+      const c = new THREE.Color().setHSL((((h + turn.hue) % 360) + 360) % 360 / 360, Math.min(1, sat * turn.sat), l * 1.25);
+      const rgb = c.getRGB({ r: 0, g: 0, b: 0 }, THREE.SRGBColorSpace);
+      ground.set(rgb.r * k, rgb.g * k, rgb.b * k);
+      this.run(renderer, m.marble, null);
+    } else {
+      m.show.uniforms.uDye.value = dye.read.texture;
+      m.show.uniforms.uTurn.value = (turn.hue * Math.PI) / 180;
+      m.show.uniforms.uSat.value = Math.min(1.4, turn.sat);
+      m.show.uniforms.uExposure.value = 1.5 + 0.5 * play.drop;
+      this.run(renderer, m.show, null);
+    }
 
     this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.globalAlpha = 1;

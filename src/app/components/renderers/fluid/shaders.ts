@@ -175,6 +175,46 @@ uniform float uBy;
 varying vec2 vUv;
 void main() { gl_FragColor = texture2D(uTex, vUv) * uBy; }`;
 
+/**
+ * The ink as marbling: flat colour in hard-edged bands.
+ *
+ * The ink is carried as two numbers, not a colour: how much of it there is,
+ * and where on the palette it sits. So two inks meeting do not grey each
+ * other out as mixed light does — they meet at a stop between them — and a
+ * pool is cut into bands by how thick it is, each band one flat colour of
+ * the palette, the way marbled paper or a slice of agate is.
+ */
+export const MARBLE_FRAG = /* glsl */ `
+precision highp float;
+uniform sampler2D uDye;
+uniform sampler2D uPalA;
+uniform sampler2D uPalB;
+uniform float uPalMix;
+uniform float uBands;
+uniform float uT;
+uniform vec3 uGround;
+varying vec2 vUv;
+vec3 palette(float c) {
+  vec2 at = vec2(fract(c), 0.5);
+  return mix(texture2D(uPalA, at).rgb, texture2D(uPalB, at).rgb, uPalMix);
+}
+void main() {
+  vec3 dye = texture2D(uDye, vUv).rgb;
+  float amount = dye.r;
+  float tone = dye.g / max(amount, 1e-4);
+  // Thicker ink sits further along the palette, a stop at a time.
+  float b = (tone + uT) * 12.0 + log2(1.0 + amount * 6.0) * 2.2 * uBands;
+  float w = fwidth(b) * 1.2;
+  float stop = (floor(b) + smoothstep(1.0 - w, 1.0, fract(b)) + 0.45) / 12.0;
+  vec3 col = palette(stop);
+  // Where the ink ends, it ends: an edge, with a dark line along it.
+  float e = fwidth(amount) * 1.5 + 1e-4;
+  float inside = smoothstep(0.045 - e, 0.045 + e, amount);
+  float line = inside * (1.0 - smoothstep(0.06, 0.06 + e * 2.0, amount));
+  col = mix(col, palette(0.53) * 0.55, line);
+  gl_FragColor = vec4(mix(uGround, col, inside), 1.0);
+}`;
+
 /** The ink as it is seen: light in the water, with the sheen of a surface. */
 export const SHOW_FRAG = /* glsl */ `
 precision highp float;

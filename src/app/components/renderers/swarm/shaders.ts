@@ -186,9 +186,11 @@ uniform float uKick;
 uniform float uBass;
 uniform float uEnergy;
 uniform float uLight;    // overall brightness, already scaled for how many points there are
+uniform int uLook;       // 0 beads, 1 discs, 2 light
 attribute vec2 ref;
 varying vec3 vColor;
 varying float vAlpha;
+varying float vTone;     // where on the palette a bead sits
 
 float hash(float n) { return fract(sin(n) * 43758.5453123); }
 
@@ -200,6 +202,26 @@ void main() {
   vec4 mv = modelViewMatrix * vec4(P.xyz, 1.0);
   gl_Position = projectionMatrix * mv;
   float dist = max(0.2, -mv.z);
+
+  if (uLook < 2) {
+    // ── beads ──────────────────────────────────────────────────────────
+    // Solid, a few sizes, and in a handful of the palette's colours rather
+    // than a spread of them — it should read as a design, not as noise.
+    float size = uSize * (0.55 + 0.9 * hash(seed * 5.3)) * (1.0 + 0.2 * uBass + 0.25 * uKick);
+    gl_PointSize = clamp(size * uPixels * 0.075 / dist, 2.0, 120.0);
+    float group = floor(hash(seed * 7.7) * 5.0) / 5.0;
+    float tone = group * 0.62;
+    if (uStyle < 0.5) tone += clamp(speed * 0.03, 0.0, 0.12);
+    else if (uStyle < 1.5) tone = group * 0.3 + clamp(speed * 0.5, 0.0, 0.45);
+    else tone = group * 0.25 + length(P.xz) * 0.16;
+    // On each hat a different few jump on along the palette.
+    tone += step(0.95, hash(seed * 31.7 + floor(uTime * 9.0))) * uSparkle * 0.17;
+    vTone = tone;
+    vColor = vec3(0.0);
+    vAlpha = 1.0;
+    return;
+  }
+  vTone = 0.0;
 
   // Out of focus a point spreads into a larger, fainter disc — the same
   // light over more area — which is what gives the cloud its depth.
@@ -251,14 +273,48 @@ void main() {
 
 export const POINT_FRAG = /* glsl */ `
 precision highp float;
+uniform int uLook;
+uniform sampler2D uPalA;
+uniform sampler2D uPalB;
+uniform float uPalMix;
+uniform float uT;
 varying vec3 vColor;
 varying float vAlpha;
+varying float vTone;
+vec3 palette(float c) {
+  vec2 at = vec2(fract(c), 0.5);
+  return mix(texture2D(uPalA, at).rgb, texture2D(uPalB, at).rgb, uPalMix);
+}
 void main() {
-  vec2 d = gl_PointCoord - 0.5;
-  float r2 = dot(d, d) * 4.0;
+  vec2 d = gl_PointCoord * 2.0 - 1.0;
+  float r2 = dot(d, d);
   if (r2 > 1.0) discard;
-  float disc = (1.0 - r2);
-  gl_FragColor = vec4(vColor * vAlpha * disc * disc, 1.0);
+  if (uLook == 2) {
+    float disc = 1.0 - r2;
+    gl_FragColor = vec4(vColor * vAlpha * disc * disc, 1.0);
+    return;
+  }
+  // A ball, from a flat disc: the normal it would have at this point of it.
+  vec3 N = vec3(d.x, -d.y, sqrt(1.0 - r2));
+  vec3 L = normalize(vec3(0.3, 0.35, 0.9));
+  float wrap = clamp(dot(N, L) * 0.5 + 0.5, 0.0, 1.0);
+  float rim = 1.0 - N.z;
+  float c = vTone + uT;
+  vec3 col;
+  if (uLook == 0) {
+    // Shaded the family's way: forward through the palette, not darker.
+    c += 0.32 * (1.0 - wrap) + 0.12 * smoothstep(0.55, 1.0, rim);
+    col = palette(c);
+    col *= 0.82 + 0.28 * wrap;
+    col += vec3(1.0) * pow(max(dot(reflect(-L, N), vec3(0.0, 0.0, 1.0)), 0.0), 16.0) * 0.2;
+    col = mix(col, col * col * 0.6, smoothstep(0.85, 1.0, rim) * 0.6);
+  } else {
+    // Cut paper: one flat colour, one step of shadow, an outline.
+    col = palette((floor(c * 12.0) + 0.45) / 12.0);
+    col *= mix(0.78, 1.0, step(0.42, wrap));
+    col = mix(col, palette(0.53) * 0.6, smoothstep(0.62, 0.7, r2));
+  }
+  gl_FragColor = vec4(col, 1.0);
 }`;
 
 /** Brings the wide-range buffer down to the screen without clipping it. */

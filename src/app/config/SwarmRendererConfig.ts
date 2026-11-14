@@ -5,8 +5,18 @@
  */
 export const SwarmConfig = {
   look: {
+    /**
+     * 0 Beads: each point a small solid ball in the palette, as the flowers
+     * are drawn. 1 Discs: the same as flat cut paper. 2 Light: points of
+     * light that add up and leave trails, as it first was.
+     */
+    style: 0,
+    /** Which palette: the Bloom Field four. Swaps crossfade. */
+    palette: 0,
+    /** What stands behind them. 0 is black, which stacks cleanly. */
+    backdrop: 1,
     /** How many points: 0 16 thousand, 1 65 thousand, 2 150 thousand, 3 260 thousand. */
-    count: 1,
+    count: 0,
     /** How large each point is drawn. */
     size: 1,
     /** How soft what is out of focus becomes. */

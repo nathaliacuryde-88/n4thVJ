@@ -136,10 +136,13 @@ function swarmParams(follow: string, beat: string): RendererParams {
       {
         name: 'Swarm',
         params: [
+          { path: 'look.style', label: 'Style', min: 0, max: 2, step: 1, labels: ['Beads', 'Discs', 'Light'], hint: 'solid balls, flat cut paper, or points of light' },
+          { path: 'look.palette', label: 'Palette', min: 0, max: 3, step: 1, labels: ['Reel', 'Ember', 'Lagoon', 'Ink'] },
           { path: 'look.count', label: 'Points', min: 0, max: 3, step: 1, labels: ['16k', '65k', '150k', '260k'], hint: 'fewer if it runs slowly' },
           { path: 'look.size', label: 'Size', min: 0.3, max: 3, step: 0.05 },
-          { path: 'look.blur', label: 'Depth blur', min: 0, max: 3, step: 0.05 },
-          { path: 'look.trail', label: 'Trail', min: 0, max: 1, step: 0.05 },
+          { path: 'look.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+          { path: 'look.blur', label: 'Depth blur', min: 0, max: 3, step: 0.05, hint: 'Light style only' },
+          { path: 'look.trail', label: 'Trail', min: 0, max: 1, step: 0.05, hint: 'Light style only' },
           { path: 'motion.flow', label: 'Flow', min: 0, max: 3, step: 0.05 },
           { path: 'motion.fold', label: 'Fold', min: 0, max: 3, step: 0.05 },
         ],
@@ -816,6 +819,15 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
   ink: {
     config: FluidConfig,
     groups: [
+      {
+        name: 'Look',
+        params: [
+          { path: 'look.style', label: 'Style', min: 0, max: 1, step: 1, labels: ['Marble', 'Soft'], hint: 'flat bands with hard edges, or glowing ink' },
+          { path: 'look.palette', label: 'Palette', min: 0, max: 3, step: 1, labels: ['Reel', 'Ember', 'Lagoon', 'Ink'] },
+          { path: 'look.bands', label: 'Bands', min: 0, max: 3, step: 0.05 },
+          { path: 'look.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+        ],
+      },
       {
         name: 'Ink',
         params: [
