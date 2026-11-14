@@ -44,6 +44,28 @@ interface Deck {
   reportedError?: boolean;
   /** Whether its sliders were last sent swung by an LFO, so they can be put back. */
   modulated?: boolean;
+  /** Set when its graphics context has been taken away; it is rebuilt. */
+  lost?: boolean;
+}
+
+/**
+ * Whether a deck's WebGL context has been lost.
+ *
+ * A browser can take a context away at any time — a driver hiccup, a laptop
+ * switching graphics cards, too many tabs — and the visual that owned it
+ * simply stops drawing, black, until something builds it again. The WebGL
+ * visuals all keep their three.js renderer in a field called `renderer`, so
+ * that is where this looks; a visual without one has no context to lose.
+ */
+function contextLost(deck: Deck): boolean {
+  const held = (deck.renderer as unknown as {
+    renderer?: { getContext?: () => { isContextLost?: () => boolean } } | null;
+  }).renderer;
+  try {
+    return !!held?.getContext?.().isContextLost?.();
+  } catch {
+    return false;
+  }
 }
 
 /** The deck on its way out during a crossfade. */
@@ -206,6 +228,8 @@ export function VJCanvas({
    * element so the 2D fallback actually has somewhere to draw.
    */
   const [pipelineFailed, setPipelineFailed] = useState(false);
+  /** Counts decks found dead, so the effect that builds decks runs again for them. */
+  const [revived, setRevived] = useState(0);
   /** The stack, bottom first. Index-matched to the `layers` prop. */
   const slotsRef = useRef<Slot[]>([]);
   /** Read by the compose step for each layer's fader, without rebuilding anything. */
@@ -564,6 +588,7 @@ export function VJCanvas({
         probe.getImageData(0, 0, 1, 1);
       } catch { /* a layer that cannot be read is just not timed */ }
     };
+    let lastLostCheck = 0;
     /** The finish, built the first time it is switched on; null once it has failed. */
     let finisher: { finish: Finish; canvas: HTMLCanvasElement } | null | undefined;
     const animate = () => {
@@ -632,6 +657,21 @@ export function VJCanvas({
       claps.live = Math.max(claps.live * Math.exp(-delta * 2.2), clapOf(handDataRef.current));
       claps.auto = Math.max(claps.auto * Math.exp(-delta * 2.2), clapOf(autoRef.current.hands));
 
+      // Once a second: has any visual lost its graphics context? If so it is
+      // marked, and the decks are reconciled again, which builds it afresh.
+      if (now - lastLostCheck > 1000) {
+        lastLostCheck = now;
+        let found = false;
+        for (const slot of slotsRef.current) {
+          if (slot && !slot.current.lost && contextLost(slot.current)) {
+            slot.current.lost = true;
+            found = true;
+            console.warn(`"${slot.current.pattern}" lost its graphics context; rebuilding it.`);
+          }
+        }
+        if (found) setRevived((n) => n + 1);
+      }
+
       noteLayerCount(slotsRef.current.length);
       slotsRef.current.forEach((slot, index) => {
         if (!slot) return;
@@ -691,7 +731,10 @@ export function VJCanvas({
               const canvas = document.createElement('canvas');
               finisher = { finish: new Finish(canvas), canvas };
             }
-            if (!finisher.finish.lost) {
+            if (finisher.finish.lost) {
+              // Taken away: let go of it, and build a new one next frame.
+              finisher = undefined;
+            } else {
               const sound = frameAudioRef.current;
               const pulse = Math.max((sound?.kick ?? sound?.onset ?? 0) * 0.6, sound?.drop ?? 0);
               finisher.finish.render(ctx.canvas, finishRef.current, pulse, now / 1000, delta);
@@ -783,7 +826,7 @@ export function VJCanvas({
 
     layers.forEach(({ pattern }, index) => {
       const slot = slots[index];
-      if (slot?.current.pattern === pattern) return;
+      if (slot?.current.pattern === pattern && !slot.current.lost) return;
 
       const deck = build(pattern, index);
       if (!deck) return;
@@ -826,7 +869,7 @@ export function VJCanvas({
     }
     // Only the patterns rebuild decks; a fader move must not tear a renderer down.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers.map((l) => l.pattern).join('|')]);
+  }, [layers.map((l) => l.pattern).join('|'), revived]);
 
   return (
     <canvas

@@ -617,6 +617,9 @@ export class Playing {
     this.bump *= Math.exp(-dt / 0.07);
     if (audioData?.beat) this.bump = Math.max(this.bump, audioData.beatIntensity || 1);
     this.kick = audioData?.kick ?? 0;
+    // The kick drum itself also counts, heard on its own: the general beat
+    // detector can miss one under a busy top end, and the flowers should not.
+    this.bump = Math.max(this.bump, this.kick * 0.9);
     this.snare = audioData?.snare ?? 0;
     this.hat = audioData?.hat ?? 0;
     this.energy = ease(this.energy, audioData?.live ? audioData.energy ?? 0.5 : 0.5, 1, 1);
