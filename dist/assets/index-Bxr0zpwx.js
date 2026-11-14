@@ -7279,6 +7279,20 @@ vec3 sunColor() {
   return mix(vec3(0.62, 0.72, 0.95), vec3(1.0, 0.74, 0.5), smoothstep(0.25, 0.9, uHour));
 }
 
+// The sky's colour without its clouds, stars or sun's disc: what it lends
+// to shadows and to haze, where none of that detail would be seen.
+vec3 skyLight(vec3 dir) {
+  float up = clamp(dir.y, -0.1, 1.0);
+  vec3 zenith = mix(vec3(0.004, 0.008, 0.03), vec3(0.02, 0.05, 0.17), uHour);
+  vec3 horizon = mix(vec3(0.03, 0.05, 0.1), vec3(0.2, 0.25, 0.4), uHour);
+  vec3 c = mix(horizon, zenith, pow(max(up, 0.0), 0.45));
+  float toward = max(dot(normalize(dir.xz + 1e-5), normalize(uSun.xz + 1e-5)), 0.0);
+  float band = exp(-max(up, 0.0) * 7.0) * (0.25 + 0.75 * toward * toward);
+  c += sunColor() * band * (0.08 + 0.75 * uHour) * (1.0 + 0.9 * uGlow);
+  c += sunColor() * pow(max(dot(dir, uSun), 0.0), 10.0) * 0.1 * (1.0 + uGlow);
+  return c;
+}
+
 // The sky in a direction. Used for the sky itself, for the haze the land
 // fades into, and for what the water mirrors — which is why they agree.
 vec3 sky(vec3 dir, float stars) {
@@ -7333,7 +7347,7 @@ void main() {
   vec3 view = -toEye / dist;
   vec2 p = vWorld.xz;
   // Finer than the triangles near, no finer than a pixel far away.
-  int octaves = dist < 12.0 ? 9 : dist < 30.0 ? 8 : dist < 60.0 ? 7 : 6;
+  int octaves = dist < 10.0 ? 8 : dist < 28.0 ? 7 : dist < 60.0 ? 6 : 5;
   float ground = terrain(p, octaves);
   vec3 light = sunColor();
   vec3 color;
@@ -7357,9 +7371,9 @@ void main() {
     // slope, the water shows that slope's dark instead of the sky.
     float land = 0.0;
     vec2 along = normalize(mirrored.xz + 1e-5);
-    for (int i = 1; i <= 3; i++) {
-      float reach = float(i) * (1.2 + dist * 0.06);
-      float rise = terrain(p + along * reach, 5) - uWater;
+    for (int i = 1; i <= 2; i++) {
+      float reach = float(i) * (1.8 + dist * 0.09);
+      float rise = terrain(p + along * reach, 4) - uWater;
       land = max(land, smoothstep(0.0, 0.5, rise - mirrored.y / max(length(mirrored.xz), 1e-3) * reach));
     }
     above = mix(above, vec3(0.012, 0.02, 0.035) * (0.5 + uHour), land * 0.85);
@@ -7381,9 +7395,9 @@ void main() {
     float shade = 1.0;
     vec2 sunFlat = normalize(uSun.xz + 1e-5);
     float sunRise = uSun.y / max(length(uSun.xz), 1e-3);
-    for (int i = 1; i <= 5; i++) {
-      float reach = float(i) * float(i) * 0.45;
-      float over = terrain(p + sunFlat * reach, 4) - (ground + sunRise * reach);
+    for (int i = 1; i <= 4; i++) {
+      float reach = float(i) * float(i) * 0.7;
+      float over = terrain(p + sunFlat * reach, 3) - (ground + sunRise * reach);
       shade = min(shade, 1.0 - smoothstep(0.0, 0.5 + 0.22 * reach, over));
     }
     float lit = max(dot(normal, uSun), 0.0) * shade;
@@ -7396,7 +7410,7 @@ void main() {
     // Snow only on the tops, measured against how tall this land stands.
     float snow = smoothstep(5.0, 8.5, (above + mottle * 1.6) / max(uHeight, 0.2)) * smoothstep(0.6, 0.85, normal.y);
     vec3 surface = mix(rock, vec3(0.78, 0.82, 0.9), snow);
-    vec3 ambient = sky(normalize(vec3(normal.x, abs(normal.y) + 0.4, normal.z)), 0.0);
+    vec3 ambient = skyLight(normalize(vec3(normal.x, abs(normal.y) + 0.4, normal.z)));
     // What the sky lends the shadows, taken most of the way to grey: a
     // shadow is dim, not blue paint.
     ambient = mix(vec3(dot(ambient, vec3(0.333))), ambient, 0.45);
@@ -7411,7 +7425,7 @@ void main() {
 
   // Air: haze with distance, and mist lying low. The far land takes the
   // colour of the sky behind it, which is what makes it look far.
-  vec3 haze = sky(normalize(vec3(view.x, max(view.y, 0.0) * 0.4 + 0.03, view.z)), 0.0);
+  vec3 haze = skyLight(normalize(vec3(view.x, max(view.y, 0.0) * 0.4 + 0.03, view.z)));
   float fog = 1.0 - exp(-dist * 0.011 * uMist);
   float low = exp(-max(vWorld.y - uWater, 0.0) * 1.3) * (1.0 - exp(-dist * 0.05 * uMist));
   color = mix(color, haze, clamp(fog + low * 0.38 * uMist, 0.0, 1.0));
