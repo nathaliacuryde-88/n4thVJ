@@ -385,6 +385,30 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'W',
     description: 'Light reflected on moving water, broken by ripples into glowing cells and ribbons'
   },
+  'swarm-flock': {
+    pattern: 'swarm-flock',
+    name: 'Murmuration',
+    short: 'Flock',
+    category: '3D',
+    key: 'W',
+    description: 'A flock of points of light that follows the hand, parts in two for two hands, and scatters on a clap'
+  },
+  'swarm-plankton': {
+    pattern: 'swarm-plankton',
+    name: 'Plankton',
+    short: 'Plankton',
+    category: '3D',
+    key: 'W',
+    description: 'Dark water full of plankton that light where a hand stirs them; a ring of light crosses on every kick'
+  },
+  'swarm-galaxy': {
+    pattern: 'swarm-galaxy',
+    name: 'Galaxy',
+    short: 'Galaxy',
+    category: '3D',
+    key: 'W',
+    description: 'A disc of stars turning; the hand tilts it, the core flares on the kick, a clap throws the stars out'
+  },
   tonight: {
     pattern: 'tonight',
     name: "Tonight's Sky",

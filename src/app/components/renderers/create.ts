@@ -45,6 +45,7 @@ import { DataRenderer } from './DataRenderer';
 import { SmearRenderer } from './SmearRenderer';
 import { TonightRenderer } from './TonightRenderer';
 import { MacroRenderer } from './MacroRenderer';
+import { SwarmRenderer } from './SwarmRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
 import { NatureWorldRenderer } from './NatureWorldRenderer';
 import { BigTypeRenderer } from './BigTypeRenderer';
@@ -99,7 +100,7 @@ export const HOLDS_CONTEXT: ReadonlySet<string> = new Set([
   'cubewall', 'dandelion', 'dice', 'digitalblocks', 'distortedcamera', 'dream-clouds', 'dream-hills',
   'dream-valley', 'dream-spray', 'dream-figure', 'dream-sea', 'dream-mountains',
   'elastic-net', 'jellyfish', 'liquidchrome', 'morphing', 'world', 'network-cube',
-  'particleimage', 'ripple', 'smear', 'macro-ink', 'macro-petals', 'macro-filaments', 'macro-prism', 'macro-rings', 'macro-water', 'smokehand-torus', 'smokehand-hand', 'watercolour',
+  'particleimage', 'ripple', 'smear', 'macro-ink', 'macro-petals', 'macro-filaments', 'macro-prism', 'macro-rings', 'macro-water', 'swarm-flock', 'swarm-plankton', 'swarm-galaxy', 'smokehand-torus', 'smokehand-hand', 'watercolour',
 ]);
 
 export function createRenderer(
@@ -240,6 +241,15 @@ export function createRenderer(
       break;
     case 'macro-water':
       renderer = new MacroRenderer(canvas, ctx, 5);
+      break;
+    case 'swarm-flock':
+      renderer = new SwarmRenderer(canvas, ctx, 0);
+      break;
+    case 'swarm-plankton':
+      renderer = new SwarmRenderer(canvas, ctx, 1);
+      break;
+    case 'swarm-galaxy':
+      renderer = new SwarmRenderer(canvas, ctx, 2);
       break;
     case 'tonight':
       renderer = new TonightRenderer(canvas, ctx);
