@@ -59,13 +59,16 @@ uniform vec3 uHandVelA;
 uniform vec3 uHandVelB;
 uniform float uWave;     // radius of the ring of light crossing the water
 uniform float uWaveAmp;
+uniform float uPull;     // a fist draws the water in (positive), an open palm pushes it away
 varying vec2 vUv;
 
 vec3 stir(vec3 p, vec4 hand, vec3 handVel) {
   vec3 d = p - hand.xyz;
   // A column through the depth of the water, not a point: the hand has no depth to give.
   float f = hand.w * exp(-dot(d.xy, d.xy) / 0.55);
-  return (handVel * 5.0 + vec3(-d.y, d.x, 0.0) * 2.4) * f;
+  vec3 inwards = -vec3(d.xy, 0.0) / (length(d.xy) + 0.15);
+  return (handVel * 5.0 + vec3(-d.y, d.x, 0.0) * 2.4) * f
+    + inwards * uPull * 5.0 * hand.w * exp(-dot(d.xy, d.xy) / 2.2);
 }
 
 void main() {

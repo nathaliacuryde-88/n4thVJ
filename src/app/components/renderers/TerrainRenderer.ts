@@ -303,9 +303,9 @@ export class TerrainRenderer {
 
     // A ring of light on each kick; a clap or a drop sends a strong one.
     const kick = Math.max(play.kick, play.bump) * cfg.sound.beat;
-    const clap = play.burst * cfg.hands.clap;
+    const clap = play.clapped ? cfg.hands.clap : 0;
     if (kick > 0.45 && this.lastKick <= 0.45 && (this.ring > 14 || this.ringAmp < 0.2)) { this.ring = 0; this.ringAmp = Math.min(1, kick); }
-    if ((clap > 0.5 && this.lastBurst <= 0.5) || (play.drop > 0.5 && this.lastDrop <= 0.5)) { this.ring = 0; this.ringAmp = 2.2; }
+    if (clap > 0 || (play.drop > 0.5 && this.lastDrop <= 0.5)) { this.ring = 0; this.ringAmp = 2.2; }
     this.lastKick = kick;
     this.lastBurst = clap;
     this.lastDrop = play.drop;

@@ -94,7 +94,6 @@ export class SwarmRenderer {
   private handB = new THREE.Vector4();
   private handVelA = new THREE.Vector3();
   private handVelB = new THREE.Vector3();
-  private lastBurst = 0;
   private lastDrop = 0;
   private lastKick = 0;
   private wave = 99;
@@ -117,7 +116,7 @@ export class SwarmRenderer {
       uTargetA: { value: this.targetA }, uTargetB: { value: this.targetB }, uSplit: { value: 0 },
       uHandA: { value: this.handA }, uHandB: { value: this.handB },
       uHandVelA: { value: this.handVelA }, uHandVelB: { value: this.handVelB },
-      uWave: { value: 99 }, uWaveAmp: { value: 0 },
+      uWave: { value: 99 }, uWaveAmp: { value: 0 }, uPull: { value: 0 },
     });
     this.positionMaterial = pass(POSITION_FRAG, {
       uPos: { value: null }, uVel: { value: null }, uDt: { value: 0 }, uStyle: { value: style },
@@ -288,15 +287,16 @@ export class SwarmRenderer {
     const left = handData.left;
     const right = handData.right;
     const one = left ?? right;
+    const handed = !!one && !handData.synthetic;
     const scratch = new THREE.Vector3();
 
     // With no hand to follow, the flock wanders a slow figure of its own.
     const w = this.wander * 0.22;
     const roam = new THREE.Vector3(Math.sin(w) * 1.9, Math.sin(w * 1.7 + 1.0) * 0.9, Math.cos(w * 0.8) * 0.8);
     const wantA = one && follow > 0 ? this.handPoint(one, scratch).lerp(roam, Math.max(0, 1 - follow)) : roam;
-    this.targetA.lerp(wantA, ease(5));
+    this.targetA.lerp(wantA, ease(9));
     const both = left && right && follow > 0;
-    if (both) this.targetB.lerp(this.handPoint(right!, scratch), ease(5));
+    if (both) this.targetB.lerp(this.handPoint(right!, scratch), ease(9));
     else this.targetB.lerp(this.targetA, ease(3));
     this.split += ((both ? 1 : 0) - this.split) * ease(4);
 
@@ -320,13 +320,12 @@ export class SwarmRenderer {
 
     // ── the music ────────────────────────────────────────────────────────
     const kick = Math.max(play.kick, play.bump) * cfg.sound.beat;
-    this.gather += (Math.max(play.pinch, play.build * 0.85) - this.gather) * ease(4);
+    // A fist draws everything in; an open palm lets it spread.
+    this.gather += (Math.max(play.pinch, play.fist, play.build * 0.85) - this.gather) * ease(6);
     // A clap, or the drop, lands once: an impulse on the frame it arrives.
-    const clap = play.burst * cfg.hands.clap;
     let burst = 0;
-    if (clap > 0.5 && this.lastBurst <= 0.5) burst = Math.min(1.5, clap);
+    if (play.clapped) burst = Math.min(1.6, play.clapStrength * 1.4 * cfg.hands.clap);
     if (play.drop > 0.5 && this.lastDrop <= 0.5) burst = Math.max(burst, 0.8 * cfg.sound.beat);
-    this.lastBurst = clap;
     this.lastDrop = play.drop;
     // A ring of light sets out across the water on each kick.
     if (kick > 0.45 && this.lastKick <= 0.45) { this.wave = 0; this.waveAmp = Math.min(1.2, kick); }
@@ -344,6 +343,8 @@ export class SwarmRenderer {
       v.uTime.value = this.time;
       v.uFold.value = cfg.motion.fold * (0.7 + 0.6 * play.energy);
       v.uGather.value = this.gather;
+      // The water is drawn in to a fist and pushed away by an open palm.
+      v.uPull.value = handed ? play.fist * 1.6 - (1 - play.fist) * 0.5 : 0;
       v.uKick.value = kick;
       v.uBurst.value = burst;
       v.uSpin.value = 1 + 0.5 * play.energy + 0.8 * play.build;

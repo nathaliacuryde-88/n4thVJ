@@ -12,9 +12,9 @@
  *   KEPT       a hand the model loses for a frame or two — it happens every
  *              few seconds — is held where it was rather than dropped, so
  *              the visual does not snap to rest and back
- *   A CLAP     is hands coming together fast. It used to be hands being near
- *              each other, so bringing them together slowly, to squeeze
- *              something, set off the explosion too
+ *   A CLAP     is caught three ways — hands together, hands closing fast,
+ *              and hands that were closing and then vanished into each
+ *              other — so it lands however the camera sees it
  *
  * and a few more things to play: how close the hand is to the camera, which
  * way it is turned, how open it is, and how the two hands sit against each
@@ -34,16 +34,31 @@ const TRAIL_LENGTH = 30;
 const FAR = 0.08;
 const NEAR = 0.32;
 
-/** Hands closing at least this fast (frame widths a second), this close: a clap. */
-const CLAP_SPEED = 0.9;
-const CLAP_WITHIN = 0.3;
-/** A softer clap, from hands that were already nearly together. */
-const SOFT_CLAP_SPEED = 0.4;
-const SOFT_CLAP_WITHIN = 0.13;
+/**
+ * A CLAP, three ways, because no one of them catches every clap:
+ *
+ *   together   the hands are within a hand's width of each other. This is
+ *              how it always worked, and it holds for as long as they stay
+ *              together.
+ *   closing    the hands are coming together fast, and near enough that they
+ *              are about to meet — which fires it a frame or two early, on
+ *              the beat of the clap rather than after it.
+ *   meeting    the hands were closing and then one or both vanished. Two
+ *              hands pressed together are one shape to the camera, and fast
+ *              hands are a blur, so the model very often loses them at
+ *              exactly the moment of a clap; that loss is itself the sign.
+ */
+const TOGETHER = 0.17;
+const CLOSING_SPEED = 0.85;
+const CLOSING_WITHIN = 0.4;
+/** Hands this near and closing at least this fast when they were lost: they met. */
+const MEETING_WITHIN = 0.5;
+const MEETING_SPEED = 0.3;
+const MEETING_MS = 240;
 /** No second clap within this of the last, in ms. */
-const CLAP_REST_MS = 350;
+const CLAP_REST_MS = 280;
 /** How long one clap is reported for, so nothing reading slower misses it. */
-const CLAP_SHOWN_MS = 110;
+const CLAP_SHOWN_MS = 140;
 
 type Side = 'left' | 'right';
 
@@ -144,10 +159,16 @@ export interface Seen {
 export class HandReader {
   private readonly kept: Record<Side, Kept> = { left: new Kept(), right: new Kept() };
   private trail: { x: number; y: number; hand: Side }[] = [];
-  private readonly between = new OneEuro(3, 10);
   private lastAt = 0;
   private clapAt = -1e9;
   private clapStrength = 0;
+  /** The gap between the hands when both were last really seen, and when that was. */
+  private gap = 1;
+  private gapAt = -1e9;
+  /** How fast they were closing, frame to frame: the fastest of the last few. */
+  private closing = 0;
+  /** Whether this coming-together has already been counted as a clap. */
+  private counted = false;
 
   /** One camera frame. `now` in ms; `aspect` is the camera's width over height. */
   next(seen: Seen, now: number, aspect: number): HandData {
@@ -188,32 +209,54 @@ export class HandReader {
 
     const dt = this.lastAt ? Math.min(0.2, Math.max(0.001, (now - this.lastAt) / 1000)) : 0;
     this.lastAt = now;
+    const clap = (strength: number) => {
+      if (this.counted || now - this.clapAt < CLAP_REST_MS) return;
+      this.counted = true;
+      this.clapAt = now;
+      this.clapStrength = Math.min(1, Math.max(0.7, strength));
+    };
 
     if (data.left && data.right) {
       const dx = data.right.position.x - data.left.position.x;
       const dy = data.right.position.y - data.left.position.y;
-      const distance = Math.hypot(dx, dy);
-      data.distanceBetweenHands = distance;
+      data.distanceBetweenHands = Math.hypot(dx, dy);
       data.twist = Math.atan2(dy, dx * aspect);
+    }
 
-      // Both actually seen this frame: a kept hand has no speed to judge.
-      if (found.left && found.right) {
-        this.between.next(distance, dt);
-        const closing = -this.between.speed;
-        const hard = distance < CLAP_WITHIN && closing > CLAP_SPEED;
-        const soft = distance < SOFT_CLAP_WITHIN && closing > SOFT_CLAP_SPEED;
-        if ((hard || soft) && now - this.clapAt > CLAP_REST_MS) {
-          this.clapAt = now;
-          this.clapStrength = Math.min(1, Math.max(0.45, closing / 2.5));
-        }
+    if (found.left && found.right) {
+      // Measured on the hands as the camera saw them, not as steadied: a
+      // clap is over in a few frames and steadying would arrive after it.
+      const l = found.left[9];
+      const r = found.right[9];
+      const distance = Math.hypot(r.x - l.x, r.y - l.y);
+      const since = (now - this.gapAt) / 1000;
+      const speed = since > 0 && since < 0.15 ? (this.gap - distance) / since : 0;
+      this.closing = Math.max(speed, this.closing * Math.exp(-dt * 12));
+      this.gap = distance;
+      this.gapAt = now;
+      // Apart again: the next coming-together is a new clap.
+      if (distance > TOGETHER * 1.5 && this.closing < MEETING_SPEED) this.counted = false;
+
+      if (distance < CLOSING_WITHIN && this.closing > CLOSING_SPEED) clap(this.closing / 2.2);
+      if (distance < TOGETHER) {
+        clap(0.7 + this.closing / 3);
+        // Held together, it holds — as it always did.
+        data.clapping = true;
+        data.clapIntensity = Math.max(0.6, 1 - distance / TOGETHER);
       }
     } else {
-      this.between.reset();
+      // One or both gone. If they were closing on each other a moment ago,
+      // they have met.
+      if (now - this.gapAt < MEETING_MS && this.gap < MEETING_WITHIN && this.closing > MEETING_SPEED) {
+        clap(0.75 + this.closing / 3);
+      }
+      this.closing *= Math.exp(-dt * 6);
+      if (now - this.gapAt > 600) this.counted = false;
     }
 
     if (now - this.clapAt <= CLAP_SHOWN_MS) {
       data.clapping = true;
-      data.clapIntensity = this.clapStrength;
+      data.clapIntensity = Math.max(data.clapIntensity ?? 0, this.clapStrength);
     }
     return data;
   }

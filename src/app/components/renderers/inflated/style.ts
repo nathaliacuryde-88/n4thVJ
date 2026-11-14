@@ -448,6 +448,13 @@ export class Playing {
   turn = 0;
   /** Thumb and index together, 0 to 1. */
   pinch = 0;
+  /** A closed hand, 0 to 1: 0 with the palm open or no hand in view, 1 for a fist. */
+  fist = 0;
+  /** True on the one frame a clap begins — her own, not the music standing in for hands. */
+  clapped = false;
+  /** How hard that clap was, 0.6 to 1. */
+  clapStrength = 0;
+  private wasClapping = false;
   burst = 0;
   bump = 0;
   bass = 0;
@@ -509,6 +516,15 @@ export class Playing {
     this.turn += (turn - this.turn) * follow;
     const pinch = hands.length ? Math.max(...hands.map((h) => h!.pinch ?? 0)) : 0;
     this.pinch += (pinch - this.pinch) * (1 - Math.exp(-dt * 10));
+    // The most closed hand decides: one fist is a fist.
+    const closed = hands.length
+      ? Math.max(...hands.map((h) => (h!.openness !== undefined ? 1 - h!.openness : h!.gesture === 'fist' ? 1 : 0)))
+      : 0;
+    this.fist += (Math.min(1, Math.max(0, (closed - 0.35) / 0.4)) - this.fist) * (1 - Math.exp(-dt * 8));
+    const clapping = !!handData.clapping && !handData.synthetic;
+    this.clapped = clapping && !this.wasClapping;
+    this.clapStrength = this.clapped ? Math.max(0.6, handData.clapIntensity ?? 1) : 0;
+    this.wasClapping = clapping;
 
     const clap = handData.clapping ? (handData.clapIntensity ?? 1) : 0;
     this.burst = Math.max(this.burst * Math.exp(-dt * 2.2), clap);

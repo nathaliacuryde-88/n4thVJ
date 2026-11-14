@@ -45,7 +45,9 @@ export function HandTracker({ videoElement, onHandData }: HandTrackerProps) {
           },
           runningMode: 'VIDEO',
           numHands: 2, // Track both hands
-          minHandDetectionConfidence: 0.7,
+          // A fist is a harder shape for the model than an open palm; at 0.7
+          // it was often not found at all.
+          minHandDetectionConfidence: 0.5,
           minHandPresenceConfidence: 0.5,
           minTrackingConfidence: 0.5
         });

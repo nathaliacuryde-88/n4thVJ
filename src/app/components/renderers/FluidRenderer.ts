@@ -77,7 +77,6 @@ export class FluidRenderer {
   private hands: ({ x: number; y: number } | null)[] = [null, null];
   private lastKick = 0;
   private lastHat = 0;
-  private lastBurst = 0;
   private lastDrop = 0;
   private blooms = 0;
 
@@ -242,7 +241,8 @@ export class FluidRenderer {
         const hand = real[i];
         if (hand && paint > 0) {
           at = { x: hand.position.x, y: 1 - hand.position.y };
-          fine = hand.pinch ?? 0;
+          // A fist, like a pinch, paints fine and dense; an open palm, broad.
+          fine = Math.max(hand.pinch ?? 0, hand.openness !== undefined ? Math.max(0, 1 - hand.openness * 1.6) : 0);
           near = hand.depth ?? 0.35;
         }
       } else {
@@ -292,9 +292,7 @@ export class FluidRenderer {
     this.lastHat = hat;
 
     // A clap, or the drop: a burst from the middle, in two inks at once.
-    const clap = play.burst * cfg.hands.clap;
-    const burst = (clap > 0.5 && this.lastBurst <= 0.5 ? Math.min(1.4, clap) : 0) || (play.drop > 0.5 && this.lastDrop <= 0.5 ? cfg.sound.beat : 0);
-    this.lastBurst = clap;
+    const burst = (play.clapped ? Math.min(1.5, play.clapStrength * 1.3 * cfg.hands.clap) : 0) || (play.drop > 0.5 && this.lastDrop <= 0.5 ? cfg.sound.beat : 0);
     this.lastDrop = play.drop;
     if (burst > 0) {
       this.points[5].set(0.5, 0.5, 0.15 * wide);
