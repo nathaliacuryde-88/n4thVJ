@@ -43,6 +43,7 @@ import { TonightConfig } from '../config/TonightRendererConfig';
 import { SwarmConfig } from '../config/SwarmRendererConfig';
 import { TerrainConfig } from '../config/TerrainRendererConfig';
 import { FluidConfig } from '../config/FluidRendererConfig';
+import { AnemoneConfig } from '../config/AnemoneRendererConfig';
 import { MacroConfig } from '../config/MacroRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
@@ -770,6 +771,48 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
   'swarm-flock': swarmParams('Follows hand', 'Kick draws in'),
   'swarm-plankton': swarmParams('Hand stirs', 'Kick ring'),
   'swarm-galaxy': swarmParams('Hand tilts', 'Kick flare'),
+  anemone: {
+    config: AnemoneConfig,
+    groups: [
+      {
+        name: 'Colour',
+        params: [
+          { path: 'colour.speed', label: 'Flow', min: -3, max: 3, step: 0.05, hint: 'below 0 runs backwards' },
+          { path: 'colour.offset', label: 'Shift', min: 0, max: 1, step: 0.01 },
+          { path: 'colour.palette', label: 'Palette', min: 0, max: 3, step: 1, labels: ['Reel', 'Ember', 'Lagoon', 'Ink'] },
+          { path: 'colour.style', label: 'Style', min: 0, max: 3, step: 1, labels: ['Inflated', 'Paper', 'Line', 'Print'] },
+          { path: 'colour.depth', label: 'Shadow', min: 0, max: 0.8, step: 0.01 },
+        ],
+      },
+      {
+        name: 'Garden',
+        params: [
+          { path: 'garden.count', label: 'Anemones', min: 1, max: 7, step: 1 },
+          { path: 'garden.reach', label: 'Arms', min: 0.4, max: 1.8, step: 0.05 },
+          { path: 'garden.sway', label: 'Sway', min: 0, max: 2.5, step: 0.05 },
+          { path: 'garden.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
+          { path: 'garden.distance', label: 'Distance', min: 8, max: 26, step: 0.25 },
+          { path: 'garden.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.open', label: 'Palm opens', min: 0, max: 1.2, step: 0.05, hint: 'open palm opens, fist shuts' },
+          { path: 'hands.lean', label: 'Lean to hand', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap shuts', min: 0, max: 1, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick pulse', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass sway', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.high', label: 'Hat tips', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
   ink: {
     config: FluidConfig,
     groups: [

@@ -425,6 +425,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'W',
     description: 'Low over open water under a long swell, islands far off; the bass raises the sea'
   },
+  anemone: {
+    pattern: 'anemone',
+    name: 'Anemones',
+    short: 'Anemones',
+    category: '3D',
+    key: 'W',
+    description: 'A garden of sea anemones: an open palm opens the crowns, a fist folds them shut, a clap snaps them closed'
+  },
   ink: {
     pattern: 'ink',
     name: 'Ink in Water',
