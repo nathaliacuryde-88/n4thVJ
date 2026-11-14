@@ -172,7 +172,7 @@ export class NatureWorldRenderer {
     play.read(handData, audioData);
 
     // One palette for everything.
-    look.update(colors, cfg.colour.palette, play.dt, !this.started);
+    look.update(colors, cfg.colour.palette, play.dt, !this.started, cfg.colour.style);
     this.started = true;
 
     // The camera: the family's shot, carried with the hand.

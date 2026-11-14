@@ -13,6 +13,8 @@ export const ButterfliesConfig = {
     offset: 0,
     /** Which palette: 0 the reel's, then three others. Swaps crossfade. */
     palette: 0,
+    /** How it is drawn: 0 inflated, 1 cut paper, 2 a line drawing in light, 3 a two-ink print. */
+    style: 0,
     /** How far the shadows travel forward through the palette. */
     depth: 0.32,
   },

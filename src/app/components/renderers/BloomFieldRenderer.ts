@@ -5,7 +5,7 @@ import { ParamValues, withOverrides } from '../../params/types';
 import { disposeThree } from './disposeThree';
 import {
   CORE, InflatedLook, LOBE, LOOP, MotifHost, Playing, Shared, TAU, TUBE,
-  drawBackdrop, drawUnavailable, frameCamera, makeRenderer,
+  drawUnavailable, frameCamera, makeRenderer,
 } from './inflated/style';
 import { Tube } from './inflated/Tube';
 
@@ -241,7 +241,7 @@ export class BloomFieldRenderer {
     renderer.render(this.scene, this.camera);
 
     // ── onto the layer ───────────────────────────────────────────────────────
-    drawBackdrop(ctx, width, height, cfg.field.backdrop);
+    this.look.backdrop(ctx, width, height, cfg.field.backdrop);
     ctx.drawImage(this.surface, 0, 0, width, height);
   }
 
@@ -293,7 +293,7 @@ export class BloomFieldRenderer {
     // ── palette ──────────────────────────────────────────────────────────────
     const shown = new Set(SHOWN[Math.max(0, Math.min(7, Math.round(cfg.field.count)))]);
     const first = !this.started;
-    if (!this.host) look.update(colors, cfg.colour.palette, dt, first);
+    if (!this.host) look.update(colors, cfg.colour.palette, dt, first, cfg.colour.style);
     if (first) {
       this.started = true;
       this.flowers.forEach((f, i) => { f.presence = shown.has(i) ? 1 : 0; });

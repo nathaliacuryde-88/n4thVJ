@@ -5,7 +5,7 @@ import { ParamValues, withOverrides } from '../../params/types';
 import { disposeThree } from './disposeThree';
 import {
   CORE, InflatedLook, LOBE, LOOP, MotifHost, Playing, Shared, TAU,
-  drawBackdrop, drawUnavailable, frameCamera, makeRenderer,
+  drawUnavailable, frameCamera, makeRenderer,
 } from './inflated/style';
 
 /**
@@ -286,7 +286,7 @@ export class ButterfliesRenderer {
     }
     renderer.render(this.scene, this.camera);
 
-    drawBackdrop(ctx, width, height, cfg.flight.backdrop);
+    this.look.backdrop(ctx, width, height, cfg.flight.backdrop);
     ctx.drawImage(this.surface, 0, 0, width, height);
   }
 
@@ -361,7 +361,7 @@ export class ButterfliesRenderer {
     // ── palette ──────────────────────────────────────────────────────────────
     const shown = new Set(SHOWN[Math.max(0, Math.min(8, Math.round(cfg.flight.count)))]);
     const first = !this.started;
-    if (!this.host) look.update(colors, cfg.colour.palette, dt, first);
+    if (!this.host) look.update(colors, cfg.colour.palette, dt, first, cfg.colour.style);
     if (first) {
       this.started = true;
       this.flock.forEach((b, i) => { b.presence = shown.has(i) ? 1 : 0; });

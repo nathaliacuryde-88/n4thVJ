@@ -67,6 +67,9 @@ const PALETTES: Stop[][] = [
   ],
 ];
 
+/** The ways the family can be drawn, for the Style slider. */
+export const STYLE_NAMES = ['Inflated', 'Paper', 'Line', 'Print'];
+
 /** Names for the palette slider, in the same order. */
 export const PALETTE_NAMES = ['Reel', 'Ember', 'Lagoon', 'Ink'];
 
@@ -97,6 +100,7 @@ uniform sampler2D uPalA;
 uniform sampler2D uPalB;
 uniform float uPalMix;
 uniform int uMode;            // 0 lobe (petal, wing), 1 tube (stem), 2 core (body, stamens)
+uniform int uStyle;           // 0 inflated, 1 paper, 2 line, 3 print
 uniform float uT, uOff, uAng, uWA, uWB, uWC, uWS, uDepth, uSpec;
 uniform vec3 uCenter;
 
@@ -128,16 +132,57 @@ void main() {
     c += 0.42;
   }
 
+  // The pattern alone, before any shading is added to it.
+  float flat_ = c;
   // Shading travels forward through the palette: lit surfaces sit on the
   // lighter stops, shadowed ones slide on into the deeper ones.
   c += uDepth * (1.0 - wrap) + 0.12 * smoothstep(0.55, 1.0, rim) + 0.18 * (1.0 - ao);
 
-  vec3 col = palette(c);
-  col *= 0.82 + 0.28 * wrap;
-  col *= mix(0.55, 1.0, ao);
-  col += vec3(1.0) * pow(max(dot(reflect(-L, N), V), 0.0), 16.0) * uSpec * ao;
-  col = mix(col, col * col * 0.6, smoothstep(0.85, 1.0, rim) * 0.6);
-  col += (hash(gl_FragCoord.xy) - 0.5) / 255.0 * 2.0;
+  vec3 col;
+  if (uStyle == 1) {
+    // ── Paper ──────────────────────────────────────────────────────────
+    // Cut paper: the palette taken a stop at a time, so colour sits in flat
+    // shapes with hard edges; one step of shadow instead of a gradient; and
+    // a dark line where the surface turns away, as an outline.
+    float b = c * 12.0;
+    float w = fwidth(b) * 1.2;
+    float stop = (floor(b) + smoothstep(1.0 - w, 1.0, fract(b)) + 0.45) / 12.0;
+    col = palette(stop);
+    float lw = fwidth(wrap) * 1.5;
+    col *= mix(0.78, 1.0, smoothstep(0.42 - lw, 0.42 + lw, wrap));
+    col = mix(col, palette(0.53) * 0.6, smoothstep(0.8, 0.86, rim));
+  } else if (uStyle == 2) {
+    // ── Line ───────────────────────────────────────────────────────────
+    // A drawing in light on black: fine lines running out along every
+    // petal and round every stem, and the outline of each form. The surface
+    // between the lines is black, and solid, so what is behind stays hidden.
+    float along = uMode == 0 ? vRad * 10.0 - uT * 3.0 : (uMode == 1 ? vUv.x * 46.0 - uT * 3.0 : vUv.y * 7.0);
+    float w = fwidth(along) * 1.3;
+    float line = 1.0 - smoothstep(0.07, 0.07 + w, abs(fract(along) - 0.5));
+    float edge = smoothstep(0.6, 0.78, rim);
+    float ink = clamp(max(line * (0.35 + 0.65 * wrap), edge), 0.0, 1.0);
+    // Lifted towards pastel, so the palette's navy still shows as a line.
+    col = (1.0 - (1.0 - palette(flat_ + 0.1)) * 0.6) * ink * mix(0.6, 1.0, ao);
+  } else if (uStyle == 3) {
+    // ── Print ──────────────────────────────────────────────────────────
+    // Two inks and a dot screen, as a risograph lays it down: flat colour
+    // for the form, and its shadow as dots of the palette's dark, larger
+    // where the shadow is deeper.
+    float b = flat_ * 12.0;
+    col = palette((floor(b) + 0.45) / 12.0);
+    vec2 g = mat2(0.866, -0.5, 0.5, 0.866) * gl_FragCoord.xy / 6.5;
+    float d = length(fract(g) - 0.5);
+    float tone = clamp(1.05 - wrap * 1.25 + 0.55 * (1.0 - ao) + 0.5 * smoothstep(0.6, 1.0, rim), 0.0, 1.0);
+    float r = 0.7 * sqrt(tone);
+    col = mix(col, palette(0.53) * 0.9, (1.0 - smoothstep(r - 0.07, r + 0.07, d)) * step(0.02, tone));
+  } else {
+    col = palette(c);
+    col *= 0.82 + 0.28 * wrap;
+    col *= mix(0.55, 1.0, ao);
+    col += vec3(1.0) * pow(max(dot(reflect(-L, N), V), 0.0), 16.0) * uSpec * ao;
+    col = mix(col, col * col * 0.6, smoothstep(0.85, 1.0, rim) * 0.6);
+    col += (hash(gl_FragCoord.xy) - 0.5) / 255.0 * 2.0;
+  }
   gl_FragColor = vec4(max(col, 0.0), 1.0);
 }`;
 
@@ -242,6 +287,9 @@ export class InflatedLook {
   private palFrom = 0;
   private palTo = 0;
   private palMix = 1;
+  /** One value every surface of this look reads: which style it is drawn in. */
+  private readonly styleUniform = { value: 0 };
+  private turn = { hue: 0, sat: 1 };
 
   constructor() {
     this.textures = PALETTES.map((stops) => paletteTexture(stops, { hue: 0, sat: 1 }));
@@ -272,6 +320,7 @@ export class InflatedLook {
       side: THREE.DoubleSide,
       uniforms: {
         ...common,
+        uStyle: this.styleUniform,
         uMode: { value: mode },
         uAng: { value: 0 },
         uWS: { value: 1 },
@@ -286,11 +335,13 @@ export class InflatedLook {
    * frame the slider's palette is taken as it is, with no fade from the
    * default — the saved settings arrive after the renderer is built.
    */
-  update(colors: string[], palette: number, dt: number, first: boolean) {
+  update(colors: string[], palette: number, dt: number, first: boolean, style = 0) {
+    this.styleUniform.value = Math.max(0, Math.min(STYLE_NAMES.length - 1, Math.round(style)));
     const key = colors[0] ?? '';
     if (key !== this.turnKey) {
       this.turnKey = key;
       const turn = turnFrom(colors);
+      this.turn = turn;
       const old = this.textures;
       this.textures = PALETTES.map((stops) => paletteTexture(stops, turn));
       for (const texture of old) texture.dispose();
@@ -316,6 +367,35 @@ export class InflatedLook {
     shared.uPalMix.value = this.palMix;
     shared.uDepth.value = depth;
     shared.uSpec.value = spec;
+  }
+
+  /**
+   * What stands behind the motif, for the style it is drawn in: the grey
+   * studio for Inflated; a flat ground of the palette's own dark for Paper;
+   * black for Line, which is light on dark by nature; the palette's cream,
+   * as a sheet of paper, for Print. `k` dims any of them to black, which is
+   * what stacks cleanly over another layer.
+   */
+  backdrop(ctx: CanvasRenderingContext2D, width: number, height: number, k: number) {
+    const style = this.styleUniform.value;
+    if (style === 0) {
+      drawBackdrop(ctx, width, height, k);
+      return;
+    }
+    const amount = Math.max(0, Math.min(1, k));
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, width, height);
+    if (style === 2 || amount <= 0) return;
+    // The stop at 0.53 is every palette's dark; the one at 0.17 its cream.
+    const stops = PALETTES[this.palTo];
+    const pick = stops.find(([at]) => at === (style === 1 ? 0.53 : 0.17)) ?? stops[0];
+    const [h, s, l] = hexToHsl(pick[1]);
+    ctx.globalAlpha = amount;
+    ctx.fillStyle = hslCss(h + this.turn.hue, s * this.turn.sat, style === 1 ? l * 1.25 : l);
+    ctx.fillRect(0, 0, width, height);
+    ctx.globalAlpha = 1;
   }
 
   dispose() {
