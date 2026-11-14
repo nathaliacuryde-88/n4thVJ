@@ -7,7 +7,7 @@ import { hearTempo } from '../motion/tempo';
 /** What the visuals get with the microphone off: nothing, and no opinion on the arc. */
 const SILENT: ReturnType<typeof analyse> = {
   bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0,
-  kick: 0, snare: 0, hat: 0, energy: 0, build: 0, drop: 0, bright: 0.5,
+  kick: 0, snare: 0, hat: 0, energy: 0, build: 0, drop: 0, bright: 0.5, input: 0,
 };
 
 interface AudioAnalyzerProps {

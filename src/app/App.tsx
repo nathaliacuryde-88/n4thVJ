@@ -79,6 +79,8 @@ export interface AudioData {
   bright?: number;
   /** Whether a microphone is being listened to at all. */
   live?: boolean;
+  /** How loud the microphone hears the room, plainly: 0 silence, 1 very loud. */
+  input?: number;
 }
 
 /** One tracked hand, as produced by {@link HandTracker} from MediaPipe landmarks. */
@@ -118,6 +120,25 @@ export interface HandData {
   gestureTrail?: { x: number; y: number; hand: 'left' | 'right' }[];
   /** Made up — the automatic drive, or the music standing in — not her real hands. */
   synthetic?: boolean;
+}
+
+/**
+ * The stack in the set's order: what comes first in the set lies underneath.
+ *
+ * She reads the set bar left to right as back to front, so a visual further
+ * left belongs lower in the stack. A layer whose visual is not in the set
+ * (the set was edited under it) stays just above the one it was above.
+ */
+function inSetOrder(layers: Layer[], set: VisualPattern[]): Layer[] {
+  let last = -1;
+  return layers
+    .map((layer, i) => {
+      const at = set.indexOf(layer.pattern);
+      if (at !== -1) last = at;
+      return { layer, key: at !== -1 ? at : last + 0.5, i };
+    })
+    .sort((a, b) => a.key - b.key || a.i - b.i)
+    .map((k) => k.layer);
 }
 
 /**
@@ -190,6 +211,15 @@ export default function App() {
     return typeof saved?.selected === 'number' ? saved.selected : 0;
   });
   const currentPattern = (layers[selectedLayer] ?? layers[0]).pattern;
+  /** The set, for the callbacks declared before it is: kept current further down. */
+  const setRef = useRef<VisualPattern[]>([]);
+
+  /** Puts a changed stack in the set's order, and keeps the selection on `pattern`. */
+  const arrange = useCallback((next: Layer[], pattern: VisualPattern) => {
+    const ordered = inSetOrder(next, setRef.current);
+    setLayers(ordered);
+    setSelectedLayer(Math.max(0, ordered.findIndex((l) => l.pattern === pattern)));
+  }, []);
 
   /** Tap: swap the selected layer. A pattern already on the stack is selected, not duplicated. */
   const setCurrentPattern = useCallback((pattern: VisualPattern) => {
@@ -198,8 +228,8 @@ export default function App() {
       setSelectedLayer(existing);
       return;
     }
-    setLayers((prev) => prev.map((l, i) => (i === selectedLayer ? { ...l, pattern } : l)));
-  }, [layers, selectedLayer]);
+    arrange(layers.map((l, i) => (i === selectedLayer ? { ...l, pattern } : l)), pattern);
+  }, [layers, selectedLayer, arrange]);
 
   /** Hold: add the pattern as a new layer, or take it off if it is already up. */
   const toggleLayer = useCallback((pattern: VisualPattern) => {
@@ -213,17 +243,18 @@ export default function App() {
     if (layers.length >= MAX_LAYERS) return;
     // A new layer starts from the look you last set, then diverges from there.
     const from = layers[selectedLayer] ?? layers[0];
-    setLayers([...layers, { pattern, opacity: STACKED_OPACITY, motion: from.motion }]);
     /*
-     * And it becomes the selected one.
+     * It goes into the stack where the set puts it — under the visuals that
+     * come after it in the set, over the ones before — and becomes the
+     * selected one.
      *
      * Colour, the sliders and now the effects all act on the selection, so
      * stacking a layer and leaving the controls pointed at the previous one
      * means the next thing you reach for quietly changes the wrong visual.
      * The layer you just brought up is the one you are working on.
      */
-    setSelectedLayer(layers.length);
-  }, [layers, selectedLayer]);
+    arrange([...layers, { pattern, opacity: STACKED_OPACITY, motion: from.motion }], pattern);
+  }, [layers, selectedLayer, arrange]);
 
   /*
    * The stack is remembered — which visuals are up, their faders and which one
@@ -652,7 +683,41 @@ export default function App() {
    * 1 and the tenth to 0, so the row on screen is the row under your fingers.
    */
   const [set, setSet] = useState<VisualPattern[]>(loadSetList);
+  setRef.current = set;
   const [view, setView] = useState<'library' | 'vj'>('library');
+
+  /**
+   * Dragging a card along the set bar: the keys follow the new order, and so
+   * do the layers — whatever is now further left lies further down.
+   */
+  const reorderSet = useCallback((next: VisualPattern[]) => {
+    setSet(next);
+    const ordered = inSetOrder(layers, next);
+    if (ordered.some((l, i) => l !== layers[i])) {
+      setLayers(ordered);
+      setSelectedLayer(Math.max(0, ordered.findIndex((l) => l.pattern === currentPattern)));
+    }
+  }, [layers, currentPattern]);
+
+  /** Takes a visual out of the set from the bar itself; it also comes off the stack. */
+  const removeFromSet = useCallback((pattern: VisualPattern) => {
+    if (set.length <= 1) return; // a set is never left empty
+    const at = set.indexOf(pattern);
+    if (at === -1) return;
+    const next = set.filter((p) => p !== pattern);
+    setSet(next);
+    const on = layers.findIndex((l) => l.pattern === pattern);
+    if (on === -1) return;
+    if (layers.length > 1) {
+      const kept = layers.filter((_, i) => i !== on);
+      setLayers(kept);
+      setSelectedLayer((sel) => (sel > on ? sel - 1 : Math.min(sel, kept.length - 1)));
+    } else {
+      // The only thing playing: its neighbour in the set takes its place.
+      const neighbour = next[Math.min(at, next.length - 1)];
+      setLayers(layers.map((l) => ({ ...l, pattern: neighbour })));
+    }
+  }, [set, layers]);
   
   const [handData, setHandData] = useState<HandData>({ left: null, right: null });
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
@@ -667,13 +732,33 @@ export default function App() {
   const [showPermissionRequest, setShowPermissionRequest] = useState(false); // Skip intro, go directly to app
 
   // Audio reactive state
-  const [audioEnabled, setAudioEnabled] = useState(false);
+  // Remembered: a set played to the room's sound should open listening to it.
+  const [audioEnabled, setAudioEnabled] = useState(() => loadSetting('vj-mic', false, (v) => typeof v === 'boolean'));
+  useEffect(() => { saveSetting('vj-mic', audioEnabled); }, [audioEnabled]);
   const [audioData, setAudioData] = useState<AudioData>({ bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 });
   const [audioSensitivity, setAudioSensitivity] = useState(() => loadSetting('vj-gain', 0.5, isNumberIn(0, 1)));
   useEffect(() => { saveSetting('vj-gain', audioSensitivity); }, [audioSensitivity]);
   const [audioTime, setAudioTime] = useState(0); // For smooth audio-driven animation
 
   const handsPresent = handData.left !== null || handData.right !== null;
+  /*
+   * Who is playing: her hands, or the sound.
+   *
+   * With the microphone on there is nothing to switch. A hand in front of the
+   * camera takes over at once; when it leaves, the sound takes over again —
+   * but only after the hand has been gone for a moment, so reaching for a key
+   * or losing the hand for a few frames does not flip the visuals back and
+   * forth between two players.
+   */
+  const [handsDriving, setHandsDriving] = useState(false);
+  useEffect(() => {
+    if (handsPresent) {
+      setHandsDriving(true);
+      return;
+    }
+    const id = window.setTimeout(() => setHandsDriving(false), 1500);
+    return () => window.clearTimeout(id);
+  }, [handsPresent]);
   // Not in the library: this ticks state every frame, and the library re-renders
   // with it — which is enough to stop its previews building anything.
   const clockRunning = view === 'vj' && (audioEnabled || (idleDrive && !handsPresent));
@@ -720,7 +805,7 @@ export default function App() {
    * music still reaches every visual as music: its levels, its beat, its
    * kick and its arc. Hands and sound together, rather than one or the other.
    */
-  const effectiveHandData: HandData = audioEnabled && !handsPresent ? {
+  const effectiveHandData: HandData = audioEnabled && !handsDriving ? {
     left: {
       position: {
         x: 0.3 + Math.sin(audioTime) * 0.2 * audioData.mid,
@@ -765,7 +850,7 @@ export default function App() {
     // Hands close on the kick, so the low end squeezes the whole frame.
     distanceBetweenHands: 0.45 - audioData.bass * 0.3,
     synthetic: true,
-  } : handsPresent || !idleDrive ? handData : autoHands;
+  } : handsPresent || handsDriving || !idleDrive ? handData : autoHands;
 
   /*
    * The motion knob is applied here, once, rather than in each renderer — so
@@ -933,7 +1018,7 @@ export default function App() {
     for (let k = 1; k < set.length; k++) {
       const next = set[(at + k + set.length) % set.length];
       if (layers.some((l) => l.pattern === next)) continue;
-      setLayers((prev) => prev.map((l, i) => (i === selectedLayer ? { ...l, pattern: next } : l)));
+      arrange(layers.map((l, i) => (i === selectedLayer ? { ...l, pattern: next } : l)), next);
       return;
     }
   };
@@ -1666,7 +1751,9 @@ export default function App() {
           autoHueEnabled={autoHueEnabled}
           onAutoHueToggle={() => setAutoHueEnabled(prev => !prev)}
           set={set}
-          onSetReorder={setSet}
+          onSetReorder={reorderSet}
+          onSetRemove={removeFromSet}
+          handsDriving={handsDriving}
           onOpenLibrary={() => setView('library')}
           setName={setName}
           onSaveSet={saveNamedSet}

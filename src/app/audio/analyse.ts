@@ -143,6 +143,12 @@ export interface Reading {
   drop: number;
   /** Where the weight of the sound sits: 0 dark, 1 bright. */
   bright: number;
+  /**
+   * How loud the microphone is hearing the room, plainly: 0 silence, 1 very
+   * loud. Unlike the bands this is not measured against the recent past, so
+   * it answers the one question they cannot — is any sound arriving at all.
+   */
+  input: number;
 }
 
 /**
@@ -195,6 +201,19 @@ function decibels(spectrum: Uint8Array, from: number, to: number): number {
   let power = 0;
   for (let i = start; i < end; i++) power += (LOUDNESS[spectrum[i]] / 1000) ** 2;
   return power > 0 ? Math.max(-100, 10 * Math.log10(power)) : -100;
+}
+
+/**
+ * A loudness in decibels as a plain 0 to 1.
+ *
+ * Zero is what a dead-silent input adds up to — every bin at the bottom of
+ * the analyser's scale, which over a few hundred bins is well above the
+ * bottom of the scale itself — plus a little, so the hiss of a microphone in
+ * an empty room still reads as nothing. One is loud music.
+ */
+function heard(db: number, bins: number): number {
+  const silent = -100 + 10 * Math.log10(Math.max(1, bins)) + 5;
+  return Math.min(1, Math.max(0, (db - silent) / (-32 - silent)));
 }
 
 /**
@@ -318,10 +337,11 @@ export function analyse(
     weight += power;
     weighted += power * i * perBin;
   }
+  const loudness = decibels(spectrum, bin(20), bin(12000));
   trackSections(
     state.sections,
     {
-      overall: decibels(spectrum, bin(20), bin(12000)),
+      overall: loudness,
       bass: decibels(spectrum, bin(30), bin(160)),
       high: mean(spectrum, bin(2000), bin(12000)),
       centroid: weight > 0.05 ? weighted / weight : 0,
@@ -358,5 +378,6 @@ export function analyse(
     build: state.sections.build,
     drop: state.sections.drop,
     bright: state.sections.bright,
+    input: heard(loudness, bin(12000) - Math.max(1, bin(20))),
   };
 }

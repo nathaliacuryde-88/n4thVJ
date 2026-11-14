@@ -7,6 +7,7 @@ import {
   Volume2, VolumeX, MonitorPlay, Music, Aperture,
 } from 'lucide-react';
 import { SOUND_HINT, SOUND_LABEL, SoundSource } from '../record/audio';
+import { useTempo } from '../motion/tempo';
 import { ColorController } from './ColorController';
 import { RENDERER_CATEGORIES } from '../config/RendererCategories';
 import { slotKey } from '../config/setlist';
@@ -61,6 +62,10 @@ interface ControlsProps {
   set: VisualPattern[];
   /** The set in a new order — dragging a card along the row. */
   onSetReorder: (set: VisualPattern[]) => void;
+  /** Takes one visual out of the set, from the little cross on its card. */
+  onSetRemove: (pattern: VisualPattern) => void;
+  /** With the microphone on: whether her hands are playing right now, rather than the sound. */
+  handsDriving: boolean;
   onOpenLibrary: () => void;
   /** The saved set she is in, and saving to it — or naming a new one. */
   setName: string | null;
@@ -170,6 +175,8 @@ export function Controls({
   onAutoHueToggle,
   set,
   onSetReorder,
+  onSetRemove,
+  handsDriving,
   onOpenLibrary,
   setName,
   onSaveSet,
@@ -196,6 +203,7 @@ export function Controls({
   finish,
   onFinishCycle,
 }: ControlsProps) {
+  const tempo = useTempo();
   
   // Tap switches the selected layer, hold stacks — the same split, and the same
   // hold length, as the number keys.
@@ -224,8 +232,17 @@ export function Controls({
     onSetReorder(next);
   };
 
-  const startHold = (pattern: VisualPattern) => {
+  /*
+   * Where the press began. A press that travels is the start of a drag, not
+   * a hold — and it has to be told apart by the movement itself, because the
+   * browser only announces a drag some moments later, by which time a slow
+   * start had already counted as "hold to stack" and put a layer on or off
+   * on the way to reordering the set.
+   */
+  const pressAt = useRef<{ x: number; y: number } | null>(null);
+  const startHold = (pattern: VisualPattern, event?: { clientX: number; clientY: number }) => {
     cancelHold();
+    pressAt.current = event ? { x: event.clientX, y: event.clientY } : null;
     holdRef.current = {
       pattern,
       fired: false,
@@ -331,7 +348,11 @@ export function Controls({
                 return (
                   <button
                     key={pattern}
-                    onPointerDown={() => startHold(pattern)}
+                    onPointerDown={(e) => startHold(pattern, e)}
+                    onPointerMove={(e) => {
+                      const from = pressAt.current;
+                      if (from && holdRef.current && Math.hypot(e.clientX - from.x, e.clientY - from.y) > 5) cancelHold();
+                    }}
                     onPointerUp={() => endHold(pattern)}
                     onPointerLeave={cancelHold}
                     onPointerCancel={cancelHold}
@@ -374,6 +395,25 @@ export function Controls({
                         </span>
                       )}
                     </span>
+                    {/*
+                      Out of the set, from here. It only appears once the
+                      pointer has rested on the card for half a second, so a
+                      quick tap to switch visuals can never land on it.
+                    */}
+                    {set.length > 1 && (
+                      <span
+                        role="button"
+                        aria-label={`Take ${RENDERER_CATEGORIES[pattern].name} out of the set`}
+                        title={`Take ${RENDERER_CATEGORIES[pattern].name} out of the set`}
+                        onPointerDown={(e) => { e.stopPropagation(); cancelHold(); }}
+                        onPointerUp={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); onSetRemove(pattern); }}
+                        draggable={false}
+                        className="invisible absolute -left-1.5 -top-1.5 z-10 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border border-white/30 bg-black text-[10px] leading-none text-white/80 transition-[visibility] hover:bg-red-500 hover:text-white group-hover/set:visible group-hover/set:delay-500"
+                      >
+                        ×
+                      </span>
+                    )}
                     {/* A number alone is nothing to recognise mid-set. */}
                     <span
                       className={`w-full truncate text-center text-[8px] leading-none transition-colors ${
@@ -582,7 +622,7 @@ export function Controls({
       {/* ═══════════════════════════════════════════════════════════════════ */}
       
       {/* Hand Status - Hidden when audio enabled */}
-      {!audioEnabled && (
+      {(!audioEnabled || handsDriving) && (
           <div className="shrink-0 bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 space-y-2 text-xs min-w-[200px] font-mono animate-in fade-in duration-300 pointer-events-auto">
           <div className="text-white/80 mb-2">HAND</div>
           <div className="space-y-1">
@@ -598,9 +638,10 @@ export function Controls({
               )}
           </div>
           <div className="text-white/50 text-[10px] mt-2 pt-2 border-t border-white/20">
-              OPEN=FOLLOW<br/>
-              PINCH=SLOW 2F=MED 5F=FAST<br/>
-              CLAP=EXPLODE
+              HAND IN VIEW = YOU PLAY<br/>
+              1 FINGER SLOW · 5 FAST<br/>
+              FIST CLOSES · PALM OPENS<br/>
+              CLAP = EXPLODE
           </div>
           </div>
       )}
@@ -610,16 +651,48 @@ export function Controls({
           <div className="shrink-0 animate-in slide-in-from-right-5 fade-in duration-300 pointer-events-auto">
               <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 border border-white/20 font-mono flex flex-col gap-4 w-[160px]">
                   
-                  {/* Header */}
-                  <div className="flex items-center gap-2 border-b border-white/10 pb-2">
-                      <Mic className="w-3.5 h-3.5 text-white/90 animate-pulse" />
-                      <span className="text-[10px] font-bold text-white/80 tracking-wider">AUDIO</span>
+                  {/* Header: the microphone is on, and who is playing right now. */}
+                  <div
+                      className="flex items-center gap-2 border-b border-white/10 pb-2"
+                      title={handsDriving
+                          ? 'Your hands are playing. The sound still moves the visuals; take your hands out of view and it takes over again'
+                          : 'The sound is playing. Bring a hand in front of the camera and it takes over at once'}
+                  >
+                      <Mic className="w-3.5 h-3.5 shrink-0 text-white/90" />
+                      <span
+                          className={`flex-1 whitespace-nowrap rounded px-1.5 py-0.5 text-center text-[9px] font-bold tracking-wider ${
+                              handsDriving ? 'bg-emerald-400 text-black' : 'bg-cyan-400 text-black'
+                          }`}
+                      >
+                          {handsDriving ? 'HAND PLAYS' : 'SOUND PLAYS'}
+                      </span>
                   </div>
 
-                  {/* Sensitivity Slider */}
-                  <div className="space-y-1 group">
+                  {/*
+                    Is any sound arriving? The four bars below cannot say:
+                    each is measured against its own recent quiet and loud,
+                    so they dance just as much in a whisper as in a club.
+                    This one is simply how loud the microphone hears the room.
+                  */}
+                  <div className="space-y-1" title="How loud the microphone hears the room. If this stays empty while music plays, the browser is listening to the wrong microphone, or it is muted">
                       <div className="flex justify-between text-[9px] text-white/50 font-medium">
-                          <span className="group-hover:text-white/80 transition-colors">GAIN</span>
+                          <span>HEARING</span>
+                          <span className={(audioLevels.input ?? 0) < 0.06 ? 'text-amber-300' : 'text-white'}>
+                              {(audioLevels.input ?? 0) < 0.06 ? 'NO SOUND' : tempo.source === 'heard' && tempo.bpm ? `${Math.round(tempo.bpm)} BPM` : 'OK'}
+                          </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                          <div
+                              className={`h-full transition-[width] duration-100 ${(audioLevels.input ?? 0) > 0.97 ? 'bg-amber-300' : 'bg-emerald-300'}`}
+                              style={{ width: `${Math.round((audioLevels.input ?? 0) * 100)}%` }}
+                          />
+                      </div>
+                  </div>
+
+                  {/* How hard the visuals answer the sound. */}
+                  <div className="space-y-1 group" title="How strongly the visuals react to the sound. It does not make the microphone louder — the room's loudness is adapted to automatically — it sets how far a given sound moves things. 100% is neutral">
+                      <div className="flex justify-between text-[9px] text-white/50 font-medium">
+                          <span className="group-hover:text-white/80 transition-colors">REACTION</span>
                           <span className="text-white">{Math.round(audioSensitivity * 200)}%</span>
                       </div>
                       <div className="relative h-4 flex items-center">
@@ -647,9 +720,9 @@ export function Controls({
                     control that seems to do nothing. Now a switch visibly
                     stops a bar.
                   */}
-                  <div className="space-y-1">
+                  <div className="space-y-1" title="What the visuals are being given: bass, low-mids, mids and highs, each against its own recent quiet and loud, after Reaction. The dot lights on each beat">
                       <div className="flex justify-between text-[9px] text-white/50 font-medium">
-                          <span>LEVELS</span>
+                          <span>TO THE VISUALS</span>
                           <span
                               className={`transition-colors ${
                                   audioLevels.onset > 0.05 ? 'text-cyan-300' : 'text-white/20'
