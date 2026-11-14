@@ -3,6 +3,8 @@ import { Activity, Gauge, Plane, Wifi, WifiOff } from 'lucide-react';
 import { useOffline } from '../offline/offline';
 import { beatPosition, clearTempo, hasTapped, tap, toggleListening, useTempo } from '../motion/tempo';
 import { KNOB_FX } from '../control/knobs';
+import { frameReading, setMeasuring } from '../pipeline/governor';
+import { RENDERER_CATEGORIES } from '../config/RendererCategories';
 import { MidiTarget, NANO_LAYOUT, applyMap, describe, enableMidi, learn, nanoKontrol2Map, unbind, useMidi } from '../control/midi';
 
 /**
@@ -55,6 +57,13 @@ export function StatusBar({
   const dot = useRef<HTMLSpanElement | null>(null);
   const progress = useRef<HTMLDivElement | null>(null);
   const [fps, setFps] = useState(60);
+  /** The gauge's panel: what each layer costs, read twice a second while open. */
+  const [healthOpen, setHealthOpen] = useState(false);
+  useEffect(() => {
+    setMeasuring(healthOpen);
+    return () => setMeasuring(false);
+  }, [healthOpen]);
+  const [cost, setCost] = useState<{ scale: number; composeMs: number; layers: { pattern: string; ms: number }[] }>({ scale: 1, composeMs: 0, layers: [] });
   const offline = useOffline();
 
   // One loop for the beat dot, the auto-pilot's progress and the frame rate —
@@ -71,7 +80,10 @@ export function StatusBar({
       frames++;
       last = now;
       if (acc > 500) {
-        setFps(Math.round((frames * 1000) / acc));
+        // The rate the visuals are actually drawn at, not the screen's.
+        const reading = frameReading();
+        setFps(Math.round(reading.fps));
+        setCost({ scale: reading.scale, composeMs: reading.composeMs, layers: reading.layers.map((l) => ({ ...l })) });
         acc = 0;
         frames = 0;
       }
@@ -144,12 +156,15 @@ export function StatusBar({
         </div>
 
         {/* Health: green smooth, amber heavy, red struggling. */}
-        <span
-          className={`flex h-6 w-6 items-center justify-center ${health}`}
-          title={`${fps} fps — ${fps >= 50 ? 'running smoothly' : fps >= 30 ? 'heavy: fewer layers, points or effects would help' : 'struggling: take a layer or an effect off'}`}
+        <button
+          onClick={() => setHealthOpen((o) => !o)}
+          className={`flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10 ${health}`}
+          title={`${fps} fps — ${fps >= 50 ? 'running smoothly' : fps >= 30 ? 'heavy: fewer layers, points or effects would help' : 'struggling: take a layer or an effect off'}${cost.scale < 1 ? `. Drawing at ${Math.round(cost.scale * 100)}% size to keep up` : ''}. Click to see what each layer costs`}
         >
           <Gauge className="h-3.5 w-3.5" />
-        </span>
+          {/* A dot while the layers are being drawn smaller to hold the rate. */}
+          {cost.scale < 1 && <span className="absolute -mt-4 ml-4 h-1 w-1 rounded-full bg-amber-300" />}
+        </button>
 
         {/* Offline: green when the set could run with no internet. */}
         {offline.state !== 'unsupported' && (
@@ -207,6 +222,40 @@ export function StatusBar({
       {midi.pickup && pickupLabel && (
         <div className="mt-2 w-fit rounded-full border border-amber-300/40 bg-black/80 px-3 py-1 text-[10px] text-amber-200">
           {pickupLabel}: move it {midi.pickup.from < midi.pickup.at ? 'up' : 'down'} to {Math.round(midi.pickup.at * 100)}% to pick up
+        </div>
+      )}
+
+      {/* What each layer costs: the time it takes to draw, against the sixteen
+          milliseconds a smooth frame has in all. */}
+      {healthOpen && (
+        <div className="mt-2 w-[220px] rounded-xl border border-white/20 bg-black/90 p-3 text-[10px] backdrop-blur-sm">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="tracking-widest text-white/60">SPEED · {fps} FPS</span>
+            <button onClick={() => setHealthOpen(false)} className="text-white/40 hover:text-white">×</button>
+          </div>
+          {cost.layers.map((layer, i) => (
+            <div key={i} className="mb-1.5">
+              <div className="flex justify-between text-white/70">
+                <span className="truncate">{(RENDERER_CATEGORIES as Record<string, { name?: string }>)[layer.pattern]?.name ?? layer.pattern}</span>
+                <span className="tabular-nums">{layer.ms.toFixed(1)} ms</span>
+              </div>
+              <div className="h-[3px] overflow-hidden rounded bg-white/10">
+                <div
+                  className={`h-full ${layer.ms > 10 ? 'bg-red-400' : layer.ms > 5 ? 'bg-amber-300' : 'bg-emerald-300'}`}
+                  style={{ width: `${Math.min(100, (layer.ms / 16.7) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+          <div className="flex justify-between text-white/45">
+            <span>Mixing and effects</span>
+            <span className="tabular-nums">{cost.composeMs.toFixed(1)} ms</span>
+          </div>
+          <div className="mt-2 border-t border-white/10 pt-2 text-white/45">
+            {cost.scale < 1
+              ? `Drawing at ${Math.round(cost.scale * 100)}% size to stay smooth. It goes back up by itself.`
+              : 'Drawing at full size. A smooth frame has 16 ms in all.'}
+          </div>
         </div>
       )}
 

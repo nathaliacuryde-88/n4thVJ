@@ -12,6 +12,8 @@ import { PipelineConfig } from '../config/PipelineConfig';
 import { Clips } from '../config/content';
 import { lfosFor, modulate } from '../control/lfo';
 import { PIPELINE_PARAMS, RENDERER_PARAMS } from '../params/registry';
+import { Finish, FinishLevel } from '../pipeline/Finish';
+import { governFrame, isMeasuring, noteCompose, noteLayer, noteLayerCount, shouldDraw } from '../pipeline/governor';
 
 /** Everything a deck is played with, as it stood on one frame. */
 interface Played {
@@ -123,6 +125,8 @@ interface VJCanvasProps {
   master?: number;
   /** How far each visual is zoomed, by pattern: 1 is as drawn. */
   zoomByPattern?: Record<string, number>;
+  /** The finish over the whole output: 0 off, 1 soft, 2 deep (pipeline/Finish). */
+  finish?: FinishLevel;
   /**
    * The visible canvas, whenever it changes.
    *
@@ -148,8 +152,11 @@ export function VJCanvas({
   autoDrive,
   master = 1,
   zoomByPattern,
+  finish = 0,
   onCanvasReady,
 }: VJCanvasProps) {
+  const finishRef = useRef<FinishLevel>(finish);
+  finishRef.current = finish;
   const masterRef = useRef(master);
   masterRef.current = master;
   const zoomRef = useRef(zoomByPattern);
@@ -189,6 +196,8 @@ export function VJCanvas({
    */
   const pipelinesRef = useRef(new Map<string, { pipeline: PostPipeline; canvas: HTMLCanvasElement }>());
   const fallbackCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  /** The share of full size the layers are being drawn at; see pipeline/governor. */
+  const scaleRef = useRef(1);
   /**
    * A canvas can only ever hold one kind of context. If the pipeline dies after
    * taking the WebGL2 one — a shader that will not compile on some driver — then
@@ -333,19 +342,26 @@ export function VJCanvas({
     const composite = document.createElement('canvas');
     compositeCtxRef.current = composite.getContext('2d');
 
-    const resize = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      composite.width = width;
-      composite.height = height;
+    /** The share of full size the layers are drawn at (pipeline/governor). */
+    const sizeDecks = () => {
+      const scale = scaleRef.current;
+      const width = Math.max(2, Math.round(window.innerWidth * scale));
+      const height = Math.max(2, Math.round(window.innerHeight * scale));
       for (const slot of slotsRef.current) {
         for (const deck of [slot?.current, slot?.outgoing]) {
-          if (deck) {
+          if (deck && (deck.canvas.width !== width || deck.canvas.height !== height)) {
             deck.canvas.width = width;
             deck.canvas.height = height;
           }
         }
       }
+    };
+    const resize = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      composite.width = width;
+      composite.height = height;
+      sizeDecks();
       const visible = canvasRef.current;
       if (visible) {
         visible.width = width;
@@ -534,14 +550,38 @@ export function VJCanvas({
     let lastFrame = performance.now();
     /** The master as shown: eased, so a blackout is a quick dip rather than a cut. */
     let shownMaster = masterRef.current;
+    /** One pixel, kept in memory rather than on the graphics card, to read layers back into. */
+    let probe: CanvasRenderingContext2D | null | undefined;
+    const finishDrawing = (canvas: HTMLCanvasElement) => {
+      if (probe === undefined) {
+        const one = document.createElement('canvas');
+        one.width = one.height = 1;
+        probe = one.getContext('2d', { willReadFrequently: true });
+      }
+      if (!probe || !canvas.width || !canvas.height) return;
+      try {
+        probe.drawImage(canvas, 0, 0, 1, 1);
+        probe.getImageData(0, 0, 1, 1);
+      } catch { /* a layer that cannot be read is just not timed */ }
+    };
+    /** The finish, built the first time it is switched on; null once it has failed. */
+    let finisher: { finish: Finish; canvas: HTMLCanvasElement } | null | undefined;
     const animate = () => {
+      animationFrameRef.current = requestAnimationFrame(animate);
       const now = performance.now();
+      // No faster than about 60 a second, whatever the screen asks for.
+      if (!shouldDraw(now)) return;
       const ctx = compositeCtxRef.current;
 
       // One tick for the whole stack, before anything draws. Clamped so a tab
       // returning from the background does not jump every visual forwards.
       const delta = Math.min(0.1, (now - lastFrame) / 1000);
+      const scale = governFrame(now, (now - lastFrame) / 1000);
       lastFrame = now;
+      if (scale !== scaleRef.current) {
+        scaleRef.current = scale;
+        sizeDecks();
+      }
       // Tempo is the motion knob and the hands together: the knob says how
       // hard the whole set runs tonight, the gesture says how hard right now.
       /*
@@ -592,10 +632,16 @@ export function VJCanvas({
       claps.live = Math.max(claps.live * Math.exp(-delta * 2.2), clapOf(handDataRef.current));
       claps.auto = Math.max(claps.auto * Math.exp(-delta * 2.2), clapOf(autoRef.current.hands));
 
+      noteLayerCount(slotsRef.current.length);
       slotsRef.current.forEach((slot, index) => {
         if (!slot) return;
         useLayerClock(index);
+        const began = performance.now();
         drawDeck(slot.current, index);
+        // Reading a pixel back makes the graphics card finish this layer
+        // now, so the time is the layer's own. Only while the panel is open.
+        if (isMeasuring()) finishDrawing(slot.current.canvas);
+        noteLayer(index, slot.current.pattern, performance.now() - began);
         if (slot.outgoing) {
           if (fadeProgress(slot.outgoing, now) >= 1) {
             const gone = slot.outgoing.pattern;
@@ -626,6 +672,7 @@ export function VJCanvas({
       });
 
       if (ctx && slotsRef.current.length > 0) {
+        const began = performance.now();
         compose(ctx, now);
         shownMaster += (masterRef.current - shownMaster) * Math.min(1, delta * 14);
         if (Math.abs(masterRef.current - shownMaster) < 0.002) shownMaster = masterRef.current;
@@ -637,10 +684,28 @@ export function VJCanvas({
         }
         // The visible canvas is plain 2D: every effect has already happened,
         // one layer at a time, on the way into the composite.
-        fallbackCtxRef.current?.drawImage(ctx.canvas, 0, 0);
+        let shown: HTMLCanvasElement = ctx.canvas;
+        if (finishRef.current > 0 && finisher !== null) {
+          try {
+            if (!finisher) {
+              const canvas = document.createElement('canvas');
+              finisher = { finish: new Finish(canvas), canvas };
+            }
+            if (!finisher.finish.lost) {
+              const sound = frameAudioRef.current;
+              const pulse = Math.max((sound?.kick ?? sound?.onset ?? 0) * 0.6, sound?.drop ?? 0);
+              finisher.finish.render(ctx.canvas, finishRef.current, pulse, now / 1000, delta);
+              shown = finisher.canvas;
+            }
+          } catch (error) {
+            // The output carries on unfinished rather than going dark.
+            console.error('The finish is unavailable; the output plays without it:', error);
+            finisher = null;
+          }
+        }
+        fallbackCtxRef.current?.drawImage(shown, 0, 0);
+        noteCompose(performance.now() - began);
       }
-
-      animationFrameRef.current = requestAnimationFrame(animate);
     };
 
     animate();
@@ -648,6 +713,7 @@ export function VJCanvas({
     return () => {
       window.removeEventListener('resize', resize);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      finisher?.finish.destroy();
       for (const held of pipelinesRef.current.values()) held.pipeline.destroy();
       pipelinesRef.current.clear();
       for (const slot of slotsRef.current) {
@@ -669,8 +735,8 @@ export function VJCanvas({
 
     const build = (pattern: VisualPattern, index: number): Deck | null => {
       const canvas = document.createElement('canvas');
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.width = Math.max(2, Math.round(window.innerWidth * scaleRef.current));
+      canvas.height = Math.max(2, Math.round(window.innerHeight * scaleRef.current));
       const ctx = canvas.getContext('2d');
       if (!ctx) return null;
 

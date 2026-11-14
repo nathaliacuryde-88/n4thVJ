@@ -500,6 +500,12 @@ export default function App() {
     outputRef.current = new OutputWindow(() => setOutput(false));
   }
 
+  /** The finish over the whole output: 0 off, 1 soft, 2 deep (pipeline/Finish). */
+  const [finish, setFinish] = useState<0 | 1 | 2>(() =>
+    loadSetting('vj-finish', 0, (v) => v === 0 || v === 1 || v === 2) as 0 | 1 | 2,
+  );
+  useEffect(() => { saveSetting('vj-finish', finish); }, [finish]);
+
   const toggleOutput = useCallback(() => {
     const out = outputRef.current;
     if (!out) return;
@@ -992,6 +998,14 @@ export default function App() {
     noticeTimer.current = window.setTimeout(() => setNotice(null), 1400);
   }, []);
 
+  // Say the finish's new state when it changes, from the key or the button.
+  const finishSaid = useRef(finish);
+  useEffect(() => {
+    if (finishSaid.current === finish) return;
+    finishSaid.current = finish;
+    flash(finish === 0 ? 'Glow off' : finish === 1 ? 'Glow · soft' : 'Glow · deep');
+  }, [finish, flash]);
+
   /** One more or one fewer of what the selected visual shows — or, with nothing to count, a step of zoom. */
   const stepCount = useCallback((dir: 1 | -1) => {
     const counts = COUNTS[currentPattern];
@@ -1273,6 +1287,12 @@ export default function App() {
         return;
       }
 
+      // The finish over the whole output (G): off, soft, deep
+      if (e.key.toLowerCase() === 'g') {
+        setFinish((f) => ((f + 1) % 3) as 0 | 1 | 2);
+        return;
+      }
+
       // Master FX bypass (X)
       if (e.key.toLowerCase() === 'x') {
         toggleFx();
@@ -1532,6 +1552,7 @@ export default function App() {
         autoDrive={idleDrive}
         master={blackout ? 0 : master}
         zoomByPattern={zooms}
+        finish={finish}
         fxByPattern={fxByPattern}
         onCanvasReady={(canvas) => {
           canvasRef.current = canvas;
@@ -1661,6 +1682,8 @@ export default function App() {
           onSoundCycle={() => setSound(nextSound)}
           output={output}
           onOutputToggle={toggleOutput}
+          finish={finish}
+          onFinishCycle={() => setFinish((f) => ((f + 1) % 3) as 0 | 1 | 2)}
         />
       )}
 

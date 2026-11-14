@@ -4,7 +4,7 @@ import { AudioData, Hand, HandData, VisualPattern } from '../App';
 import { HOLD_MS, Layer } from '../config/LayerConfig';
 import {
   Video, VideoOff, Mic, MicOff, Orbit, Sparkles, Circle, Square,
-  Volume2, VolumeX, MonitorPlay, Music,
+  Volume2, VolumeX, MonitorPlay, Music, Aperture,
 } from 'lucide-react';
 import { SOUND_HINT, SOUND_LABEL, SoundSource } from '../record/audio';
 import { ColorController } from './ColorController';
@@ -91,6 +91,9 @@ interface ControlsProps {
   /** Whether the projector window is up. */
   output: boolean;
   onOutputToggle: () => void;
+  /** The finish over the whole output: 0 off, 1 soft, 2 deep. */
+  finish: number;
+  onFinishCycle: () => void;
 }
 
 /** The meter's bars, low to high. */
@@ -190,6 +193,8 @@ export function Controls({
   onSoundCycle,
   output,
   onOutputToggle,
+  finish,
+  onFinishCycle,
 }: ControlsProps) {
   
   // Tap switches the selected layer, hold stacks — the same split, and the same
@@ -481,6 +486,22 @@ export function Controls({
             }
           >
             <Sparkles className="w-3.5 h-3.5" />
+          </ControlButton>
+
+          {/* The finish: one lens over everything. Off, soft, deep. */}
+          <ControlButton
+            label={finish === 2 ? 'GLOW+' : 'GLOW'}
+            active={finish > 0}
+            onClick={onFinishCycle}
+            title={
+              finish === 0
+                ? 'Finish: a soft glow, fine grain and a gentle vignette over the whole output. Click for soft (G)'
+                : finish === 1
+                  ? 'Finish is on, soft. Click for deep (G)'
+                  : 'Finish is on, deep. Click to turn it off (G)'
+            }
+          >
+            <Aperture className="w-3.5 h-3.5" />
           </ControlButton>
 
           <div className="w-px h-8 bg-white/15 self-center" />
