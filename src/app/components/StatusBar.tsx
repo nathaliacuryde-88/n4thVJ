@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Activity, Gauge, Plane, Wifi, WifiOff } from 'lucide-react';
 import { useOffline } from '../offline/offline';
-import { beatPosition, clearTempo, tap, useTempo } from '../motion/tempo';
+import { beatPosition, clearTempo, hasTapped, tap, toggleListening, useTempo } from '../motion/tempo';
 import { KNOB_FX } from '../control/knobs';
 import { MidiTarget, NANO_LAYOUT, applyMap, describe, enableMidi, learn, nanoKontrol2Map, unbind, useMidi } from '../control/midi';
 
@@ -49,7 +49,7 @@ export function StatusBar({
   /** A change made from the controller, said for a moment. */
   notice?: string | null;
 }) {
-  const { bpm } = useTempo();
+  const { bpm, source, listening } = useTempo();
   const midi = useMidi();
   const [midiOpen, setMidiOpen] = useState(false);
   const dot = useRef<HTMLSpanElement | null>(null);
@@ -102,12 +102,25 @@ export function StatusBar({
       <div className="flex items-center gap-0.5 rounded-full border border-white/20 bg-black/70 px-1.5 py-1 backdrop-blur-sm">
         {/* Tap tempo: the dot flashes on the beat; the number once there is one. */}
         <button
-          onClick={(e) => (e.shiftKey ? clearTempo() : tap())}
-          title={bpm ? `Tempo ${bpm} BPM — tap on the beat to re-sync (B), shift-click to clear (Shift+B)` : 'Tap tempo: tap here on the beat, four times or more (B)'}
+          onClick={(e) => {
+            if (!e.shiftKey) tap();
+            else if (hasTapped()) clearTempo();
+            else toggleListening();
+          }}
+          title={
+            source === 'tap'
+              ? `Tempo ${bpm} BPM, tapped — tap on the beat to re-sync (B), shift-click to clear (Shift+B)`
+              : source === 'heard'
+                ? `Tempo ${bpm} BPM, heard in the music — tap on the beat to set your own (B), shift-click to stop listening (Shift+B)`
+                : listening
+                  ? 'Listening for the tempo. Or tap here on the beat, four times or more (B)'
+                  : 'Tap tempo: tap here on the beat, four times or more (B). Shift-click to hear it from the music again'
+          }
           className="flex h-6 min-w-6 items-center justify-center gap-1 rounded-full px-1.5 text-[10px] text-white/70 hover:bg-white/10"
         >
           <span ref={dot} className="h-1.5 w-1.5 rounded-full bg-white" style={{ opacity: 0.15 }} />
-          {bpm && <span className="tabular-nums text-white">{bpm.toFixed(0)}</span>}
+          {/* White when she tapped it, cyan when it was heard in the music. */}
+          {bpm && <span className={`tabular-nums ${source === 'heard' ? 'text-cyan-300' : 'text-white'}`}>{bpm.toFixed(0)}</span>}
         </button>
 
         {/* Auto-pilot: the plane; its bars only while it flies. Right-click for longer. */}

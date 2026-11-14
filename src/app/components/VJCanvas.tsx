@@ -554,9 +554,19 @@ export function VJCanvas({
        */
       const gesture = gestureRate(handDataRef.current, gestureRef.current, delta);
       const autoGesture = gestureRate(autoRef.current.hands, autoGestureRef.current, delta);
+      /*
+       * And the music's own arc, on every layer: a little slower through a
+       * breakdown and a little faster at full tilt, gathering through a
+       * build-up, and surging when the bass comes back — a clap the music
+       * makes. With the microphone off it says nothing.
+       */
+      const sound = audioDataRef.current;
+      const arc = sound?.live
+        ? (0.85 + 0.25 * (sound.energy ?? 0.5)) * (1 + 0.4 * (sound.build ?? 0)) * (1 + 1.6 * (sound.drop ?? 0))
+        : 1;
       const rates = (motionRef.current ?? []).map((m) =>
-        m > 0 ? m * gesture : (autoRef.current.on ? autoGesture : 1));
-      advanceClock(delta, rates.length ? rates : [gesture]);
+        (m > 0 ? m * gesture : (autoRef.current.on ? autoGesture : 1)) * arc);
+      advanceClock(delta, rates.length ? rates : [gesture * arc]);
 
       // With a tapped tempo, the beat is the grid's: on time, every time, mic
       // or not. The levels are still the music's.
@@ -564,6 +574,7 @@ export function VJCanvas({
       const heard = audioDataRef.current;
       frameAudioRef.current = grid
         ? {
+            ...heard,
             bass: heard?.bass ?? 0,
             lowMid: heard?.lowMid ?? 0,
             mid: heard?.mid ?? 0,

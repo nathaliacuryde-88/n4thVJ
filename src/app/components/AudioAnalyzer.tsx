@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnalyserState, analyse, createState } from '../audio/analyse';
 import { publishSpectrum } from '../audio/spectrum';
+import { BeatTracker } from '../audio/beatTracker';
+import { hearTempo } from '../motion/tempo';
+
+/** What the visuals get with the microphone off: nothing, and no opinion on the arc. */
+const SILENT: ReturnType<typeof analyse> = {
+  bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0,
+  kick: 0, snare: 0, hat: 0, energy: 0, build: 0, drop: 0, bright: 0.5,
+};
 
 interface AudioAnalyzerProps {
-  onAudioData: (data: ReturnType<typeof analyse>) => void;
+  onAudioData: (data: ReturnType<typeof analyse> & { live: boolean }) => void;
   /**
    * The live microphone stream, or null once it is torn down.
    *
@@ -25,6 +33,8 @@ export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: A
   
   /** Envelopes, flux history and the last beat — all of it lives here. */
   const stateRef = useRef<AnalyserState>(createState());
+  /** Hears the tempo in the onsets; the grid follows it while nothing is tapped. */
+  const trackerRef = useRef(new BeatTracker());
   
   const [error, setError] = useState<string | null>(null);
 
@@ -70,7 +80,9 @@ export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: A
       teardown();
       
       // Send empty audio data
-      onAudioData({ bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 });
+      onAudioData({ ...SILENT, live: false });
+      trackerRef.current.reset();
+      hearTempo(null);
       
       return;
     }
@@ -78,7 +90,18 @@ export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: A
     // Initialize audio
     const initAudio = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        /*
+         * The microphone as it is, not as a phone call would want it.
+         *
+         * A browser's defaults are for speech: echo cancellation, noise
+         * suppression and automatic gain. To them music is the noise — held
+         * notes and hats are gated away, and the gain rides up in every
+         * breakdown and back down on the drop, which flattens exactly the
+         * rise and fall the analysis is here to follow.
+         */
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        });
         if (cancelled) {
           stream.getTracks().forEach(track => track.stop());
           return;
@@ -120,9 +143,13 @@ export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: A
 
       analyser.getByteFrequencyData(data);
       publishSpectrum(data, context.sampleRate, sensitivityRef.current);
-      onAudioData(
-        analyse(data, context.sampleRate, stateRef.current, sensitivityRef.current, Date.now()),
-      );
+      const reading = analyse(data, context.sampleRate, stateRef.current, sensitivityRef.current, Date.now());
+      onAudioData({ ...reading, live: true });
+
+      // The tracker runs on the drawing clock, the one the beat grid is read on.
+      const at = performance.now();
+      trackerRef.current.push(at, stateRef.current.rise, stateRef.current.punch);
+      hearTempo(trackerRef.current.read(at));
 
       animationFrameRef.current = requestAnimationFrame(analyze);
     };

@@ -447,6 +447,18 @@ export class Playing {
   bass = 0;
   mid = 0;
   high = 0;
+  /** The kick, the snare or clap, and the hats, each jumping on its own hit. */
+  kick = 0;
+  snare = 0;
+  hat = 0;
+  /** How full the music is, slowly: low in a breakdown, high at the peak. */
+  energy = 0.5;
+  /** Rises through a build-up; falls away when the drop comes. */
+  build = 0;
+  /** Jumps when the bass returns, and falls off over a second or two. */
+  drop = 0;
+  /** Where the sound's weight sits: 0 dark, 1 bright. */
+  bright = 0.5;
 
   private lastClock: number | null = null;
   private lastFrame = 0;
@@ -495,5 +507,12 @@ export class Playing {
     this.high = ease(this.high, audioData?.high ?? 0, 8, 2.5);
     this.bump *= Math.exp(-dt / 0.07);
     if (audioData?.beat) this.bump = Math.max(this.bump, audioData.beatIntensity || 1);
+    this.kick = audioData?.kick ?? 0;
+    this.snare = audioData?.snare ?? 0;
+    this.hat = audioData?.hat ?? 0;
+    this.energy = ease(this.energy, audioData?.live ? audioData.energy ?? 0.5 : 0.5, 1, 1);
+    this.build = audioData?.build ?? 0;
+    this.drop = audioData?.drop ?? 0;
+    this.bright = ease(this.bright, audioData?.bright ?? 0.5, 1, 1);
   }
 }

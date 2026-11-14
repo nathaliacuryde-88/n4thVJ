@@ -23,7 +23,7 @@ import { SoundSource, nextSound, openTakeAudio } from './record/audio';
 import { OutputWindow } from './output/OutputWindow';
 import { SavedSet, loadSavedSets, pick, storeSavedSets } from './config/savedSets';
 import { StatusBar, PILOT_BARS } from './components/StatusBar';
-import { beatPosition, clearTempo, currentBpm, nudgeTempo, tap } from './motion/tempo';
+import { beatPosition, clearTempo, currentBpm, hasTapped, nudgeTempo, tap, toggleListening } from './motion/tempo';
 import { MidiTarget, setMidiHandler, setMidiReader } from './control/midi';
 import { setLfo, useLfos } from './control/lfo';
 import { COUNTS, KNOB_FX, KNOB_OFF, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, knobPosition, knobValue } from './control/knobs';
@@ -63,6 +63,22 @@ export interface AudioData {
    * a scale, a brightness, a speed — should ride this instead.
    */
   onset: number;
+  /** The kick alone: jumps on it and falls away. */
+  kick?: number;
+  /** The snare or clap alone. */
+  snare?: number;
+  /** The hats alone: short and quick. */
+  hat?: number;
+  /** How full the music is against its last minute. Low in a breakdown. */
+  energy?: number;
+  /** Rises through a build-up, while the kick is out and something climbs. */
+  build?: number;
+  /** Jumps when the bass comes back, and falls off over a second or two. */
+  drop?: number;
+  /** Where the weight of the sound sits: 0 dark, 1 bright. */
+  bright?: number;
+  /** Whether a microphone is being listened to at all. */
+  live?: boolean;
 }
 
 /** One tracked hand, as produced by {@link HandTracker} from MediaPipe landmarks. */
@@ -680,8 +696,13 @@ export default function App() {
    * onto some parallel set of rules. Brightness up top means more fingers;
    * an onset is a clap. That way every visual reacts to sound exactly as it
    * reacts to her, and nothing needs a second code path.
+   *
+   * Only while her hands are out of view. With the microphone on and a hand
+   * in front of the camera, the hand plays — tempo, aim, the clap — and the
+   * music still reaches every visual as music: its levels, its beat, its
+   * kick and its arc. Hands and sound together, rather than one or the other.
    */
-  const effectiveHandData: HandData = audioEnabled ? {
+  const effectiveHandData: HandData = audioEnabled && !handsPresent ? {
     left: {
       position: {
         x: 0.3 + Math.sin(audioTime) * 0.2 * audioData.mid,
@@ -1289,9 +1310,12 @@ export default function App() {
         return;
       }
 
-      // Tap tempo (B), Shift+B forgets it
+      // Tap tempo (B). Shift+B forgets a tapped tempo; with none tapped, it
+      // turns hearing the tempo from the music off and on.
       if (e.key.toLowerCase() === 'b') {
-        if (e.shiftKey) clearTempo(); else tap();
+        if (!e.shiftKey) tap();
+        else if (hasTapped()) clearTempo();
+        else flash(toggleListening() ? 'Tempo from the music' : 'Tempo by tap only');
         return;
       }
 
