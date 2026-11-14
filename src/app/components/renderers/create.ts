@@ -49,6 +49,10 @@ import { SwarmRenderer } from './SwarmRenderer';
 import { TerrainRenderer } from './TerrainRenderer';
 import { FluidRenderer } from './FluidRenderer';
 import { AnemoneRenderer } from './AnemoneRenderer';
+import { FirstLineRenderer } from './FirstLineRenderer';
+import { MyceliumRenderer } from './MyceliumRenderer';
+import { ConstellationRenderer } from './ConstellationRenderer';
+import { MachineRenderer } from './MachineRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
 import { NatureWorldRenderer } from './NatureWorldRenderer';
 import { BigTypeRenderer } from './BigTypeRenderer';
@@ -265,6 +269,18 @@ export function createRenderer(
       break;
     case 'anemone':
       renderer = new AnemoneRenderer(canvas, ctx);
+      break;
+    case 'line':
+      renderer = new FirstLineRenderer(canvas, ctx);
+      break;
+    case 'mycelium':
+      renderer = new MyceliumRenderer(canvas, ctx);
+      break;
+    case 'constellation':
+      renderer = new ConstellationRenderer(canvas, ctx);
+      break;
+    case 'machine':
+      renderer = new MachineRenderer(canvas, ctx);
       break;
     case 'tonight':
       renderer = new TonightRenderer(canvas, ctx);

@@ -44,6 +44,10 @@ import { SwarmConfig } from '../config/SwarmRendererConfig';
 import { TerrainConfig } from '../config/TerrainRendererConfig';
 import { FluidConfig } from '../config/FluidRendererConfig';
 import { AnemoneConfig } from '../config/AnemoneRendererConfig';
+import { FirstLineConfig } from '../config/FirstLineRendererConfig';
+import { MyceliumConfig } from '../config/MyceliumRendererConfig';
+import { ConstellationConfig } from '../config/ConstellationRendererConfig';
+import { MachineConfig } from '../config/MachineRendererConfig';
 import { MacroConfig } from '../config/MacroRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
@@ -774,6 +778,121 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
   'swarm-flock': swarmParams('Follows hand', 'Kick draws in'),
   'swarm-plankton': swarmParams('Hand stirs', 'Kick ring'),
   'swarm-galaxy': swarmParams('Hand tilts', 'Kick flare'),
+  line: {
+    config: FirstLineConfig,
+    groups: [
+      {
+        name: 'Line',
+        params: [
+          { path: 'line.count', label: 'Lines', min: 1, max: 40, step: 1, hint: 'how many it unfolds into' },
+          { path: 'line.weight', label: 'Weight', min: 0.3, max: 4, step: 0.05 },
+          { path: 'line.wave', label: 'Wave', min: 0, max: 3, step: 0.05 },
+          { path: 'line.birth', label: 'Birth', min: 0, max: 3, step: 0.05, hint: 'how slowly the first line draws itself; 0 = already there' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.open', label: 'Palm unfolds', min: 0, max: 1, step: 0.05, hint: 'open palm fans the lines out, fist gathers them' },
+          { path: 'hands.pull', label: 'Hand plucks', min: 0, max: 1.2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap shiver', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick pulse', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass breath', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.grow', label: 'Music unfolds', min: 0, max: 1.5, step: 0.05 },
+        ],
+      },
+    ],
+  },
+  mycelium: {
+    config: MyceliumConfig,
+    groups: [
+      {
+        name: 'Growth',
+        params: [
+          { path: 'growth.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
+          { path: 'growth.branching', label: 'Forking', min: 0, max: 3, step: 0.05 },
+          { path: 'growth.lasting', label: 'Lasting', min: 0.2, max: 2.5, step: 0.05, hint: 'how long a thread stays' },
+          { path: 'growth.weight', label: 'Weight', min: 0.3, max: 3, step: 0.05 },
+          { path: 'growth.wander', label: 'Wander', min: 0, max: 3, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.reach', label: 'Grows to hand', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap seeds', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick pulse', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass weight', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+  constellation: {
+    config: ConstellationConfig,
+    groups: [
+      {
+        name: 'Sky',
+        params: [
+          { path: 'sky.stars', label: 'Stars', min: 0.1, max: 1, step: 0.05 },
+          { path: 'sky.field', label: 'Sky', min: 0, max: 1, step: 0.05, hint: 'the stars outside the figure; 0 = only the figure' },
+          { path: 'sky.lines', label: 'Lines', min: 0, max: 1.5, step: 0.05 },
+          { path: 'sky.size', label: 'Size', min: 0.4, max: 2.5, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.hands', label: 'Hands drawn', min: 0, max: 1, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap scatters', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick swell', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.twinkle', label: 'Hat glint', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+  machine: {
+    config: MachineConfig,
+    groups: [
+      {
+        name: 'Picture',
+        params: [
+          { path: 'picture.detail', label: 'Detail', min: 0, max: 1, step: 0.05, hint: 'finer dots' },
+          { path: 'picture.camera', label: 'Camera', min: 0, max: 1, step: 0.05, hint: '0 = only the reading, no picture' },
+          { path: 'picture.dissolve', label: 'Dissolve', min: 0, max: 2, step: 0.05 },
+          { path: 'reading.marks', label: 'Marks', min: 0, max: 1, step: 0.05, hint: 'boxes, joints, lines' },
+          { path: 'reading.words', label: 'Words', min: 0, max: 1, step: 0.05, hint: 'what it says it sees and hears' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.clap', label: 'Clap scatters', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick swell', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.arc', label: 'Build loosens', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
   anemone: {
     config: AnemoneConfig,
     groups: [

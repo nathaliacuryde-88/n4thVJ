@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { HandData } from '../App';
 import { HandReader, Seen } from '../hands/track';
+import { presenceWanted, publishPresence } from '../hands/presence';
 
 interface HandTrackerProps {
   videoElement: HTMLVideoElement;
@@ -27,6 +28,8 @@ const WORKER_START_MS = 25000;
 const WORKER_SILENCE_MS = 5000;
 /** The first frame also builds the model's programs on the graphics card, so it is given longer. */
 const WORKER_FIRST_FRAME_MS = 20000;
+/** The person outline is a second model: loading it and its first run both hold the worker, once. */
+const WORKER_OUTLINE_MS = 60000;
 /** The camera frame is handed over at this width: the model works far smaller still. */
 const FRAME_WIDTH = 640;
 
@@ -119,13 +122,16 @@ export function HandTracker({ videoElement, onHandData }: HandTrackerProps) {
       let busy = false;
       let answered = false;
       let complained = false;
+      /** Whether an outline has been asked for and none has come back yet: its first one is slow too. */
+      let outlinePending = false;
+      let outlineSeen = false;
       startTimer = window.setTimeout(() => { if (!ready) leaveWorker('it took too long to start'); }, WORKER_START_MS);
 
       const loop = () => {
         if (!mounted || !worker) return;
         raf = requestAnimationFrame(loop);
         if (busy) {
-          if (performance.now() - waitingSince > (answered ? WORKER_SILENCE_MS : WORKER_FIRST_FRAME_MS)) leaveWorker('the worker stopped answering');
+          if (performance.now() - waitingSince > (outlinePending ? WORKER_OUTLINE_MS : answered ? WORKER_SILENCE_MS : WORKER_FIRST_FRAME_MS)) leaveWorker('the worker stopped answering');
           return;
         }
         if (videoElement.currentTime === lastVideoTime || videoElement.readyState < 2) return;
@@ -143,7 +149,10 @@ export function HandTracker({ videoElement, onHandData }: HandTrackerProps) {
             bitmap.close();
             return;
           }
-          worker.postMessage({ type: 'frame', bitmap, time }, [bitmap]);
+          // The person's outline too, but only while a visual is using it.
+          const mask = presenceWanted();
+          if (mask && !outlineSeen) outlinePending = true;
+          worker.postMessage({ type: 'frame', bitmap, time, mask }, [bitmap]);
         }).catch(() => { busy = false; });
       };
 
@@ -157,7 +166,17 @@ export function HandTracker({ videoElement, onHandData }: HandTrackerProps) {
         } else if (message.type === 'hands') {
           busy = false;
           answered = true;
+          if (message.mask) {
+            outlineSeen = true;
+            outlinePending = false;
+            publishPresence(message.mask.data, message.mask.width, message.mask.height);
+          }
           report({ landmarks: message.landmarks, handedness: message.handedness }, message.time);
+        } else if (message.type === 'note') {
+          // The outline is not coming; stop allowing extra time for it.
+          outlineSeen = true;
+          outlinePending = false;
+          console.warn(message.reason);
         } else if (message.type === 'failed') {
           leaveWorker(message.reason);
         } else if (message.type === 'error') {

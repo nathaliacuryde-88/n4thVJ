@@ -39,6 +39,21 @@ const BUILT_IN_KEY = 'vj-builtin-sets';
  * Tuned to layer: the sky on black so it sits over anything in Screen, the
  * Smear in Ink and Melt, Data Bloom on the room's sound. No sharp edges, no
  * bright red. It opens with the stars over a dimmed aurora.
+ *
+ * Origem — a story to play when the music brings none of its own: from
+ * nothing to the machine, in the order it happened (keys 1–9, 0, Q W E T Y):
+ *
+ *   1 Void      First Line, Network Cube                    keys 1–2
+ *   2 Universe  Tonight's Sky, Galaxy, Aurora               keys 3–5
+ *   3 Water     Plankton, Ink                               keys 6–7
+ *   4 Plants    Mycelium, Anemone, Nature World             keys 8, 9, 0
+ *   5 Human     Constellation (her own outline), Ripple     keys Q, W
+ *   6 Code      Atlas, Elastic Net                          keys E, T
+ *   7 Machine   Machine Vision                              key Y
+ *
+ * The set's order is the layer order, so what comes earlier in the story sits
+ * underneath what comes later. Everything on black, in the sea palette, so
+ * any two neighbours stack. It opens on the line alone.
  */
 const BUILT_IN: SavedSet[] = [
   {
@@ -67,6 +82,29 @@ const BUILT_IN: SavedSet[] = [
         { pattern: 'tonight', opacity: 1, motion: 1, blend: 'screen' },
       ],
       selected: 1,
+    },
+  },
+  {
+    name: 'Origem',
+    savedAt: 0,
+    set: [
+      'line', 'network-cube', 'tonight', 'swarm-galaxy', 'aurora',
+      'swarm-plankton', 'ink', 'mycelium', 'anemone', 'world',
+      'constellation', 'ripple', 'atlas', 'elastic-net', 'machine',
+    ],
+    params: {
+      tonight: { 'view.ground': 0, 'look.lines': 0.6 },
+      'swarm-galaxy': { 'look.style': 2, 'look.trail': 0.1, 'look.backdrop': 0 },
+      'swarm-plankton': { 'look.style': 1, 'look.backdrop': 0, 'look.palette': 2 },
+      ink: { 'look.palette': 2, 'look.backdrop': 0 },
+      anemone: { 'garden.backdrop': 0 },
+      world: { 'colour.palette': 2 },
+    },
+    fx: {},
+    looks: {},
+    stack: {
+      layers: [{ pattern: 'line', opacity: 1, motion: 1 }],
+      selected: 0,
     },
   },
 ];

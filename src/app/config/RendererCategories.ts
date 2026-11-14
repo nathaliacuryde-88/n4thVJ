@@ -425,6 +425,38 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'W',
     description: 'Low over open water under a long swell, islands far off; the bass raises the sea'
   },
+  line: {
+    pattern: 'line',
+    name: 'First Line',
+    short: 'Line',
+    category: '2D',
+    key: 'W',
+    description: 'Black, a point, a line drawing itself; an open palm unfolds it into many, a fist gathers it back into one'
+  },
+  mycelium: {
+    pattern: 'mycelium',
+    name: 'Mycelium',
+    short: 'Roots',
+    category: '2D',
+    key: 'W',
+    description: 'Roots and threads growing, forking and fading; they grow towards the hand, and each kick runs light along them'
+  },
+  constellation: {
+    pattern: 'constellation',
+    name: 'Constellation',
+    short: 'Body',
+    category: '2D',
+    key: 'W',
+    description: 'Your figure found among the stars: the ones where you stand light up and join; your hands drawn joint by joint'
+  },
+  machine: {
+    pattern: 'machine',
+    name: 'Machine Vision',
+    short: 'Machine',
+    category: '2D',
+    key: 'W',
+    description: 'The room as the tool reads it: the camera in dots, the person boxed, every joint numbered, what it hears in words'
+  },
   anemone: {
     pattern: 'anemone',
     name: 'Anemones',
