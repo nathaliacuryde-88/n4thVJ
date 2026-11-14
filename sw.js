@@ -16,10 +16,10 @@
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-const VERSION = '04ec6f55af72';
+const VERSION = 'a0292c646cea';
 const CACHE = `n4thvj-${VERSION}`;
 /** The build's files, relative to dist/. */
-const FILES = ["assets/StrichpunktSans-Black-qOOqGWSg.ttf","assets/StrichpunktSans-Bold-BChX3JrT.ttf","assets/dandelion-hJsSsoAd.bin","assets/dice-RHNB3vh8.fbx","assets/index-D3B7Y0to.js","assets/index-Dx6n9Zmr.css","boot.js","favicon.svg"];
+const FILES = ["assets/StrichpunktSans-Black-qOOqGWSg.ttf","assets/StrichpunktSans-Bold-BChX3JrT.ttf","assets/dandelion-hJsSsoAd.bin","assets/dice-RHNB3vh8.fbx","assets/index-Dx6n9Zmr.css","assets/index-_2NOcJoO.js","boot.js","favicon.svg"];
 
 /** What the visuals fetch from elsewhere: hand and face tracking, models, fonts. */
 const EXTERNAL = [
