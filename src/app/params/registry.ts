@@ -42,6 +42,7 @@ import { SmearConfig } from '../config/SmearRendererConfig';
 import { TonightConfig } from '../config/TonightRendererConfig';
 import { SwarmConfig } from '../config/SwarmRendererConfig';
 import { TerrainConfig } from '../config/TerrainRendererConfig';
+import { FluidConfig } from '../config/FluidRendererConfig';
 import { MacroConfig } from '../config/MacroRendererConfig';
 import { WatercolourConfig } from '../config/WatercolourRendererConfig';
 import { NatureWorldConfig } from '../config/NatureWorldRendererConfig';
@@ -766,6 +767,35 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
   'swarm-flock': swarmParams('Follows hand', 'Kick draws in'),
   'swarm-plankton': swarmParams('Hand stirs', 'Kick ring'),
   'swarm-galaxy': swarmParams('Hand tilts', 'Kick flare'),
+  ink: {
+    config: FluidConfig,
+    groups: [
+      {
+        name: 'Ink',
+        params: [
+          { path: 'ink.amount', label: 'Ink', min: 0, max: 3, step: 0.05 },
+          { path: 'ink.lasting', label: 'Lasting', min: 0, max: 1, step: 0.05, hint: 'how long ink stays in the water' },
+          { path: 'ink.width', label: 'Width', min: 0.3, max: 3, step: 0.05 },
+          { path: 'water.flow', label: 'Flow', min: 0, max: 3, step: 0.05 },
+          { path: 'water.curl', label: 'Curl', min: 0, max: 3, step: 0.05, hint: 'fine eddies' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.paint', label: 'Hand paints', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.clap', label: 'Clap bursts', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick bloom', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.drops', label: 'Hat droplets', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
   'flight-mountains': flightParams(true),
   'flight-sea': flightParams(false),
   tonight: {

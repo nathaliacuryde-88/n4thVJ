@@ -425,6 +425,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'W',
     description: 'Low over open water under a long swell, islands far off; the bass raises the sea'
   },
+  ink: {
+    pattern: 'ink',
+    name: 'Ink in Water',
+    short: 'Ink',
+    category: 'TD',
+    key: 'W',
+    description: 'Coloured ink in dark water, simulated as a real fluid: the hands paint and drag it, every kick opens a bloom'
+  },
   tonight: {
     pattern: 'tonight',
     name: "Tonight's Sky",
