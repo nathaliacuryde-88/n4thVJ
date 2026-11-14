@@ -496,8 +496,10 @@ export default function App() {
   const [output, setOutput] = useState(false);
   const [outputProblem, setOutputProblem] = useState<string | null>(null);
   const outputRef = useRef<OutputWindow | null>(null);
+  /** The projector window's size in real pixels while it is open: the visuals are drawn at it. */
+  const [outputSize, setOutputSize] = useState<{ width: number; height: number } | null>(null);
   if (!outputRef.current) {
-    outputRef.current = new OutputWindow(() => setOutput(false));
+    outputRef.current = new OutputWindow(() => setOutput(false), setOutputSize);
   }
 
   /** The finish over the whole output: 0 off, 1 soft, 2 deep (pipeline/Finish). */
@@ -997,6 +999,11 @@ export default function App() {
     window.clearTimeout(noticeTimer.current);
     noticeTimer.current = window.setTimeout(() => setNotice(null), 1400);
   }, []);
+
+  // Say what size the projector is being drawn at, when that changes.
+  useEffect(() => {
+    if (outputSize) flash(`Projector · ${Math.min(1920, outputSize.width)} × ${Math.min(1080, outputSize.height)}`);
+  }, [outputSize?.width, outputSize?.height, flash]);
 
   // Say the finish's new state when it changes, from the key or the button.
   const finishSaid = useRef(finish);
@@ -1553,6 +1560,7 @@ export default function App() {
         master={blackout ? 0 : master}
         zoomByPattern={zooms}
         finish={finish}
+        outputSize={outputSize}
         fxByPattern={fxByPattern}
         onCanvasReady={(canvas) => {
           canvasRef.current = canvas;

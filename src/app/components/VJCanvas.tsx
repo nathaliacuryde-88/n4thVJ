@@ -109,6 +109,24 @@ interface Slot {
  */
 const LAYER_BLEND: GlobalCompositeOperation = 'screen';
 
+/** The most the picture is made at: full HD. Above that the cost climbs faster than anyone can see. */
+const MAX_WIDTH = 1920;
+const MAX_HEIGHT = 1080;
+
+/**
+ * The size the picture is made at.
+ *
+ * With the projector window open, that window's own size in real pixels, so
+ * nothing is stretched on the way to the wall — brought down to full HD if it
+ * is larger, keeping its shape. Without it, the size of this window, as
+ * before.
+ */
+function frameSize(output: { width: number; height: number } | null | undefined): { width: number; height: number } {
+  if (!output) return { width: window.innerWidth, height: window.innerHeight };
+  const fit = Math.min(1, MAX_WIDTH / output.width, MAX_HEIGHT / output.height);
+  return { width: Math.max(2, Math.round(output.width * fit)), height: Math.max(2, Math.round(output.height * fit)) };
+}
+
 /** How far through its crossfade an outgoing deck is: 0 = just started, 1 = done. */
 function fadeProgress(deck: FadingDeck, now: number): number {
   if (deck.duration <= 0) return 1;
@@ -150,6 +168,14 @@ interface VJCanvasProps {
   /** The finish over the whole output: 0 off, 1 soft, 2 deep (pipeline/Finish). */
   finish?: FinishLevel;
   /**
+   * The projector window's size in real pixels, while it is open.
+   *
+   * The visuals are then drawn at that size and shape rather than at the size
+   * of the window she plays in, so the wall gets a picture made for it
+   * instead of a smaller one stretched.
+   */
+  outputSize?: { width: number; height: number } | null;
+  /**
    * The visible canvas, whenever it changes.
    *
    * The recorder needs the element itself, and this one is replaced rather
@@ -175,8 +201,14 @@ export function VJCanvas({
   master = 1,
   zoomByPattern,
   finish = 0,
+  outputSize = null,
   onCanvasReady,
 }: VJCanvasProps) {
+  const outputSizeRef = useRef(outputSize);
+  outputSizeRef.current = outputSize;
+  /** Set by the drawing effect; called when the projector's size changes. */
+  const resizeRef = useRef<() => void>(() => {});
+  useEffect(() => { resizeRef.current(); }, [outputSize?.width, outputSize?.height]);
   const finishRef = useRef<FinishLevel>(finish);
   finishRef.current = finish;
   const masterRef = useRef(master);
@@ -220,6 +252,8 @@ export function VJCanvas({
   const fallbackCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   /** The share of full size the layers are being drawn at; see pipeline/governor. */
   const scaleRef = useRef(1);
+  /** The size the picture is made at: the projector's while it is open, this window's otherwise. */
+  const frameRef = useRef(frameSize(outputSize));
   /**
    * A canvas can only ever hold one kind of context. If the pipeline dies after
    * taking the WebGL2 one — a shader that will not compile on some driver — then
@@ -369,8 +403,10 @@ export function VJCanvas({
     /** The share of full size the layers are drawn at (pipeline/governor). */
     const sizeDecks = () => {
       const scale = scaleRef.current;
-      const width = Math.max(2, Math.round(window.innerWidth * scale));
-      const height = Math.max(2, Math.round(window.innerHeight * scale));
+      const frame = frameSize(outputSizeRef.current);
+      frameRef.current = frame;
+      const width = Math.max(2, Math.round(frame.width * scale));
+      const height = Math.max(2, Math.round(frame.height * scale));
       for (const slot of slotsRef.current) {
         for (const deck of [slot?.current, slot?.outgoing]) {
           if (deck && (deck.canvas.width !== width || deck.canvas.height !== height)) {
@@ -381,8 +417,7 @@ export function VJCanvas({
       }
     };
     const resize = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      const { width, height } = frameSize(outputSizeRef.current);
       composite.width = width;
       composite.height = height;
       sizeDecks();
@@ -393,6 +428,7 @@ export function VJCanvas({
       }
     };
     resize();
+    resizeRef.current = resize;
     window.addEventListener('resize', resize);
 
     /**
@@ -778,8 +814,8 @@ export function VJCanvas({
 
     const build = (pattern: VisualPattern, index: number): Deck | null => {
       const canvas = document.createElement('canvas');
-      canvas.width = Math.max(2, Math.round(window.innerWidth * scaleRef.current));
-      canvas.height = Math.max(2, Math.round(window.innerHeight * scaleRef.current));
+      canvas.width = Math.max(2, Math.round(frameRef.current.width * scaleRef.current));
+      canvas.height = Math.max(2, Math.round(frameRef.current.height * scaleRef.current));
       const ctx = canvas.getContext('2d');
       if (!ctx) return null;
 
@@ -876,7 +912,9 @@ export function VJCanvas({
       // Remounting as a new element is the only way to get a 2D context after
       // WebGL2 has claimed the old one.
       ref={holdCanvas}
-      className="absolute inset-0 w-full h-full z-0"
+      // Contained, not stretched: with the projector open the picture has
+      // the projector's shape, which is rarely this window's.
+      className="absolute inset-0 w-full h-full z-0 object-contain bg-black"
     />
   );
 }

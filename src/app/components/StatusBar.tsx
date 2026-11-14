@@ -3,7 +3,7 @@ import { Activity, Gauge, Plane, Wifi, WifiOff } from 'lucide-react';
 import { useOffline } from '../offline/offline';
 import { beatPosition, clearTempo, hasTapped, tap, toggleListening, useTempo } from '../motion/tempo';
 import { KNOB_FX } from '../control/knobs';
-import { frameReading, setMeasuring } from '../pipeline/governor';
+import { autoSize, frameReading, setAutoSize, setMeasuring } from '../pipeline/governor';
 import { RENDERER_CATEGORIES } from '../config/RendererCategories';
 import { MidiTarget, NANO_LAYOUT, applyMap, describe, enableMidi, learn, nanoKontrol2Map, unbind, useMidi } from '../control/midi';
 
@@ -59,6 +59,7 @@ export function StatusBar({
   const [fps, setFps] = useState(60);
   /** The gauge's panel: what each layer costs, read twice a second while open. */
   const [healthOpen, setHealthOpen] = useState(false);
+  const [sizing, setSizing] = useState(() => autoSize());
   useEffect(() => {
     setMeasuring(healthOpen);
     return () => setMeasuring(false);
@@ -256,6 +257,15 @@ export function StatusBar({
               ? `Drawing at ${Math.round(cost.scale * 100)}% size to stay smooth. It goes back up by itself.`
               : 'Drawing at full size. A smooth frame has 16 ms in all.'}
           </div>
+          {/* Sharpness against smoothness: hers to choose. */}
+          <button
+            onClick={() => { setAutoSize(!autoSize()); setSizing(autoSize()); }}
+            className="mt-2 flex w-full items-center justify-between rounded border border-white/15 px-2 py-1 text-left text-white/70 hover:bg-white/10"
+            title="On: when a stack is too heavy the layers are drawn a little smaller, so it stays smooth. Off: always full size and as sharp as it can be, even if it stutters"
+          >
+            <span>Shrink to stay smooth</span>
+            <span className={sizing ? 'text-emerald-300' : 'text-white/40'}>{sizing ? 'ON' : 'OFF'}</span>
+          </button>
         </div>
       )}
 

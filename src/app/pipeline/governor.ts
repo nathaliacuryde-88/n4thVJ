@@ -30,7 +30,8 @@
 /** Frames nearer than this to the last one drawn are skipped, in ms. */
 const MIN_FRAME_MS = 13.5;
 
-const STEPS = [1, 0.85, 0.7, 0.55];
+/* No lower than 70%: below that the softness is plain to see on a projector. */
+const STEPS = [1, 0.85, 0.7];
 /** Below this, eased, frames are being missed. */
 const SLOW_FPS = 48;
 /** Above this there is room to try a larger size again. */
@@ -56,7 +57,9 @@ let slowSince = 0;
 let fastSince = 0;
 let steppedUpAt = -1e9;
 let holdUntil = 0;
-let auto = true;
+let auto = (() => {
+  try { return localStorage.getItem('vj-auto-size') !== 'off'; } catch { return true; }
+})();
 
 /** Whether this animation frame should be drawn at all. */
 export function shouldDraw(now: number): boolean {
@@ -76,6 +79,7 @@ export function governFrame(now: number, delta: number): number {
   // A hidden tab draws once a second; that is not a slow machine.
   if (!auto || document.hidden || delta >= 2) {
     slowSince = fastSince = 0;
+    reading.scale = STEPS[step];
     return STEPS[step];
   }
   if (reading.fps < SLOW_FPS) {
@@ -102,6 +106,20 @@ export function governFrame(now: number, delta: number): number {
   }
   reading.scale = STEPS[step];
   return STEPS[step];
+}
+
+/** Whether the layers may be drawn smaller to hold the frame rate. */
+export function autoSize(): boolean {
+  return auto;
+}
+/** Turns that on or off. Off, everything is drawn at full size whatever it costs. */
+export function setAutoSize(on: boolean) {
+  auto = on;
+  try { localStorage.setItem('vj-auto-size', on ? 'on' : 'off'); } catch { /* private window */ }
+  if (!on) {
+    step = 0;
+    reading.scale = 1;
+  }
 }
 
 let measuring = false;

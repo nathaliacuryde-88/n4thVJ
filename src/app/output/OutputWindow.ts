@@ -18,6 +18,13 @@
  * A stream rather than copying pixels across every frame: the browser moves
  * the frames itself, at the canvas's own rate, without this page spending
  * anything per frame to make it happen.
+ *
+ * HOW SHARP IT IS. The stream carries the canvas at whatever size the canvas
+ * is, and the canvas used to be the size of the window she plays in — so a
+ * laptop window of 1400 points was stretched over a 1920 or 2560 pixel
+ * screen, and looked soft on it. The window therefore reports its own size
+ * in real pixels, and the visuals are drawn at that size while it is open
+ * (see VJCanvas), so each pixel on the wall is one the visuals made.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -90,10 +97,27 @@ export class OutputWindow {
   private win: Window | null = null;
   private stream: MediaStream | null = null;
   private onClose: () => void;
+  private onSize: (size: { width: number; height: number } | null) => void;
   private poll = 0;
+  private lastSize = '';
 
-  constructor(onClose: () => void) {
+  constructor(onClose: () => void, onSize: (size: { width: number; height: number } | null) => void = () => {}) {
     this.onClose = onClose;
+    this.onSize = onSize;
+  }
+
+  /** The window's size in real pixels, told to the page whenever it changes. */
+  private reportSize() {
+    const win = this.win;
+    if (!win || win.closed) return;
+    const ratio = win.devicePixelRatio || 1;
+    const width = Math.round(win.innerWidth * ratio);
+    const height = Math.round(win.innerHeight * ratio);
+    if (width < 16 || height < 16) return;
+    const key = `${width}x${height}`;
+    if (key === this.lastSize) return;
+    this.lastSize = key;
+    this.onSize({ width, height });
   }
 
   get open(): boolean {
@@ -129,9 +153,13 @@ export class OutputWindow {
 
     // A closed window fires nothing reliable across browsers, so it is polled.
     // Twice a second is enough to notice and costs nothing.
+    // The same poll notices it being resized, moved to another screen or put
+    // full screen — none of which this page is told about otherwise.
     this.poll = window.setInterval(() => {
       if (this.win && this.win.closed) this.close();
+      else this.reportSize();
     }, 500);
+    this.reportSize();
     return null;
   }
 
@@ -164,6 +192,8 @@ export class OutputWindow {
     this.poll = 0;
     for (const track of this.stream?.getTracks() ?? []) track.stop();
     this.stream = null;
+    this.lastSize = '';
+    this.onSize(null);
     const win = this.win;
     this.win = null;
     if (win && !win.closed) win.close();

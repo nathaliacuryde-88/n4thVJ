@@ -48,15 +48,28 @@ const NEAR = 0.32;
  *              hands are a blur, so the model very often loses them at
  *              exactly the moment of a clap; that loss is itself the sign.
  */
-const TOGETHER = 0.17;
-const CLOSING_SPEED = 0.85;
-const CLOSING_WITHIN = 0.4;
+/*
+ * How near is "together", as a share of the frame's width between the middles
+ * of the two palms. Measured on real hands: at 0.16 two hands are side by
+ * side with air between them, at about 0.11 they touch, and by 0.08 the
+ * camera sees one shape and loses a hand. It was 0.17, which called hands
+ * that were merely near each other a clap — and on a visual that answers a
+ * clap with something big, that was far too often.
+ */
+const TOGETHER = 0.115;
+/** Once together they stay "together" until this far apart, so the edge does not chatter. */
+const APART = 0.16;
+/** Only a fast approach, and only when they are about to meet, fires early. */
+const CLOSING_SPEED = 1.3;
+const CLOSING_WITHIN = 0.2;
 /** Hands this near and closing at least this fast when they were lost: they met. */
-const MEETING_WITHIN = 0.5;
-const MEETING_SPEED = 0.3;
-const MEETING_MS = 240;
+const MEETING_WITHIN = 0.28;
+const MEETING_SPEED = 0.7;
+const MEETING_MS = 200;
+/** After a clap the hands must come this far apart before another can count. */
+const REARM = 0.3;
 /** No second clap within this of the last, in ms. */
-const CLAP_REST_MS = 280;
+const CLAP_REST_MS = 450;
 /** How long one clap is reported for, so nothing reading slower misses it. */
 const CLAP_SHOWN_MS = 140;
 
@@ -169,6 +182,8 @@ export class HandReader {
   private closing = 0;
   /** Whether this coming-together has already been counted as a clap. */
   private counted = false;
+  /** Whether the hands are being held together right now. */
+  private held = false;
 
   /** One camera frame. `now` in ms; `aspect` is the camera's width over height. */
   next(seen: Seen, now: number, aspect: number): HandData {
@@ -234,15 +249,16 @@ export class HandReader {
       this.closing = Math.max(speed, this.closing * Math.exp(-dt * 12));
       this.gap = distance;
       this.gapAt = now;
-      // Apart again: the next coming-together is a new clap.
-      if (distance > TOGETHER * 1.5 && this.closing < MEETING_SPEED) this.counted = false;
+      // Properly apart again: the next coming-together is a new clap.
+      if (distance > REARM) this.counted = false;
 
       if (distance < CLOSING_WITHIN && this.closing > CLOSING_SPEED) clap(this.closing / 2.2);
-      if (distance < TOGETHER) {
+      this.held = distance < (this.held ? APART : TOGETHER);
+      if (this.held) {
         clap(0.7 + this.closing / 3);
         // Held together, it holds — as it always did.
         data.clapping = true;
-        data.clapIntensity = Math.max(0.6, 1 - distance / TOGETHER);
+        data.clapIntensity = Math.max(0.6, 1 - distance / APART);
       }
     } else {
       // One or both gone. If they were closing on each other a moment ago,
@@ -251,7 +267,9 @@ export class HandReader {
         clap(0.75 + this.closing / 3);
       }
       this.closing *= Math.exp(-dt * 6);
-      if (now - this.gapAt > 600) this.counted = false;
+      this.held = false;
+      // Both hands gone for a good while: whatever comes next starts afresh.
+      if (now - this.gapAt > 1200) this.counted = false;
     }
 
     if (now - this.clapAt <= CLAP_SHOWN_MS) {
