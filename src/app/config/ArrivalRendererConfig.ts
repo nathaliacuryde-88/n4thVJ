@@ -5,6 +5,8 @@
  */
 export const ArrivalConfig = {
   look: {
+    /** Clouds only: 0 Vapour, soft and lit like real cloud; 1 Print, flat tones with clean edges. */
+    style: 0,
     /** How many tones the light is cut into: few is graphic, many is smooth. */
     bands: 5,
     /** Grain, as on the Aurora: 0 smooth, 1 broken into grain and dots. */

@@ -66,6 +66,42 @@ uniform float uFall;
 uniform vec2 uCam;
 uniform vec3 uHole;   // where the hand opens the cloud, in frame units from the middle, and how much
 uniform float uRip;
+uniform float uStyle; // 0 vapour, 1 print
+
+float fbm3o(vec2 p) {
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i < 3; i++) { v += a * noise(p); p = p * 2.03 + 17.1; a *= 0.5; }
+  return v / 0.875;
+}
+
+/** One sheet as vapour: soft rounded masses, lit from above, with a bright rim where they thin. */
+vec4 vapour(vec2 p, vec2 q, float d, float near, float id) {
+  vec2 drift = vec2(uTime * 0.015, 0.0);
+  vec2 w = vec2(fbm3o(q * 0.45 + id), fbm3o(q * 0.45 - id + 5.2)) - 0.5;
+  vec2 at = q * 0.7 + w * 0.6 + drift;
+  // The big shape, and the light falling on it from above: where the shape
+  // thins towards the light it is lit, where it thickens towards it, shaded.
+  float body = fbm(at);
+  float toward = fbm(at + vec2(-0.07, 0.12));
+  // Rounded puffs on the big masses.
+  float puffs = fbm3o(q * 2.2 + w * 0.8 - drift * 1.5);
+  float dens = body + 0.12 * (puffs - 0.5);
+  float cut = 0.6 - uCover * 0.26;
+  float v = smoothstep(cut, cut + 0.22, dens);
+  float facing = clamp(0.5 + (body - toward) * 6.0 + (puffs - 0.5) * 0.6, 0.0, 1.0);
+  float thick = smoothstep(cut + 0.08, cut + 0.4, dens);
+  vec3 shadow = tone(0.16 + 0.14 * near);
+  vec3 light = tone(0.66 + 0.32 * near);
+  vec3 c = mix(shadow, light, clamp(facing * (1.0 - 0.35 * thick) + 0.2 * (1.0 - thick), 0.0, 1.0));
+  // The silver edge, where it is thin and facing up.
+  c += tone(1.0) * (v * (1.0 - v) * 1.6) * facing * (0.3 + 0.5 * near);
+  c *= mix(0.4, 1.0, near) * (1.0 + 0.2 * uPulse + 0.15 * uBass);
+  // Passing through a sheet: it opens into a mist that fills the frame.
+  float inside = smoothstep(0.6, 0.12, d);
+  v = mix(v, 0.5 + 0.4 * v, inside);
+  c = mix(c, tone(0.8) * (0.85 + 0.2 * v), inside * 0.65);
+  return vec4(c, v);
+}
 
 void main() {
   vec2 p = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
@@ -78,6 +114,19 @@ void main() {
     float d = fk + 1.0 - within;            // how far below you this sheet is
     float id = passed + fk;                  // which sheet it is, so each has its own shape
     vec2 q = p * d * 0.9 + uCam + vec2(id * 13.17, id * 7.31);
+    float near = 1.0 - smoothstep(0.3, 5.5, d);
+    float holeR = 0.06 + 0.22 * uHole.z;
+    float opened = (1.0 - uHole.z * smoothstep(holeR, holeR * 0.3, length(p - uHole.xy)) * step(fk, 2.5));
+    float torn = 1.3 * uRip;
+    opened *= mix(1.0, smoothstep(torn * 0.6, torn, length(p)), step(0.01, uRip));
+    if (uStyle < 0.5) {
+      vec4 s = vapour(p, q, d, near, id);
+      float a = s.a * opened * (0.4 + 0.58 * near);
+      a *= smoothstep(0.04, 0.2, d);
+      a *= 1.0 - smoothstep(4.6, 6.0, d);
+      col = mix(col, s.rgb, clamp(a, 0.0, 1.0));
+      continue;
+    }
     // Big rounded masses with smaller puffs on their edges, and open sky between.
     vec2 warp = vec2(fbm(q * 0.7 + id), fbm(q * 0.7 - id + 5.2)) - 0.5;
     float shape = fbm(q * 0.8 + warp * 0.9 + vec2(uTime * 0.02, 0.0)) * 0.8 + fbm(q * 2.6 - id) * 0.2;
@@ -91,7 +140,6 @@ void main() {
     float edge = fwidth(v) * 1.5 + 1e-3;
     float a = smoothstep(0.0, edge, v - 0.02);
     // Nearer is brighter and passes out of sight just before it reaches you.
-    float near = 1.0 - smoothstep(0.3, 5.5, d);
     a *= smoothstep(0.08, 0.55, d);
     // A new sheet comes up out of the dark at the back rather than appearing.
     a *= 1.0 - smoothstep(4.6, 6.0, d);

@@ -2,6 +2,7 @@ import { AudioData, HandData } from '../../App';
 import { MyceliumConfig } from '../../config/MyceliumRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { Playing } from './inflated/style';
+import { beatPosition } from '../../motion/tempo';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -75,6 +76,12 @@ export class MyceliumRenderer {
   private lastKick = 0;
   private lastDrop = 0;
   private fork = 0;
+  /** The push of the last beat, falling away until the next: what the tips grow on. */
+  private surge = 0;
+  private lastBeatNo = -1;
+  private lastBeatAt = 0;
+  private beatsSeen = 0;
+  private lastSnare = 0;
   private hand = { x: 0.5, y: 0.5, on: 0 };
   private aspect = 16 / 9;
   private paths: Path2D[] = [];
@@ -143,13 +150,41 @@ export class MyceliumRenderer {
     const eager = real ? 0.05 + 1.5 * (1 - play.fist) : 1;
 
     // ── the music ────────────────────────────────────────────────────────
+    // The beat: from the tempo when there is one (heard or tapped), so it
+    // lands on time even where the kick is buried; otherwise from the kicks.
     const kick = Math.max(play.kick, play.bump) * cfg.sound.beat;
-    if (kick > 0.45 && this.lastKick <= 0.45) {
+    const kicked = kick > 0.45 && this.lastKick <= 0.45;
+    this.lastKick = kick;
+    const at = beatPosition();
+    let beat = false;
+    if (at) {
+      beat = at.beat !== this.lastBeatNo && this.real - this.lastBeatAt > 0.22;
+      this.lastBeatNo = at.beat;
+    } else {
+      beat = kicked;
+    }
+    const live = !!audioData?.live;
+    // In step when the music has a beat to be in step with.
+    const rhythmic = (live || at !== null) && cfg.sound.lock > 0.01;
+    if (beat && rhythmic) {
+      this.lastBeatAt = this.real;
+      this.beatsSeen++;
+      this.surge = Math.max(this.surge, Math.min(1.2, 0.75 + 0.35 * Math.max(kick, 0.6)));
+      this.pulses.push({ at: 0, strength: Math.min(1.2, Math.max(0.7, kick)) * cfg.sound.beat });
+      if (this.pulses.length > 4) this.pulses.shift();
+      // The first beat of each bar: the roots fork together.
+      const downbeat = at ? ((at.beat % 4) + 4) % 4 === 0 : this.beatsSeen % 4 === 1;
+      if (downbeat) this.fork = 0.2;
+    } else if (kicked && !rhythmic) {
       this.pulses.push({ at: 0, strength: Math.min(1.2, kick) });
       if (this.pulses.length > 4) this.pulses.shift();
       this.fork = 0.18;
     }
-    this.lastKick = kick;
+    this.surge *= Math.exp(-dt * 7);
+    // The snare: every growing end kinks at once.
+    const snared = play.snare > 0.5 && this.lastSnare <= 0.5 && rhythmic;
+    this.lastSnare = play.snare;
+    if (snared) for (const tip of this.tips) tip.angle += (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.35);
     this.fork = Math.max(0, this.fork - dt);
     for (const p of this.pulses) p.at += dt * 1.1;
     this.pulses = this.pulses.filter((p) => p.at < 3.2);
@@ -163,7 +198,11 @@ export class MyceliumRenderer {
     // ── grow ─────────────────────────────────────────────────────────────
     const life = LIFE * Math.max(0.2, cfg.growth.lasting);
     const pace = 0.085 * cfg.growth.speed * eager * (0.7 + 0.7 * play.energy) * (1 + 0.5 * play.build);
-    const advance = pace * step;
+    // In step, the roots lunge forward on each beat and nearly stop before the
+    // next; the slider blends between that and an even flow.
+    const lock = Math.max(0, Math.min(1, cfg.sound.lock));
+    const gait = rhythmic ? 1 - lock + lock * (0.08 + 2.7 * this.surge) : 1;
+    const advance = pace * step * gait;
     // Never empty: a few roots are always on their way in.
     const wanted = Math.round(5 + 6 * play.energy + 8 * play.build);
     if (this.tips.length < wanted && eager > 0.3) this.seed();
@@ -270,9 +309,10 @@ export class MyceliumRenderer {
     // The growing ends, as points of light.
     ctx.fillStyle = '#fff';
     for (const tip of this.tips) {
-      ctx.globalAlpha = 0.85;
+      // They flash with each beat.
+      ctx.globalAlpha = Math.min(1, 0.6 + 0.5 * this.surge);
       ctx.beginPath();
-      ctx.arc(tip.x * H, tip.y * H, Math.max(1, (2.4 - tip.depth * 0.22) * unit), 0, Math.PI * 2);
+      ctx.arc(tip.x * H, tip.y * H, Math.max(1, (2.4 - tip.depth * 0.22) * unit * (1 + 0.9 * this.surge)), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;

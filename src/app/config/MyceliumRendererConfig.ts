@@ -28,5 +28,7 @@ export const MyceliumConfig = {
     beat: 1,
     /** Bass thickens the threads. */
     bass: 1,
+    /** How strictly the roots grow on the beat: 0 an even flow, 1 a lunge on each beat and a fork on each bar. */
+    lock: 0.85,
   },
 };

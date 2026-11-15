@@ -95,7 +95,7 @@ export class ArrivalRenderer {
       ? { uMask: { value: null }, uDrift: { value: 0 } }
       : mode === ARRIVAL_PLANET
         ? { uNear: { value: 0.3 }, uSpin: { value: 0 }, uRise: { value: 0 }, uTilt: { value: new THREE.Vector2() } }
-        : { uFall: { value: 0 }, uCam: { value: new THREE.Vector2() }, uHole: { value: new THREE.Vector3() }, uRip: { value: 0 } };
+        : { uFall: { value: 0 }, uCam: { value: new THREE.Vector2() }, uHole: { value: new THREE.Vector3() }, uRip: { value: 0 }, uStyle: { value: 0 } };
     this.material = new THREE.ShaderMaterial({
       vertexShader: QUAD_VERT, fragmentShader: frag, uniforms: { ...common(), ...extra }, depthTest: false, depthWrite: false,
     });
@@ -196,6 +196,7 @@ export class ArrivalRenderer {
       (u.uCam.value as THREE.Vector2).copy(this.cam);
       (u.uHole.value as THREE.Vector3).set(play.aim.x * aspect / 2, play.aim.y / 2, this.hole);
       u.uRip.value = this.rip;
+      u.uStyle.value = cfg.look.style >= 0.5 ? 1 : 0;
     } else if (this.mode === ARRIVAL_PLANET) {
       let want = 0.15 + 0.55 * (0.5 + 0.5 * Math.sin(this.real * 0.05 - 1.5));
       if (real) want = Math.min(1, 0.1 + 0.55 * (1 - play.fist) + Math.max(0, play.depth - 0.3) * 1.3);

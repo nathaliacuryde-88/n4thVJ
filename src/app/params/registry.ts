@@ -172,7 +172,7 @@ function breathParams(source: boolean, detail: [string, string]): RendererParams
 
 /** The three arrivals share an engine; each names the same few sliders for what they do there. */
 function arrivalParams(
-  cover: [string, string], speed: [string, string], reach: [string, string], clap: string, beat: string,
+  cover: [string, string], speed: [string, string], reach: [string, string], clap: string, beat: string, styled = false,
 ): RendererParams {
   return {
     config: ArrivalConfig,
@@ -180,8 +180,9 @@ function arrivalParams(
       {
         name: 'Look',
         params: [
+          ...(styled ? [{ path: 'look.style', label: 'Style', min: 0, max: 1, step: 1, labels: ['Vapour', 'Print'], hint: 'soft real cloud, or flat tones with clean edges' }] : []),
           { path: 'look.cover', label: cover[0], min: 0, max: 1, step: 0.05, hint: cover[1] },
-          { path: 'look.bands', label: 'Tones', min: 2, max: 12, step: 1, hint: 'few is graphic, many is smooth' },
+          { path: 'look.bands', label: 'Tones', min: 2, max: 12, step: 1, hint: styled ? 'Print only: few is graphic, many is smooth' : 'few is graphic, many is smooth' },
           { path: 'look.grain', label: 'Grain', min: 0, max: 1, step: 0.05 },
           { path: 'motion.speed', label: speed[0], min: 0, max: 3, step: 0.05, hint: speed[1] },
         ],
@@ -905,6 +906,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         params: [
           { path: 'sound.beat', label: 'Kick pulse', min: 0, max: 2, step: 0.05 },
           { path: 'sound.bass', label: 'Bass weight', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.lock', label: 'On the beat', min: 0, max: 1, step: 0.05, hint: '1 = grows in a lunge on each beat, forks on each bar; 0 = an even flow' },
         ],
       },
     ],
@@ -998,7 +1000,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
   'breath-leaf': breathParams(false, ['Branching', 'how finely it branches']),
   'arrival-clouds': arrivalParams(
     ['Cloud', 'how much of the sky is cloud'], ['Fall', 'how fast you fall'],
-    ['Steer', 'the hand steers, and opens a hole to look down'], 'Clap tears', 'Kick pushes'),
+    ['Steer', 'the hand steers, and opens a hole to look down'], 'Clap tears', 'Kick pushes', true),
   'arrival-fog': arrivalParams(
     ['Thickness', 'how thick the fog is'], ['Return', 'how fast it drifts, and mists over where it was wiped'],
     ['Wipe', 'how wide the open hand wipes'], 'Clap clears', 'Kick breathes'),
