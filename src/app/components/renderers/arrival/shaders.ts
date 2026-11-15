@@ -93,6 +93,8 @@ void main() {
     // Nearer is brighter and passes out of sight just before it reaches you.
     float near = 1.0 - smoothstep(0.3, 5.5, d);
     a *= smoothstep(0.08, 0.55, d);
+    // A new sheet comes up out of the dark at the back rather than appearing.
+    a *= 1.0 - smoothstep(4.6, 6.0, d);
     // Far sheets lie in the dark; the near ones catch the light.
     vec3 sheet = tone(0.2 + near * 0.55 + 0.3 * level) * (1.0 + 0.25 * uPulse + 0.2 * uBass);
     // A thin darker line along each step, as a print's registration.
@@ -178,7 +180,7 @@ void main() {
   float near = uNear * uNear;
   float R = mix(0.16, 2.8, near);
   // Close up, the planet sinks so its edge is a horizon across the upper part of the frame.
-  vec2 c = vec2(0.0, -mix(0.0, R - 0.18, smoothstep(0.25, 1.0, uNear)));
+  vec2 c = vec2(0.0, -(R - 0.2) * smoothstep(0.05, 0.6, uNear));
   vec2 q = (p - c) / R;
   float r = length(q);
   // The sun is behind and to one side, so what is seen is mostly night with a bright edge.

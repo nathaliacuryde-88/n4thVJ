@@ -318,13 +318,14 @@ export class NeuronRenderer {
     c.fillRect(0, 0, 64, 64);
   }
 
-  private fire(i: number, strength = 1) {
+  /** `from`: the cell whose signal set this one off, which it does not answer. `force`: even if resting. */
+  private fire(i: number, strength = 1, from = -1, force = false) {
     const c = this.cells[i];
-    if (!c || this.real - c.firedAt < REST) return;
+    if (!c || (!force && this.real - c.firedAt < REST)) return;
     c.firedAt = this.real;
     c.flash = Math.min(1.4, Math.max(c.flash, strength));
     c.charge = 0;
-    for (const a of c.axons) this.signals.push({ axon: a, at: 0, strength });
+    for (const a of c.axons) if (this.axons[a].to !== from) this.signals.push({ axon: a, at: 0, strength });
     if (this.signals.length > 400) this.signals.splice(0, this.signals.length - 400);
   }
 
@@ -394,7 +395,7 @@ export class NeuronRenderer {
         // The cell under the hand, stimulated while it rests there.
         const under = this.nearest(x, y, 0.16);
         if (under >= 0) {
-          cells[under].charge += dt * 1.6 * cfg.hands.fire * (real ? 1 : 0.4);
+          cells[under].charge += dt * 1.0 * cfg.hands.fire * (real ? 1 : 0.4);
           if (cells[under].charge >= 1) this.fire(under, 0.9);
           if (focus < 0) focus = under;
         }
@@ -415,7 +416,7 @@ export class NeuronRenderer {
     }
     for (const c of cells) if (!this.holding) c.held = Math.max(0, c.held - dt * 0.5);
 
-    if (play.clapped && cfg.hands.clap > 0) cells.forEach((_, i) => this.fire(i, play.clapStrength * cfg.hands.clap));
+    if (play.clapped && cfg.hands.clap > 0) cells.forEach((_, i) => this.fire(i, Math.max(1.1, play.clapStrength * cfg.hands.clap * 1.3), -1, true));
 
     // ── the music ────────────────────────────────────────────────────────
     const kick = Math.max(play.kick, play.bump) * cfg.sound.beat;
@@ -448,7 +449,7 @@ export class NeuronRenderer {
         if (this.holding) { c.held = Math.min(1, c.held + 0.2); continue; }
         c.charge += passOn * s.strength;
         // Each hop a little weaker, so a cascade runs its course and dies away.
-        if (c.charge >= 1 && s.strength > 0.3) this.fire(to, s.strength * 0.86);
+        if (c.charge >= 1 && s.strength > 0.3) this.fire(to, s.strength * 0.86, this.axons[s.axon].from);
       }
     }
     for (const c of cells) {

@@ -124,7 +124,8 @@ export class BreathRenderer {
       this.blown += (norm - this.blown) * (1 - Math.exp(-dt * (norm > this.blown ? 3 : 1.2)));
       want = this.blown;
       rate = 6;
-    } else if (real && cfg.hands.breathe > 0.01) {
+    } else if (real && cfg.hands.breathe > 0.01 && this.mode !== BREATH_LEAF) {
+      // (Leaf to Lung keeps the hand for the unfolding; its lungs breathe on the clock.)
       want = 1 - play.fist;
       rate = 5;
     }
