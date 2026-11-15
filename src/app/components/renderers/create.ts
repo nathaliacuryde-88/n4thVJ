@@ -53,6 +53,7 @@ import { FirstLineRenderer } from './FirstLineRenderer';
 import { MyceliumRenderer } from './MyceliumRenderer';
 import { CellRenderer } from './CellRenderer';
 import { StandbyRenderer } from './StandbyRenderer';
+import { NeuronRenderer } from './NeuronRenderer';
 import { ConstellationRenderer } from './ConstellationRenderer';
 import { MachineRenderer } from './MachineRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
@@ -283,6 +284,9 @@ export function createRenderer(
       break;
     case 'standby':
       renderer = new StandbyRenderer(canvas, ctx);
+      break;
+    case 'neurons':
+      renderer = new NeuronRenderer(canvas, ctx);
       break;
     case 'constellation':
       renderer = new ConstellationRenderer(canvas, ctx);

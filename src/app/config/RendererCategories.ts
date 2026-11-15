@@ -465,6 +465,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'W',
     description: 'One cell, then two, then four: each lengthens, narrows at the waist and parts. They keep to the hand, a fist presses them together, and they divide on the kick'
   },
+  neurons: {
+    pattern: 'neurons',
+    name: 'Neurons',
+    short: 'Neurons',
+    category: '2D',
+    key: 'W',
+    description: 'A small nervous system: the hand fires the cells, signals run down the axons to the next; a fist holds the charge, opening lets it go'
+  },
   standby: {
     pattern: 'standby',
     name: 'Standby',

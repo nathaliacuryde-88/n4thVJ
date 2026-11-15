@@ -48,6 +48,7 @@ import { FirstLineConfig } from '../config/FirstLineRendererConfig';
 import { MyceliumConfig } from '../config/MyceliumRendererConfig';
 import { CellConfig } from '../config/CellRendererConfig';
 import { StandbyConfig } from '../config/StandbyRendererConfig';
+import { NeuronConfig } from '../config/NeuronRendererConfig';
 import { ConstellationConfig } from '../config/ConstellationRendererConfig';
 import { MachineConfig } from '../config/MachineRendererConfig';
 import { MacroConfig } from '../config/MacroRendererConfig';
@@ -920,6 +921,35 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         params: [
           { path: 'sound.beat', label: 'Kick divides', min: 0, max: 2, step: 0.05 },
           { path: 'sound.bass', label: 'Bass swell', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
+  neurons: {
+    config: NeuronConfig,
+    groups: [
+      {
+        name: 'Network',
+        params: [
+          { path: 'network.cells', label: 'Cells', min: 4, max: 60, step: 1 },
+          { path: 'network.links', label: 'Links', min: 1, max: 5, step: 0.1, hint: 'how many others each one reaches' },
+          { path: 'network.branching', label: 'Branching', min: 0, max: 2, step: 0.05, hint: 'how finely the dendrites fork' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.fire', label: 'Hand fires', min: 0, max: 2, step: 0.05 },
+          { path: 'hands.chain', label: 'Palm chains', min: 0, max: 1.5, step: 0.05, hint: 'an open palm lets one firing run on through the rest' },
+          { path: 'hands.hold', label: 'Fist holds', min: 0, max: 2, step: 0.05, hint: 'a fist charges the network; opening lets it go' },
+          { path: 'hands.clap', label: 'Clap fires all', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick fires', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.build', label: 'Build excites', min: 0, max: 2, step: 0.05, hint: 'a build-up makes it excitable; the drop sets it all off' },
         ],
       },
     ],
