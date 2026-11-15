@@ -54,6 +54,7 @@ import { MyceliumRenderer } from './MyceliumRenderer';
 import { CellRenderer } from './CellRenderer';
 import { StandbyRenderer } from './StandbyRenderer';
 import { NeuronRenderer } from './NeuronRenderer';
+import { ARRIVAL_CLOUDS, ARRIVAL_FOG, ARRIVAL_PLANET, ArrivalRenderer } from './ArrivalRenderer';
 import { ConstellationRenderer } from './ConstellationRenderer';
 import { MachineRenderer } from './MachineRenderer';
 import { WatercolourRenderer } from './WatercolourRenderer';
@@ -110,7 +111,7 @@ export const HOLDS_CONTEXT: ReadonlySet<string> = new Set([
   'cubewall', 'dandelion', 'dice', 'digitalblocks', 'distortedcamera', 'dream-clouds', 'dream-hills',
   'dream-valley', 'dream-spray', 'dream-figure', 'dream-sea', 'dream-mountains',
   'elastic-net', 'jellyfish', 'liquidchrome', 'morphing', 'world', 'network-cube',
-  'particleimage', 'ripple', 'smear', 'macro-ink', 'macro-petals', 'macro-filaments', 'macro-prism', 'macro-rings', 'macro-water', 'swarm-flock', 'swarm-plankton', 'swarm-galaxy', 'flight-mountains', 'flight-sea', 'ink', 'anemone', 'cells', 'smokehand-torus', 'smokehand-hand', 'watercolour',
+  'particleimage', 'ripple', 'smear', 'macro-ink', 'macro-petals', 'macro-filaments', 'macro-prism', 'macro-rings', 'macro-water', 'swarm-flock', 'swarm-plankton', 'swarm-galaxy', 'flight-mountains', 'flight-sea', 'ink', 'anemone', 'cells', 'arrival-clouds', 'arrival-fog', 'arrival-planet', 'smokehand-torus', 'smokehand-hand', 'watercolour',
 ]);
 
 export function createRenderer(
@@ -287,6 +288,15 @@ export function createRenderer(
       break;
     case 'neurons':
       renderer = new NeuronRenderer(canvas, ctx);
+      break;
+    case 'arrival-clouds':
+      renderer = new ArrivalRenderer(canvas, ctx, ARRIVAL_CLOUDS);
+      break;
+    case 'arrival-fog':
+      renderer = new ArrivalRenderer(canvas, ctx, ARRIVAL_FOG);
+      break;
+    case 'arrival-planet':
+      renderer = new ArrivalRenderer(canvas, ctx, ARRIVAL_PLANET);
       break;
     case 'constellation':
       renderer = new ConstellationRenderer(canvas, ctx);

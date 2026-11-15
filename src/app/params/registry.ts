@@ -49,6 +49,7 @@ import { MyceliumConfig } from '../config/MyceliumRendererConfig';
 import { CellConfig } from '../config/CellRendererConfig';
 import { StandbyConfig } from '../config/StandbyRendererConfig';
 import { NeuronConfig } from '../config/NeuronRendererConfig';
+import { ArrivalConfig } from '../config/ArrivalRendererConfig';
 import { ConstellationConfig } from '../config/ConstellationRendererConfig';
 import { MachineConfig } from '../config/MachineRendererConfig';
 import { MacroConfig } from '../config/MacroRendererConfig';
@@ -136,6 +137,40 @@ function flightParams(mountains: boolean): RendererParams {
 }
 
 /** The Swarm visuals share one renderer and its sliders; the labels say what each does with them. */
+/** The three arrivals share an engine; each names the same few sliders for what they do there. */
+function arrivalParams(
+  cover: [string, string], speed: [string, string], reach: [string, string], clap: string, beat: string,
+): RendererParams {
+  return {
+    config: ArrivalConfig,
+    groups: [
+      {
+        name: 'Look',
+        params: [
+          { path: 'look.cover', label: cover[0], min: 0, max: 1, step: 0.05, hint: cover[1] },
+          { path: 'look.bands', label: 'Tones', min: 2, max: 12, step: 1, hint: 'few is graphic, many is smooth' },
+          { path: 'look.grain', label: 'Grain', min: 0, max: 1, step: 0.05 },
+          { path: 'motion.speed', label: speed[0], min: 0, max: 3, step: 0.05, hint: speed[1] },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.reach', label: reach[0], min: 0, max: 2, step: 0.05, hint: reach[1] },
+          { path: 'hands.clap', label: clap, min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: beat, min: 0, max: 2, step: 0.05 },
+          { path: 'sound.bass', label: 'Bass', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  };
+}
+
 function swarmParams(follow: string, beat: string): RendererParams {
   return {
     config: SwarmConfig,
@@ -925,6 +960,15 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       },
     ],
   },
+  'arrival-clouds': arrivalParams(
+    ['Cloud', 'how much of the sky is cloud'], ['Fall', 'how fast you fall'],
+    ['Steer', 'the hand steers, and opens a hole to look down'], 'Clap tears', 'Kick pushes'),
+  'arrival-fog': arrivalParams(
+    ['Thickness', 'how thick the fog is'], ['Return', 'how fast it drifts, and mists over where it was wiped'],
+    ['Wipe', 'how wide the open hand wipes'], 'Clap clears', 'Kick breathes'),
+  'arrival-planet': arrivalParams(
+    ['Clouds', 'how cloudy the planet is'], ['Approach', 'how quickly you come in and pull back'],
+    ['Turn', 'how far the hand turns the planet'], 'Clap sunrise', 'Kick flares edge'),
   neurons: {
     config: NeuronConfig,
     groups: [

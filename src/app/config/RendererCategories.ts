@@ -465,6 +465,30 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'W',
     description: 'One cell, then two, then four: each lengthens, narrows at the waist and parts. They keep to the hand, a fist presses them together, and they divide on the kick'
   },
+  'arrival-clouds': {
+    pattern: 'arrival-clouds',
+    name: 'Through the Clouds',
+    short: 'Clouds',
+    category: 'TD',
+    key: 'W',
+    description: 'Falling through sheets of cloud towards the planet: an open hand falls, a fist hovers, the hand steers and opens a hole; a clap tears them open'
+  },
+  'arrival-fog': {
+    pattern: 'arrival-fog',
+    name: 'Fog',
+    short: 'Fog',
+    category: 'TD',
+    key: 'W',
+    description: 'A fog the open hand wipes away like a misted window; it closes again slowly. Layer it in Screen over the next visual to wipe through to it'
+  },
+  'arrival-planet': {
+    pattern: 'arrival-planet',
+    name: 'The Planet',
+    short: 'Planet',
+    category: 'TD',
+    key: 'W',
+    description: 'The planet from space, from a point to a horizon: the open hand comes closer, the fist pulls back; a clap brings the sun up over the edge'
+  },
   neurons: {
     pattern: 'neurons',
     name: 'Neurons',
