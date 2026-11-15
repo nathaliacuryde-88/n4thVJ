@@ -465,6 +465,30 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'W',
     description: 'One cell, then two, then four: each lengthens, narrows at the waist and parts. They keep to the hand, a fist presses them together, and they divide on the kick'
   },
+  'breath-pulse': {
+    pattern: 'breath-pulse',
+    name: 'Breath',
+    short: 'Breath',
+    category: '2D',
+    key: 'W',
+    description: 'A body of lines that fills and empties: an open palm breathes in, a fist out; or your own breath blown at the microphone (Source)'
+  },
+  'breath-air': {
+    pattern: 'breath-air',
+    name: 'Air',
+    short: 'Air',
+    category: '2D',
+    key: 'W',
+    description: 'Leaves give off air; breathing in draws it into the lungs, which light; breathing out lets it go back to the leaves'
+  },
+  'breath-leaf': {
+    pattern: 'breath-leaf',
+    name: 'Leaf to Lung',
+    short: 'Leaf',
+    category: '2D',
+    key: 'W',
+    description: 'A leaf whose veins unfold into a pair of lungs, the same branches: an open hand is the lung, a fist the leaf; each kick runs a pulse down them'
+  },
   'arrival-clouds': {
     pattern: 'arrival-clouds',
     name: 'Through the Clouds',

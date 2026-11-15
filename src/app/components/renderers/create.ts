@@ -54,6 +54,7 @@ import { MyceliumRenderer } from './MyceliumRenderer';
 import { CellRenderer } from './CellRenderer';
 import { StandbyRenderer } from './StandbyRenderer';
 import { NeuronRenderer } from './NeuronRenderer';
+import { BREATH_AIR, BREATH_LEAF, BREATH_PULSE, BreathRenderer } from './BreathRenderer';
 import { ARRIVAL_CLOUDS, ARRIVAL_FOG, ARRIVAL_PLANET, ArrivalRenderer } from './ArrivalRenderer';
 import { ConstellationRenderer } from './ConstellationRenderer';
 import { MachineRenderer } from './MachineRenderer';
@@ -288,6 +289,15 @@ export function createRenderer(
       break;
     case 'neurons':
       renderer = new NeuronRenderer(canvas, ctx);
+      break;
+    case 'breath-pulse':
+      renderer = new BreathRenderer(canvas, ctx, BREATH_PULSE);
+      break;
+    case 'breath-air':
+      renderer = new BreathRenderer(canvas, ctx, BREATH_AIR);
+      break;
+    case 'breath-leaf':
+      renderer = new BreathRenderer(canvas, ctx, BREATH_LEAF);
       break;
     case 'arrival-clouds':
       renderer = new ArrivalRenderer(canvas, ctx, ARRIVAL_CLOUDS);

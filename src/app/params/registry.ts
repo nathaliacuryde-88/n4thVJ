@@ -50,6 +50,7 @@ import { CellConfig } from '../config/CellRendererConfig';
 import { StandbyConfig } from '../config/StandbyRendererConfig';
 import { NeuronConfig } from '../config/NeuronRendererConfig';
 import { ArrivalConfig } from '../config/ArrivalRendererConfig';
+import { BreathConfig } from '../config/BreathRendererConfig';
 import { ConstellationConfig } from '../config/ConstellationRendererConfig';
 import { MachineConfig } from '../config/MachineRendererConfig';
 import { MacroConfig } from '../config/MacroRendererConfig';
@@ -137,6 +138,38 @@ function flightParams(mountains: boolean): RendererParams {
 }
 
 /** The Swarm visuals share one renderer and its sliders; the labels say what each does with them. */
+/** The breaths share an engine; only Breath can take its breath from the microphone. */
+function breathParams(source: boolean, detail: [string, string]): RendererParams {
+  return {
+    config: BreathConfig,
+    groups: [
+      {
+        name: 'Breath',
+        params: [
+          ...(source ? [{ path: 'breath.source', label: 'Source', min: 0, max: 1, step: 1, labels: ['Hand', 'Your breath'], hint: 'Your breath: blow at the microphone; needs MIC on' }] : []),
+          { path: 'breath.pace', label: 'Pace', min: 0.2, max: 3, step: 0.05, hint: 'how slow it breathes on its own' },
+          { path: 'breath.depth', label: 'Depth', min: 0, max: 1.5, step: 0.05 },
+          { path: 'look.weight', label: 'Weight', min: 0.3, max: 3, step: 0.05 },
+          { path: 'look.detail', label: detail[0], min: 0.2, max: 2, step: 0.05, hint: detail[1] },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.breathe', label: 'Palm breathes', min: 0, max: 1, step: 1, labels: ['Off', 'On'], hint: 'open palm breathes in, fist out' },
+          { path: 'hands.clap', label: 'Clap breathes out', min: 0, max: 1, step: 1, labels: ['Off', 'On'] },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Kick', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  };
+}
+
 /** The three arrivals share an engine; each names the same few sliders for what they do there. */
 function arrivalParams(
   cover: [string, string], speed: [string, string], reach: [string, string], clap: string, beat: string,
@@ -960,6 +993,9 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       },
     ],
   },
+  'breath-pulse': breathParams(true, ['Lines', 'how many lines']),
+  'breath-air': breathParams(false, ['Air', 'how much air']),
+  'breath-leaf': breathParams(false, ['Branching', 'how finely it branches']),
   'arrival-clouds': arrivalParams(
     ['Cloud', 'how much of the sky is cloud'], ['Fall', 'how fast you fall'],
     ['Steer', 'the hand steers, and opens a hole to look down'], 'Clap tears', 'Kick pushes'),
