@@ -6,7 +6,7 @@ import { PermissionRequest } from './components/PermissionRequest';
 import { VJCanvas } from './components/VJCanvas';
 import { AudioAnalyzer } from './components/AudioAnalyzer';
 import { Library } from './components/Library';
-import { MAX_SET, keySlot, loadSetList, saveSetList, slotKey } from './config/setlist';
+import { KEYED, keySlot, loadSetList, saveSetList, slotKey } from './config/setlist';
 import { ParamPanel, ParamSection } from './components/ParamPanel';
 import { FxPanel } from './components/FxPanel';
 import { RENDERER_CATEGORIES, currentPattern as storedPattern } from './config/RendererCategories';
@@ -1196,7 +1196,7 @@ export default function App() {
     { id: 'pilot', label: 'Auto-pilot on/off', group: 'Tempo & set', continuous: false },
     { id: 'next', label: 'Next visual', group: 'Tempo & set', continuous: false },
     { id: 'prev', label: 'Previous visual', group: 'Tempo & set', continuous: false },
-    ...Array.from({ length: MAX_SET }, (_, i) => ({
+    ...Array.from({ length: KEYED }, (_, i) => ({
       id: `slot${i + 1}`, label: `Visual ${slotKey(i)}`, group: 'Visuals', continuous: false,
     })),
     { id: 'master', label: 'Master', group: 'Output', continuous: true },

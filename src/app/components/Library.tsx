@@ -9,7 +9,7 @@ import {
   RendererCategory,
   RendererInfo,
 } from '../config/RendererCategories';
-import { MAX_SET, slotKey, keySlot } from '../config/setlist';
+import { KEYED, slotKey, keySlot } from '../config/setlist';
 import { createRenderer, HOLDS_CONTEXT, VJRenderer } from './renderers/create';
 import { idleHands } from '../hands/idle';
 import { advanceClock, useLayerClock } from '../motion/clock';
@@ -158,7 +158,6 @@ export function Library({
       onSetChange(current.filter((p) => p !== pattern));
       return;
     }
-    if (current.length >= MAX_SET) return;
     onSetChange([...current, pattern]);
   }, [onSetChange]);
 
@@ -170,10 +169,9 @@ export function Library({
   const assignSlot = useCallback((pattern: VisualPattern, slot: number) => {
     const without = setRef.current.filter((p) => p !== pattern);
     const at = Math.min(slot, without.length);
-    if (at >= MAX_SET) return;
     const next = [...without];
     next.splice(at, 0, pattern);
-    onSetChange(next.slice(0, MAX_SET));
+    onSetChange(next);
   }, [onSetChange]);
 
   // Hover a tile and press its number to put it straight on that key.
@@ -386,8 +384,9 @@ export function Library({
                 &lt;N4TH&gt;
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/45">
-                Every visual, running. Pick up to {MAX_SET} and they become your keyboard —
-                click to add, or hover one and press the number you want it on.
+                Every visual, running. Pick as many as you like: the first {KEYED} become your
+                keyboard — click to add, or hover one and press the key you want it on.
+                Past {KEYED}, play them by clicking their card.
               </p>
             </div>
 
@@ -492,7 +491,7 @@ export function Library({
           {shown.map((info) => {
             const slot = set.indexOf(info.pattern);
             const chosen = slot !== -1;
-            const full = set.length >= MAX_SET && !chosen;
+            const full = false;
             // Two visuals take their content from here, so their cards carry a
             // control. That is why a card is a div with a button inside rather
             // than one big button — an input cannot live inside a button.
@@ -544,7 +543,7 @@ export function Library({
 
                     {chosen && (
                       <div className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-base font-semibold text-black shadow-lg">
-                        {slotKey(slot)}
+                        {slotKey(slot) || slot + 1}
                       </div>
                     )}
                   </div>
@@ -625,7 +624,7 @@ export function Library({
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-4 px-6 py-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             <span className="mr-1 text-[10px] tracking-widest text-white/35">
-              SET {set.length}/{MAX_SET}
+              SET {set.length}
             </span>
             {set.length === 0 && (
               <span className="text-[11px] text-white/30">
@@ -671,7 +670,7 @@ export function Library({
               >
                 <span className="relative flex h-6 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-[11px] font-semibold text-black">
                   {thumbs[pattern] && <img src={thumbs[pattern]} alt="" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full object-cover" />}
-                  <span className={`relative ${thumbs[pattern] ? 'rounded bg-black/70 px-1 text-[10px] text-white' : ''}`}>{slotKey(i)}</span>
+                  <span className={`relative ${thumbs[pattern] ? 'rounded bg-black/70 px-1 text-[10px] text-white' : ''}`}>{slotKey(i) || '·'}</span>
                 </span>
                 <span className="select-none text-[11px] text-white/80">
                   {RENDERER_CATEGORIES[pattern].name}

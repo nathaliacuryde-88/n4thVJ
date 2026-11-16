@@ -280,6 +280,13 @@ export function Controls({
   // A long set packs the bar tighter and nudges it right, clear of the
   // status bar in the corner; the bar is the most important thing up here.
   const compact = set.length > 10;
+  const rowRef = useRef<HTMLDivElement>(null);
+  const playing = layers[selectedLayer]?.pattern;
+  useEffect(() => {
+    if (!playing) return;
+    const card = rowRef.current?.querySelector(`[data-pattern="${playing}"]`);
+    card?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+  }, [playing, set.length]);
 
   return (
     <>
@@ -339,8 +346,18 @@ export function Controls({
 
             <div className="w-px h-6 bg-white/20" />
 
-            {/* The set, on the keys the library gave it */}
-            <div className={`flex items-center ${compact ? 'gap-0.5' : 'gap-1.5'}`}>
+            {/* The set, on the keys the library gave it. However long it is, the
+                row keeps to the screen and scrolls (wheel or trackpad), always
+                bringing the visual that is playing into view. */}
+            <div
+              ref={rowRef}
+              onWheel={(e) => {
+                const row = rowRef.current;
+                if (row && row.scrollWidth > row.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) row.scrollLeft += e.deltaY;
+              }}
+              className={`set-row flex items-center overflow-x-auto pl-1.5 pt-1.5 -mt-1.5 ${compact ? 'gap-0.5' : 'gap-1.5'}`}
+              style={{ maxWidth: 'calc(100vw - 480px)', scrollbarWidth: 'none' }}
+            >
               {set.map((pattern, index) => {
                 const layerIndex = layers.findIndex((l) => l.pattern === pattern);
                 const isSelected = layerIndex === selectedLayer;
@@ -348,6 +365,7 @@ export function Controls({
                 return (
                   <button
                     key={pattern}
+                    data-pattern={pattern}
                     onPointerDown={(e) => startHold(pattern, e)}
                     onPointerMove={(e) => {
                       const from = pressAt.current;
@@ -368,7 +386,7 @@ export function Controls({
                     onDrop={(e) => { e.preventDefault(); setDragging(null); }}
                     onDragEnd={() => setDragging(null)}
                     className={`relative flex ${compact ? 'w-[36px]' : 'w-[44px]'} shrink-0 cursor-grab flex-col items-center gap-0.5 group/set active:cursor-grabbing ${dragging === pattern ? 'opacity-40' : ''}`}
-                    title={`${RENDERER_CATEGORIES[pattern].name} (${slotKey(index)})${
+                    title={`${RENDERER_CATEGORIES[pattern].name} (${slotKey(index) || 'no key: click'})${
                       layerIndex !== -1 ? ` — layer ${layerIndex + 1}` : ''
                     } · hold to stack · drag to reorder`}
                   >
@@ -386,9 +404,11 @@ export function Controls({
                       {thumbs[pattern] && (
                         <img src={thumbs[pattern]} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
                       )}
-                      <span className={thumbs[pattern] ? 'absolute bottom-0 left-0 rounded-tr bg-black/75 px-1 text-[8px] leading-[11px] text-white' : 'relative'}>
-                        {slotKey(index)}
-                      </span>
+                      {slotKey(index) && (
+                        <span className={thumbs[pattern] ? 'absolute bottom-0 left-0 rounded-tr bg-black/75 px-1 text-[8px] leading-[11px] text-white' : 'relative'}>
+                          {slotKey(index)}
+                        </span>
+                      )}
                       {layerIndex !== -1 && layers.length > 1 && (
                         <span className="absolute right-0 top-0 h-3 w-3 rounded-bl bg-emerald-400 text-center text-[7px] leading-3 text-black">
                           {layerIndex + 1}

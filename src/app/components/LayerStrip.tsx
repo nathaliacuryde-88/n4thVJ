@@ -107,7 +107,7 @@ export function LayerStrip({
                     isSelected ? 'bg-white text-black' : 'bg-white/15 text-white/60'
                   }`}
                 >
-                  {key === -1 ? '·' : slotKey(key)}
+                  {key === -1 ? '·' : slotKey(key) || '·'}
                 </span>
                 <span
                   className={`truncate text-[9px] ${isSelected ? 'text-white' : 'text-white/55'}`}

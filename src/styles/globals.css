@@ -238,3 +238,6 @@ html {
   border-radius: 50%;
   cursor: pointer;
 }
+
+/* The set row in the top bar scrolls without showing a scrollbar. */
+.set-row::-webkit-scrollbar { display: none; }
