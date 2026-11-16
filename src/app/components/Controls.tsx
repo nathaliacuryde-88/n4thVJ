@@ -305,8 +305,8 @@ export function Controls({
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* TOP - VISUAL PATTERN SELECTOR (Similar to Color Bar) */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 ${compact ? 'ml-[80px]' : ''}`}>
-        <div className={`bg-black/70 backdrop-blur-sm rounded-full py-2 border border-white/20 font-mono ${compact ? 'px-3' : 'px-6'}`}>
+      <div className={`absolute top-4 left-1/2 w-max -translate-x-1/2 z-50 ${compact ? 'ml-[80px]' : ''}`}>
+        <div className={`bg-black/70 backdrop-blur-sm ${set.length > 10 ? 'rounded-3xl' : 'rounded-full'} py-2 border border-white/20 font-mono ${compact ? 'px-3' : 'px-6'}`}>
           <div className={`flex items-center ${compact ? 'gap-2' : 'gap-4'}`}>
             {/* Back to the library */}
             <button
@@ -357,7 +357,7 @@ export function Controls({
               <button
                 onClick={() => setFadeOpen((o) => !o)}
                 title="How long one visual takes to cross into the next, for the whole set"
-                className={`px-2 py-1 rounded text-[10px] tracking-wider tabular-nums transition-all ${
+                className={`whitespace-nowrap px-2 py-1 rounded text-[10px] tracking-wider tabular-nums transition-all ${
                   fadeOpen ? 'bg-white/15 text-white' : 'text-white/40 hover:bg-white/10 hover:text-white/80'
                 }`}
               >
@@ -404,19 +404,24 @@ export function Controls({
 
             <div className="w-px h-6 bg-white/20" />
 
-            {/* The set, on the keys the library gave it. However long it is, the
-                row keeps to the screen and scrolls (wheel or trackpad), always
-                bringing the visual that is playing into view. */}
+            {/* The set, on the keys the library gave it. Past ten it takes two
+                rows, laid out as the keyboard is: the number keys on top, the
+                letters under them. However long it is, it keeps to the screen
+                and scrolls (wheel or trackpad), always bringing the visual that
+                is playing into view. */}
             <div
               ref={rowRef}
               onWheel={(e) => {
                 const row = rowRef.current;
                 if (row && row.scrollWidth > row.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) row.scrollLeft += e.deltaY;
               }}
-              className={`set-row flex items-center overflow-x-auto pl-1.5 pt-1.5 -mt-1.5 ${compact ? 'gap-0.5' : 'gap-1.5'}`}
-              style={{ maxWidth: 'calc(100vw - 480px)', scrollbarWidth: 'none' }}
+              className="set-row flex shrink-0 flex-col gap-1 overflow-x-auto pl-1.5 pt-1.5 -mt-1.5"
+              style={{ width: 'max-content', maxWidth: 'calc(100vw - 480px)', scrollbarWidth: 'none' }}
             >
-              {set.map((pattern, index) => {
+              {(set.length > 10 ? [set.slice(0, 10), set.slice(10)] : [set]).map((row, r) => (
+              <div key={r} className="flex items-center gap-1">
+              {row.map((pattern, inRow) => {
+                const index = r * 10 + inRow;
                 const layerIndex = layers.findIndex((l) => l.pattern === pattern);
                 const isSelected = layerIndex === selectedLayer;
                 const isStacked = layerIndex !== -1 && !isSelected;
@@ -452,7 +457,7 @@ export function Controls({
                       if (layerIndex !== -1) return;
                       onPrepare(preparing === pattern ? null : pattern);
                     }}
-                    className={`relative flex ${compact ? 'w-[36px]' : 'w-[44px]'} shrink-0 cursor-grab flex-col items-center gap-0.5 group/set active:cursor-grabbing ${dragging === pattern ? 'opacity-40' : ''}`}
+                    className={`relative flex w-[56px] shrink-0 cursor-grab flex-col items-center gap-0.5 group/set active:cursor-grabbing ${dragging === pattern ? 'opacity-40' : ''}`}
                     title={`${RENDERER_CATEGORIES[pattern].name} (${slotKey(index) || 'no key: click'})${
                       layerIndex !== -1 ? ` — layer ${layerIndex + 1}` : ''
                     } · hold to stack · drag to reorder${layerIndex === -1 ? ' · right-click to prepare' : ''}`}
@@ -460,7 +465,7 @@ export function Controls({
                     {/* A still of the visual, so the key is recognised by what it
                         plays, its key in the corner. */}
                     <span
-                      className={`relative flex h-[26px] ${compact ? 'w-[34px]' : 'w-[40px]'} items-center justify-center overflow-hidden rounded-md text-xs transition-all ${
+                      className={`relative flex h-[32px] w-[52px] items-center justify-center overflow-hidden rounded-md text-xs transition-all ${
                         isSelected
                           ? 'ring-2 ring-white shadow-lg shadow-white/40'
                           : preparing === pattern
@@ -474,7 +479,7 @@ export function Controls({
                         <img src={thumbs[pattern]} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
                       )}
                       {slotKey(index) && (
-                        <span className={thumbs[pattern] ? 'absolute bottom-0 left-0 rounded-tr bg-black/75 px-1 text-[8px] leading-[11px] text-white' : 'relative'}>
+                        <span className={thumbs[pattern] ? 'absolute bottom-0 left-0 rounded-tr bg-black/75 px-1 text-[9px] leading-[12px] text-white' : 'relative'}>
                           {slotKey(index)}
                         </span>
                       )}
@@ -524,7 +529,7 @@ export function Controls({
                     )}
                     {/* A number alone is nothing to recognise mid-set. */}
                     <span
-                      className={`w-full truncate text-center text-[8px] leading-none transition-colors ${
+                      className={`w-full truncate text-center text-[9px] leading-none transition-colors ${
                         isSelected ? 'text-white/85' : 'text-white/35 group-hover/set:text-white/65'
                       }`}
                     >
@@ -533,6 +538,8 @@ export function Controls({
                   </button>
                 );
               })}
+              </div>
+              ))}
             </div>
 
             {/* How hard the hands drive. Sits with the set because it is a

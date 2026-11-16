@@ -575,11 +575,20 @@ export function VJCanvas({
           const h = height * z;
           ctx.drawImage(through(deck), (width - w) / 2, (height - h) / 2, w, h);
         };
+        /*
+         * A true crossfade: the outgoing visual fades down while the incoming
+         * one fades up, the two added together, so neither shows through the
+         * other's empty parts and nothing is left to vanish on the last frame.
+         * Eased at both ends, so the last of the old one thins away rather
+         * than dropping out.
+         */
+        const ease = fade * fade * fade * (fade * (fade * 6 - 15) + 10);
         if (slot.outgoing) {
-          ctx.globalAlpha = opacity * (isBase ? 1 : 1 - fade);
+          ctx.globalAlpha = opacity * (1 - ease);
           draw(slot.outgoing);
+          if (isBase) ctx.globalCompositeOperation = 'lighter';
         }
-        ctx.globalAlpha = opacity * fade;
+        ctx.globalAlpha = opacity * (slot.outgoing ? ease : 1);
         draw(slot.current);
       });
 
