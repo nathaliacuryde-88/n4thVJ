@@ -16,6 +16,8 @@ export interface SavedSet {
   params: AllParamValues;
   fx: AllParamValues;
   looks: Record<string, Look>;
+  /** The set's transition, in seconds; older saves have none and keep whatever is set. */
+  fade?: number;
   stack: { layers: Layer[]; selected: number } | null;
 }
 

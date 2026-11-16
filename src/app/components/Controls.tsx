@@ -70,6 +70,12 @@ interface ControlsProps {
   /** The saved set she is in, and saving to it — or naming a new one. */
   setName: string | null;
   onSaveSet: (name: string) => void;
+  /** The visual being prepared off screen, if any, and how to start or stop preparing one. */
+  preparing: VisualPattern | null;
+  onPrepare: (pattern: VisualPattern | null) => void;
+  /** The set's transition, in seconds. */
+  fade: number;
+  onFadeChange: (seconds: number) => void;
   audioEnabled: boolean;
   onAudioToggle: () => void;
   audioSensitivity: number;
@@ -180,6 +186,10 @@ export function Controls({
   onOpenLibrary,
   setName,
   onSaveSet,
+  preparing,
+  onPrepare,
+  fade,
+  onFadeChange,
   audioEnabled,
   onAudioToggle,
   audioSensitivity,
@@ -266,6 +276,8 @@ export function Controls({
   const [naming, setNaming] = useState(false);
   const [draft, setDraft] = useState('');
   const [saved, setSaved] = useState(false);
+  /** Whether the set's transition box is open. */
+  const [fadeOpen, setFadeOpen] = useState(false);
   useEffect(() => {
     if (!saved) return;
     const id = setTimeout(() => setSaved(false), 1400);
@@ -340,6 +352,52 @@ export function Controls({
                 </form>
               )}
             </div>
+            {/* The set's own timing: how one visual crosses into the next. */}
+            <div className="relative">
+              <button
+                onClick={() => setFadeOpen((o) => !o)}
+                title="How long one visual takes to cross into the next, for the whole set"
+                className={`px-2 py-1 rounded text-[10px] tracking-wider tabular-nums transition-all ${
+                  fadeOpen ? 'bg-white/15 text-white' : 'text-white/40 hover:bg-white/10 hover:text-white/80'
+                }`}
+              >
+                {fade <= 0 ? 'CUT' : `FADE ${fade < 10 ? fade.toFixed(1).replace(/\.0$/, '') : Math.round(fade)}s`}
+              </button>
+              {fadeOpen && (
+                <div className="absolute left-1/2 top-9 z-50 w-56 -translate-x-1/2 rounded-xl border border-white/20 bg-black/90 p-3 font-mono backdrop-blur-sm">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[9px] tracking-widest text-white/50">TRANSITION</span>
+                    <span className="text-[11px] tabular-nums text-white">{fade <= 0 ? 'cut' : `${fade.toFixed(1)} s`}</span>
+                  </div>
+                  <input
+                    type="range"
+                    aria-label="Transition length"
+                    min={0}
+                    max={12}
+                    step={0.1}
+                    value={fade}
+                    onChange={(e) => onFadeChange(parseFloat(e.target.value))}
+                    className="vj-slider h-1 w-full cursor-pointer appearance-none rounded-full focus:outline-none"
+                    style={{ background: `linear-gradient(to right, rgba(255,255,255,0.85) ${(fade / 12) * 100}%, rgba(255,255,255,0.15) ${(fade / 12) * 100}%)` }}
+                  />
+                  <div className="mt-2 flex gap-1">
+                    {[0, 0.5, 1, 2, 4, 8].map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => onFadeChange(v)}
+                        className={`flex-1 rounded py-0.5 text-[9px] ${Math.abs(fade - v) < 0.05 ? 'bg-white text-black' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
+                      >
+                        {v === 0 ? 'cut' : `${v}s`}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[9px] leading-snug text-white/40">
+                    For every visual in the set, and saved with it. Long fades run two visuals at once for that time.
+                  </p>
+                </div>
+              )}
+            </div>
+
             {setName && !compact && (
               <span className="max-w-[90px] truncate text-[9px] text-white/35" title="The saved set you are in">{setName}</span>
             )}
@@ -385,10 +443,19 @@ export function Controls({
                     onDragOver={(e) => { if (dragging) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
                     onDrop={(e) => { e.preventDefault(); setDragging(null); }}
                     onDragEnd={() => setDragging(null)}
+                    onContextMenu={(e) => {
+                      // Right-click: get this one ready without putting it on screen.
+                      // (Anywhere else right-click hides the interface; not here.)
+                      e.preventDefault();
+                      e.stopPropagation();
+                      cancelHold();
+                      if (layerIndex !== -1) return;
+                      onPrepare(preparing === pattern ? null : pattern);
+                    }}
                     className={`relative flex ${compact ? 'w-[36px]' : 'w-[44px]'} shrink-0 cursor-grab flex-col items-center gap-0.5 group/set active:cursor-grabbing ${dragging === pattern ? 'opacity-40' : ''}`}
                     title={`${RENDERER_CATEGORIES[pattern].name} (${slotKey(index) || 'no key: click'})${
                       layerIndex !== -1 ? ` — layer ${layerIndex + 1}` : ''
-                    } · hold to stack · drag to reorder`}
+                    } · hold to stack · drag to reorder${layerIndex === -1 ? ' · right-click to prepare' : ''}`}
                   >
                     {/* A still of the visual, so the key is recognised by what it
                         plays, its key in the corner. */}
@@ -396,7 +463,9 @@ export function Controls({
                       className={`relative flex h-[26px] ${compact ? 'w-[34px]' : 'w-[40px]'} items-center justify-center overflow-hidden rounded-md text-xs transition-all ${
                         isSelected
                           ? 'ring-2 ring-white shadow-lg shadow-white/40'
-                          : isStacked
+                          : preparing === pattern
+                            ? 'ring-2 ring-amber-300 opacity-100'
+                            : isStacked
                             ? 'ring-2 ring-emerald-400/80'
                             : 'opacity-70 ring-1 ring-white/15 group-hover/set:opacity-100'
                       } ${thumbs[pattern] ? 'bg-black' : isSelected ? 'bg-white text-black' : 'bg-white/10 text-white/60'}`}
@@ -432,6 +501,25 @@ export function Controls({
                         className="invisible absolute -left-1.5 -top-1.5 z-10 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border border-white/30 bg-black text-[10px] leading-none text-white/80 transition-[visibility] hover:bg-red-500 hover:text-white group-hover/set:visible group-hover/set:delay-500"
                       >
                         ×
+                      </span>
+                    )}
+                    {/* Prepare it: its settings, off screen. Appears on a rest, like the ×. */}
+                    {layerIndex === -1 && (
+                      <span
+                        role="button"
+                        aria-label={`Prepare ${RENDERER_CATEGORIES[pattern].name} without playing it`}
+                        title={preparing === pattern ? 'Stop preparing' : `Prepare ${RENDERER_CATEGORIES[pattern].name}: set it up without playing it (or right-click)`}
+                        onPointerDown={(e) => { e.stopPropagation(); cancelHold(); }}
+                        onPointerUp={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); onPrepare(preparing === pattern ? null : pattern); }}
+                        draggable={false}
+                        className={`absolute -right-1 -top-1.5 z-10 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border text-[9px] leading-none transition-[visibility] ${
+                          preparing === pattern
+                            ? 'visible border-amber-300 bg-amber-300 text-black'
+                            : 'invisible border-white/30 bg-black text-white/80 hover:bg-amber-300 hover:text-black group-hover/set:visible group-hover/set:delay-500'
+                        }`}
+                      >
+                        ✎
                       </span>
                     )}
                     {/* A number alone is nothing to recognise mid-set. */}

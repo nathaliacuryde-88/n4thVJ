@@ -211,6 +211,16 @@ export default function App() {
     return typeof saved?.selected === 'number' ? saved.selected : 0;
   });
   const currentPattern = (layers[selectedLayer] ?? layers[0]).pattern;
+  /**
+   * A visual she is getting ready while another plays: its sliders, effects
+   * and colours are what the panels edit, without it coming on screen. Null:
+   * the panels edit the visual that is playing, as always.
+   */
+  const [preparing, setPreparing] = useState<VisualPattern | null>(null);
+  const editPattern = preparing ?? currentPattern;
+  useEffect(() => {
+    if (preparing && layers.some((l) => l.pattern === preparing)) setPreparing(null);
+  }, [preparing, layers]);
   /** The set, for the callbacks declared before it is: kept current further down. */
   const setRef = useRef<VisualPattern[]>([]);
 
@@ -335,7 +345,7 @@ export default function App() {
     [looks],
   );
 
-  const { hue, saturation, colorMode } = lookFor(currentPattern);
+  const { hue, saturation, colorMode } = lookFor(editPattern);
 
   type Setter<T> = T | ((previous: T) => T);
   const resolve = <T,>(next: Setter<T>, previous: T): T =>
@@ -344,10 +354,10 @@ export default function App() {
   /** Writes one field of the selected visual's look. */
   const editLook = useCallback(<K extends keyof Look>(key: K, v: Setter<Look[K]>) => {
     setLooks((prev) => {
-      const mine = prev[currentPattern] ?? defaultLook();
-      return { ...prev, [currentPattern]: { ...mine, [key]: resolve(v, mine[key]) } };
+      const mine = prev[editPattern] ?? defaultLook();
+      return { ...prev, [editPattern]: { ...mine, [key]: resolve(v, mine[key]) } };
     });
-  }, [currentPattern]);
+  }, [editPattern]);
 
   const setHue = useCallback((v: Setter<number>) => editLook('hue', v), [editLook]);
   const setSaturation = useCallback((v: Setter<number>) => editLook('saturation', v), [editLook]);
@@ -361,7 +371,13 @@ export default function App() {
     }),
     [layers, looks],
   );
-  const dominantColors = layerColors[selectedLayer] ?? layerColors[0];
+  const liveColors = layerColors[selectedLayer] ?? layerColors[0];
+  // Preparing, the colour bar shows the colours of the one being prepared.
+  const dominantColors = useMemo(() => {
+    if (!preparing) return liveColors;
+    const look = looks[preparing] ?? defaultLook();
+    return generateColors(look.hue, look.saturation, look.colorMode);
+  }, [preparing, looks, liveColors]);
 
   const [autoHueEnabled, setAutoHueEnabled] = useState(false);
 
@@ -538,6 +554,10 @@ export default function App() {
     loadSetting('vj-finish', 0, (v) => v === 0 || v === 1 || v === 2) as 0 | 1 | 2,
   );
   useEffect(() => { saveSetting('vj-finish', finish); }, [finish]);
+  /** How long one visual takes to cross into the next, in seconds, for the whole set. 0 cuts. */
+  const [fade, setFade] = useState<number>(() =>
+    loadSetting('vj-fade', 1, (v) => typeof v === 'number' && v >= 0 && v <= 30));
+  useEffect(() => { saveSetting('vj-fade', fade); }, [fade]);
 
   const toggleOutput = useCallback(() => {
     const out = outputRef.current;
@@ -615,60 +635,60 @@ export default function App() {
   );
 
   /** The selected layer's visual's effects, which is what the panel edits. */
-  const fxParams = fxByPattern[currentPattern] ?? NO_FX;
+  const fxParams = fxByPattern[editPattern] ?? NO_FX;
 
   const setFxParam = useCallback((path: string, value: number) => {
     setFxByPattern((prev) => ({
       ...prev,
-      [currentPattern]: { ...(prev[currentPattern] ?? {}), [path]: value },
+      [editPattern]: { ...(prev[editPattern] ?? {}), [path]: value },
     }));
-  }, [currentPattern]);
+  }, [editPattern]);
 
   // One switch over the whole chain, so a heavy look left over from an earlier
   // session is one click away from gone rather than a hunt through the panel.
   const fxEnabled = (fxParams['master.enabled'] ?? 1) >= 0.5;
   const toggleFx = useCallback(() => {
     setFxByPattern((prev) => {
-      const mine = prev[currentPattern] ?? {};
+      const mine = prev[editPattern] ?? {};
       return {
         ...prev,
-        [currentPattern]: {
+        [editPattern]: {
           ...mine,
           'master.enabled': (mine['master.enabled'] ?? 1) >= 0.5 ? 0 : 1,
         },
       };
     });
-  }, [currentPattern]);
+  }, [editPattern]);
 
   /** Which effect's controls are open. Held here so hiding the UI keeps it. */
   const [openFx, setOpenFx] = useState<string | null>(null);
 
   const resetFxParam = useCallback((path?: string) => {
     setFxByPattern((prev) => {
-      if (path === undefined) return { ...prev, [currentPattern]: {} };
-      const { [path]: _removed, ...keep } = prev[currentPattern] ?? {};
-      return { ...prev, [currentPattern]: keep };
+      if (path === undefined) return { ...prev, [editPattern]: {} };
+      const { [path]: _removed, ...keep } = prev[editPattern] ?? {};
+      return { ...prev, [editPattern]: keep };
     });
-  }, [currentPattern]);
+  }, [editPattern]);
 
   const setParam = useCallback((path: string, value: number) => {
     setParamValues((prev) => ({
       ...prev,
-      [currentPattern]: { ...prev[currentPattern], [path]: value },
+      [editPattern]: { ...prev[editPattern], [path]: value },
     }));
-  }, [currentPattern]);
+  }, [editPattern]);
 
   /** One parameter back to its config default, or all of this renderer's. */
   const resetParam = useCallback((path?: string) => {
     setParamValues((prev) => {
       if (path === undefined) {
-        const { [currentPattern]: _dropped, ...rest } = prev;
+        const { [editPattern]: _dropped, ...rest } = prev;
         return rest;
       }
-      const { [path]: _removed, ...keep } = prev[currentPattern] ?? {};
-      return { ...prev, [currentPattern]: keep };
+      const { [path]: _removed, ...keep } = prev[editPattern] ?? {};
+      return { ...prev, [editPattern]: keep };
     });
-  }, [currentPattern]);
+  }, [editPattern]);
 
   // The idle clock re-renders this component every frame, so the per-layer
   // slider values have to keep their identity — otherwise VJCanvas would push
@@ -942,13 +962,14 @@ export default function App() {
       params: pick(paramValues, set),
       fx: pick(fxByPattern, set),
       looks: pick(looks, set),
+      fade,
       stack: view === 'vj' ? { layers, selected: selectedLayer }
         : loadSetting('vj-stack', null, (v) => typeof v === 'object'),
     };
     setSavedSets((prev) => [...prev.filter((s) => s.name !== clean), entry]
       .sort((a, b) => a.name.localeCompare(b.name)));
     setSetName(clean);
-  }, [set, paramValues, fxByPattern, looks, layers, selectedLayer, view]);
+  }, [set, paramValues, fxByPattern, looks, layers, selectedLayer, view, fade]);
 
   /** Puts a saved set back: the row, every visual's settings, and its stack. */
   const loadNamedSet = useCallback((name: string) => {
@@ -966,6 +987,7 @@ export default function App() {
     setParamValues((prev) => replace(prev, entry.params));
     setFxByPattern((prev) => replace(prev, entry.fx));
     setLooks((prev) => replace(prev, entry.looks));
+    if (typeof entry.fade === 'number') setFade(entry.fade);
     if (entry.stack) {
       saveSetting('vj-stack', entry.stack);
       if (view === 'vj') {
@@ -1046,7 +1068,7 @@ export default function App() {
     const group = PIPELINE_PARAMS.groups.find((g) => g.name === name);
     if (!group?.togglePath) return;
     setFxByPattern((prev) => {
-      const mine = prev[currentPattern] ?? {};
+      const mine = prev[editPattern] ?? {};
       const live = group.stage ? stageDoing(group.stage, mine) : (mine[group.togglePath!] ?? 0) >= 0.5;
       const next = { ...mine };
       if (live) {
@@ -1059,9 +1081,9 @@ export default function App() {
           next[path] = stored !== undefined && stored !== off ? stored : v;
         }
       }
-      return { ...prev, [currentPattern]: next };
+      return { ...prev, [editPattern]: next };
     });
-  }, [currentPattern]);
+  }, [editPattern]);
 
   /*
    * The master fader and the blackout. Neither is remembered: a set always
@@ -1565,19 +1587,19 @@ export default function App() {
   // Which sliders carry an LFO: read here so the panel shows them.
   const lfos = useLfos();
   const paramLfo = useMemo(() => ({
-    get: (path: string) => lfos[`p:${currentPattern}`]?.[path],
-    set: (path: string, l: Parameters<typeof setLfo>[3]) => setLfo('p', currentPattern, path, l),
-  }), [lfos, currentPattern]);
+    get: (path: string) => lfos[`p:${editPattern}`]?.[path],
+    set: (path: string, l: Parameters<typeof setLfo>[3]) => setLfo('p', editPattern, path, l),
+  }), [lfos, editPattern]);
   const fxLfo = useMemo(() => ({
-    get: (path: string) => lfos[`fx:${currentPattern}`]?.[path],
-    set: (path: string, l: Parameters<typeof setLfo>[3]) => setLfo('fx', currentPattern, path, l),
-  }), [lfos, currentPattern]);
+    get: (path: string) => lfos[`fx:${editPattern}`]?.[path],
+    set: (path: string, l: Parameters<typeof setLfo>[3]) => setLfo('fx', editPattern, path, l),
+  }), [lfos, editPattern]);
 
   const panelSections = useMemo<ParamSection[]>(() => {
-    const entry = RENDERER_PARAMS[currentPattern];
+    const entry = RENDERER_PARAMS[editPattern];
     if (!entry) return [];
     const { look, play } = splitPlay(entry);
-    const values = paramValues[currentPattern] ?? {};
+    const values = paramValues[editPattern] ?? {};
     const pathsOf = (e: typeof look) => new Set(e.groups.flatMap((g) => g.params.map((p) => p.path)));
     const scoped = (paths: Set<string>) => (path?: string) => {
       if (path !== undefined) { resetParam(path); return; }
@@ -1596,7 +1618,7 @@ export default function App() {
         ),
         entry: play, values, onChange: setParam, onReset: scoped(pathsOf(play)), lfo: paramLfo },
     ];
-  }, [currentPattern, paramValues, setParam, resetParam, paramLfo]);
+  }, [editPattern, paramValues, setParam, resetParam, paramLfo]);
 
   if (view === 'library') {
     return (
@@ -1645,6 +1667,7 @@ export default function App() {
         master={blackout ? 0 : master}
         zoomByPattern={zooms}
         finish={finish}
+        fadeSeconds={fade}
         outputSize={outputSize}
         fxByPattern={fxByPattern}
         onCanvasReady={(canvas) => {
@@ -1679,6 +1702,23 @@ export default function App() {
       {showUI && (
         <ParamPanel
           header={
+            <>
+            {preparing && (
+              <div className="flex items-center gap-2 border-b border-amber-300/30 bg-amber-300/10 px-3 py-2">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
+                <span className="min-w-0 flex-1 text-[10px] leading-tight text-amber-100/90">
+                  PREPARING <span className="font-semibold">{RENDERER_CATEGORIES[preparing].name}</span>
+                  <span className="block text-[9px] text-amber-100/50">not on screen · kept for when it plays</span>
+                </span>
+                <button
+                  onClick={() => setPreparing(null)}
+                  title="Back to the visual that is playing"
+                  className="shrink-0 rounded bg-amber-300 px-2 py-0.5 text-[9px] font-semibold text-black"
+                >
+                  DONE
+                </button>
+              </div>
+            )}
             <LayerStrip
               layers={layers}
               selectedLayer={selectedLayer}
@@ -1690,6 +1730,7 @@ export default function App() {
               onBlendChange={(index, blend) =>
                 setLayers((prev) => prev.map((l, i) => (i === index ? { ...l, blend } : l)))}
             />
+            </>
           }
           sections={panelSections}
         />
@@ -1706,9 +1747,11 @@ export default function App() {
           onOpen={setOpenFx}
           lfo={fxLfo}
           layerLabel={
-            layers.length > 1
-              ? `L${selectedLayer + 1} ${RENDERER_CATEGORIES[currentPattern].short}`
-              : RENDERER_CATEGORIES[currentPattern].short
+            preparing
+              ? `${RENDERER_CATEGORIES[preparing].short} · preparing`
+              : layers.length > 1
+                ? `L${selectedLayer + 1} ${RENDERER_CATEGORIES[currentPattern].short}`
+                : RENDERER_CATEGORIES[currentPattern].short
           }
         />
       )}
@@ -1757,6 +1800,10 @@ export default function App() {
           onOpenLibrary={() => setView('library')}
           setName={setName}
           onSaveSet={saveNamedSet}
+          preparing={preparing}
+          onPrepare={setPreparing}
+          fade={fade}
+          onFadeChange={setFade}
           audioEnabled={audioEnabled}
           onAudioToggle={() => setAudioEnabled(!audioEnabled)}
           audioSensitivity={audioSensitivity}

@@ -161,6 +161,8 @@ interface VJCanvasProps {
   autoHandData: HandData;
   /** Whether that automatic drive is switched on at all. */
   autoDrive: boolean;
+  /** Seconds a visual takes to cross into the next, for the whole set. 0 cuts. */
+  fadeSeconds?: number;
   /** The master fader, 0–1: the whole output, projector and recording included. 0 is black. */
   master?: number;
   /** How far each visual is zoomed, by pattern: 1 is as drawn. */
@@ -201,11 +203,14 @@ export function VJCanvas({
   master = 1,
   zoomByPattern,
   finish = 0,
+  fadeSeconds,
   outputSize = null,
   onCanvasReady,
 }: VJCanvasProps) {
   const outputSizeRef = useRef(outputSize);
   outputSizeRef.current = outputSize;
+  const fadeRef = useRef(fadeSeconds);
+  fadeRef.current = fadeSeconds;
   /** Set by the drawing effect; called when the projector's size changes. */
   const resizeRef = useRef<() => void>(() => {});
   useEffect(() => { resizeRef.current(); }, [outputSize?.width, outputSize?.height]);
@@ -810,7 +815,7 @@ export function VJCanvas({
   // crossfade the ones whose pattern changed, retire the ones taken off.
   useEffect(() => {
     const slots = slotsRef.current;
-    const duration = PipelineConfig.transition.duration;
+    const duration = fadeRef.current ?? PipelineConfig.transition.duration;
 
     const build = (pattern: VisualPattern, index: number): Deck | null => {
       const canvas = document.createElement('canvas');
