@@ -68,6 +68,9 @@ const SWARM: Swimmer[] = [
   { c: [5.8, 2.0, -4.0], a: [0.8, 0.5, 0.6], s: 0.7, off: 0.28, ph: 0.6, pulses: 9 },
   { c: [-0.6, 2.7, -5.0], a: [1.6, 0.4, 0.8], s: 0.7, off: 0.63, ph: 2.7, pulses: 8 },
 ];
+/** When the visual comes up, how long after one jellyfish the next follows it up from below, in seconds. */
+const ARRIVAL_GAP = 2.2;
+
 /** Which of them swim at each count — one on its own takes the middle. */
 const SHOWN: number[][] = [
   [], [0], [1, 2], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4],
@@ -149,6 +152,8 @@ export class JellyfishRenderer {
   private motionTime = 0;
   private colourTime = 0;
   private started = false;
+  /** Seconds since the visual came up: the swarm arrives one by one from below. */
+  private since = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, host: MotifHost | null = null) {
     this.canvas = canvas;
@@ -301,12 +306,17 @@ export class JellyfishRenderer {
     const w = (TAU * t) / LOOP;
 
     const count = Math.max(0, Math.min(8, Math.round(cfg.swarm.count)));
-    const shown = new Set(SHOWN[count]);
     const first = !this.started;
     if (!this.host) look.update(colors, cfg.colour.palette, dt, first, cfg.colour.style);
+    // It opens on empty water: the first rises from below at once, and each
+    // of the others a little after the one before, until the count is reached.
+    // (Real time, so the finger count does not hold the arrival back.)
+    this.since += dt;
+    const arrived = Math.min(count, 1 + Math.floor(this.since / ARRIVAL_GAP));
+    const shown = new Set(SHOWN[count].slice(0, arrived));
     if (first) {
       this.started = true;
-      this.swarm.forEach((j, i) => { j.presence = shown.has(i) ? 1 : 0; });
+      this.swarm.forEach((j) => { j.presence = 0; });
     }
 
     const scatter = Math.max(0.3, 1 + (play.spread - 0.4) * cfg.hands.spread * 1.6);

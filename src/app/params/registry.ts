@@ -1410,7 +1410,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Swarm',
         params: [
-          { path: 'swarm.count', label: 'Jellyfish', min: 1, max: 8, step: 1 },
+          { path: 'swarm.count', label: 'Jellyfish', min: 0, max: 8, step: 1, hint: '0 = empty water; on coming up they arrive one by one from below' },
           { path: 'swarm.size', label: 'Size', min: 0.4, max: 2, step: 0.05 },
           { path: 'swarm.drift', label: 'Drift', min: 0, max: 2.5, step: 0.05, hint: '0 holds each in place' },
           { path: 'swarm.pulse', label: 'Pulse', min: 0, max: 1.5, step: 0.05 },
