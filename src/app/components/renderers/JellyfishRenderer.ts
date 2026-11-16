@@ -4,6 +4,7 @@ import { JellyfishConfig } from '../../config/JellyfishRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { disposeThree } from './disposeThree';
 import {
+  arrived,
   CORE, InflatedLook, LOBE, LOOP, MotifHost, Playing, Shared, TAU, TUBE,
   drawUnavailable, frameCamera, makeRenderer,
 } from './inflated/style';
@@ -68,9 +69,6 @@ const SWARM: Swimmer[] = [
   { c: [5.8, 2.0, -4.0], a: [0.8, 0.5, 0.6], s: 0.7, off: 0.28, ph: 0.6, pulses: 9 },
   { c: [-0.6, 2.7, -5.0], a: [1.6, 0.4, 0.8], s: 0.7, off: 0.63, ph: 2.7, pulses: 8 },
 ];
-/** When the visual comes up, how long after one jellyfish the next follows it up from below, in seconds. */
-const ARRIVAL_GAP = 2.2;
-
 /** Which of them swim at each count — one on its own takes the middle. */
 const SHOWN: number[][] = [
   [], [0], [1, 2], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4],
@@ -312,8 +310,7 @@ export class JellyfishRenderer {
     // of the others a little after the one before, until the count is reached.
     // (Real time, so the finger count does not hold the arrival back.)
     this.since += dt;
-    const arrived = Math.min(count, 1 + Math.floor(this.since / ARRIVAL_GAP));
-    const shown = new Set(SHOWN[count].slice(0, arrived));
+    const shown = new Set(SHOWN[count].slice(0, arrived(this.since, count)));
     if (first) {
       this.started = true;
       this.swarm.forEach((j) => { j.presence = 0; });

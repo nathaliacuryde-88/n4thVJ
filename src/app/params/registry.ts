@@ -544,6 +544,17 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     config: BloomFieldConfig,
     groups: [
       {
+        name: 'Field',
+        params: [
+          { path: 'field.count', label: 'Flowers', min: 0, max: 7, step: 1, hint: 'on coming up they grow in one by one' },
+          { path: 'field.distance', label: 'Distance', min: 8, max: 26, step: 0.25, hint: 'nearer = bigger' },
+          { path: 'motion.amount', label: 'Sway', min: 0, max: 2.5, step: 0.05 },
+          { path: 'motion.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
+          { path: 'field.orbit', label: 'Orbit', min: 0, max: 1, step: 0.05, hint: 'slow camera swing' },
+          { path: 'field.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+        ],
+      },
+      {
         name: 'Colour',
         params: [
           { path: 'colour.speed', label: 'Flow', min: -3, max: 3, step: 0.05, hint: 'below 0 runs backwards' },
@@ -563,17 +574,6 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'pattern.bands', label: 'Bands', min: 0, max: 2, step: 0.05 },
           { path: 'pattern.rings', label: 'Rings', min: 0, max: 2, step: 0.05 },
           { path: 'pattern.melt', label: 'Melt', min: 0, max: 1, step: 0.05, hint: '0 holds the mix where set' },
-        ],
-      },
-      {
-        name: 'Field',
-        params: [
-          { path: 'field.count', label: 'Flowers', min: 1, max: 7, step: 1 },
-          { path: 'motion.amount', label: 'Sway', min: 0, max: 2.5, step: 0.05 },
-          { path: 'motion.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
-          { path: 'field.orbit', label: 'Orbit', min: 0, max: 1, step: 0.05, hint: 'slow camera swing' },
-          { path: 'field.distance', label: 'Distance', min: 8, max: 26, step: 0.25 },
-          { path: 'field.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
         ],
       },
       {
@@ -601,6 +601,17 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     config: ButterfliesConfig,
     groups: [
       {
+        name: 'Flight',
+        params: [
+          { path: 'flight.count', label: 'Butterflies', min: 0, max: 8, step: 1, hint: 'on coming up they fly in one by one' },
+          { path: 'flight.size', label: 'Size', min: 0.4, max: 2, step: 0.05 },
+          { path: 'flight.swing', label: 'Loops', min: 0, max: 2.5, step: 0.05, hint: '0 hovers in place' },
+          { path: 'flight.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
+          { path: 'flight.wingbeat', label: 'Wingbeat', min: 0.2, max: 3, step: 0.05 },
+          { path: 'flight.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+        ],
+      },
+      {
         name: 'Colour',
         params: [
           { path: 'colour.speed', label: 'Flow', min: -3, max: 3, step: 0.05, hint: 'below 0 runs backwards' },
@@ -620,17 +631,6 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'pattern.bands', label: 'Bands', min: 0, max: 2, step: 0.05 },
           { path: 'pattern.rings', label: 'Eyespots', min: 0, max: 2, step: 0.05 },
           { path: 'pattern.melt', label: 'Melt', min: 0, max: 1, step: 0.05, hint: '0 holds the mix where set' },
-        ],
-      },
-      {
-        name: 'Flight',
-        params: [
-          { path: 'flight.count', label: 'Butterflies', min: 1, max: 8, step: 1 },
-          { path: 'flight.size', label: 'Size', min: 0.4, max: 2, step: 0.05 },
-          { path: 'flight.swing', label: 'Loops', min: 0, max: 2.5, step: 0.05, hint: '0 hovers in place' },
-          { path: 'flight.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
-          { path: 'flight.wingbeat', label: 'Wingbeat', min: 0.2, max: 3, step: 0.05 },
-          { path: 'flight.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
         ],
       },
       {
@@ -1070,6 +1070,17 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     config: AnemoneConfig,
     groups: [
       {
+        name: 'Garden',
+        params: [
+          { path: 'garden.count', label: 'Anemones', min: 0, max: 7, step: 1, hint: 'on coming up they grow in one by one' },
+          { path: 'garden.distance', label: 'Distance', min: 8, max: 26, step: 0.25, hint: 'nearer = bigger' },
+          { path: 'garden.reach', label: 'Arms', min: 0.4, max: 1.8, step: 0.05 },
+          { path: 'garden.sway', label: 'Sway', min: 0, max: 2.5, step: 0.05 },
+          { path: 'garden.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
+          { path: 'garden.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+        ],
+      },
+      {
         name: 'Colour',
         params: [
           { path: 'colour.speed', label: 'Flow', min: -3, max: 3, step: 0.05, hint: 'below 0 runs backwards' },
@@ -1077,17 +1088,6 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'colour.palette', label: 'Palette', min: 0, max: 3, step: 1, labels: ['Reel', 'Ember', 'Lagoon', 'Ink'] },
           { path: 'colour.style', label: 'Style', min: 0, max: 3, step: 1, labels: ['Inflated', 'Paper', 'Line', 'Print'] },
           { path: 'colour.depth', label: 'Shadow', min: 0, max: 0.8, step: 0.01 },
-        ],
-      },
-      {
-        name: 'Garden',
-        params: [
-          { path: 'garden.count', label: 'Anemones', min: 1, max: 7, step: 1 },
-          { path: 'garden.reach', label: 'Arms', min: 0.4, max: 1.8, step: 0.05 },
-          { path: 'garden.sway', label: 'Sway', min: 0, max: 2.5, step: 0.05 },
-          { path: 'garden.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
-          { path: 'garden.distance', label: 'Distance', min: 8, max: 26, step: 0.25 },
-          { path: 'garden.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
         ],
       },
       {
@@ -1396,6 +1396,17 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     config: JellyfishConfig,
     groups: [
       {
+        name: 'Swarm',
+        params: [
+          { path: 'swarm.count', label: 'Jellyfish', min: 0, max: 8, step: 1, hint: '0 = empty water; on coming up they arrive one by one from below' },
+          { path: 'swarm.size', label: 'Size', min: 0.4, max: 2, step: 0.05 },
+          { path: 'swarm.drift', label: 'Drift', min: 0, max: 2.5, step: 0.05, hint: '0 holds each in place' },
+          { path: 'swarm.pulse', label: 'Pulse', min: 0, max: 1.5, step: 0.05 },
+          { path: 'swarm.tentacles', label: 'Tentacles', min: 0.3, max: 2, step: 0.05 },
+          { path: 'swarm.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+        ],
+      },
+      {
         name: 'Colour',
         params: [
           { path: 'colour.speed', label: 'Flow', min: -3, max: 3, step: 0.05, hint: 'below 0 runs backwards' },
@@ -1406,17 +1417,6 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           },
           { path: 'colour.style', label: 'Style', min: 0, max: 3, step: 1, labels: ['Inflated', 'Paper', 'Line', 'Print'] },
           { path: 'colour.depth', label: 'Shadow', min: 0, max: 0.8, step: 0.01 },
-        ],
-      },
-      {
-        name: 'Swarm',
-        params: [
-          { path: 'swarm.count', label: 'Jellyfish', min: 0, max: 8, step: 1, hint: '0 = empty water; on coming up they arrive one by one from below' },
-          { path: 'swarm.size', label: 'Size', min: 0.4, max: 2, step: 0.05 },
-          { path: 'swarm.drift', label: 'Drift', min: 0, max: 2.5, step: 0.05, hint: '0 holds each in place' },
-          { path: 'swarm.pulse', label: 'Pulse', min: 0, max: 1.5, step: 0.05 },
-          { path: 'swarm.tentacles', label: 'Tentacles', min: 0.3, max: 2, step: 0.05 },
-          { path: 'swarm.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
         ],
       },
       {
@@ -1443,6 +1443,16 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
     config: DandelionConfig,
     groups: [
       {
+        name: 'Field',
+        params: [
+          { path: 'field.count', label: 'Dandelions', min: 0, max: 20, step: 1, hint: 'on coming up they grow in one by one' },
+          { path: 'field.sway', label: 'Sway', min: 0, max: 2, step: 0.05 },
+          { path: 'field.bounce', label: 'Bounce', min: 0, max: 2, step: 0.05, hint: 'up and down; deeper with the music' },
+          { path: 'field.drift', label: 'Seeds flying', min: 0, max: 1, step: 0.01, hint: '0 = the heads stay whole' },
+          { path: 'field.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+        ],
+      },
+      {
         name: 'Colour',
         params: [
           { path: 'colour.speed', label: 'Flow', min: -3, max: 3, step: 0.05, hint: 'below 0 runs backwards' },
@@ -1452,16 +1462,6 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
             labels: ['Reel', 'Ember', 'Lagoon', 'Ink'],
           },
           { path: 'colour.depth', label: 'Shadow', min: 0, max: 0.8, step: 0.01 },
-        ],
-      },
-      {
-        name: 'Field',
-        params: [
-          { path: 'field.count', label: 'Dandelions', min: 1, max: 20, step: 1 },
-          { path: 'field.sway', label: 'Sway', min: 0, max: 2, step: 0.05 },
-          { path: 'field.bounce', label: 'Bounce', min: 0, max: 2, step: 0.05, hint: 'up and down; deeper with the music' },
-          { path: 'field.drift', label: 'Seeds flying', min: 0, max: 1, step: 0.01, hint: '0 = the heads stay whole' },
-          { path: 'field.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
         ],
       },
       {

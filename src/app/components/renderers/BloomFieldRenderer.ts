@@ -4,6 +4,7 @@ import { BloomFieldConfig } from '../../config/BloomFieldRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { disposeThree } from './disposeThree';
 import {
+  arrived,
   CORE, InflatedLook, LOBE, LOOP, MotifHost, Playing, Shared, TAU, TUBE,
   drawUnavailable, frameCamera, makeRenderer,
 } from './inflated/style';
@@ -120,6 +121,8 @@ export class BloomFieldRenderer {
    * flowers sink and the colours fade across.
    */
   private started = false;
+  /** Seconds since the visual came up: the field grows in one by one. */
+  private since = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, host: MotifHost | null = null) {
     this.canvas = canvas;
@@ -291,12 +294,15 @@ export class BloomFieldRenderer {
     const s = (k: number, ph: number) => Math.sin((TAU * k * t) / LOOP + ph);
 
     // ── palette ──────────────────────────────────────────────────────────────
-    const shown = new Set(SHOWN[Math.max(0, Math.min(7, Math.round(cfg.field.count)))]);
+    // It opens on an empty field; the flowers grow in one by one.
+    const count = Math.max(0, Math.min(7, Math.round(cfg.field.count)));
+    this.since += dt;
+    const shown = new Set(SHOWN[count].slice(0, arrived(this.since, count)));
     const first = !this.started;
     if (!this.host) look.update(colors, cfg.colour.palette, dt, first, cfg.colour.style);
     if (first) {
       this.started = true;
-      this.flowers.forEach((f, i) => { f.presence = shown.has(i) ? 1 : 0; });
+      this.flowers.forEach((f) => { f.presence = 0; });
     }
 
     // ── the field ────────────────────────────────────────────────────────────

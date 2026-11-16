@@ -4,6 +4,7 @@ import { ButterfliesConfig } from '../../config/ButterfliesRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { disposeThree } from './disposeThree';
 import {
+  arrived,
   CORE, InflatedLook, LOBE, LOOP, MotifHost, Playing, Shared, TAU,
   drawUnavailable, frameCamera, makeRenderer,
 } from './inflated/style';
@@ -146,6 +147,8 @@ export class ButterfliesRenderer {
   /** Whether a hand is in view, eased — the flock gathers in to follow one. */
   private present = 0;
   private started = false;
+  /** Seconds since the visual came up: the flock flies in one by one. */
+  private since = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, host: MotifHost | null = null) {
     this.canvas = canvas;
@@ -359,12 +362,15 @@ export class ButterfliesRenderer {
     const s = (k: number, ph: number) => Math.sin((TAU * k * t) / LOOP + ph);
 
     // ── palette ──────────────────────────────────────────────────────────────
-    const shown = new Set(SHOWN[Math.max(0, Math.min(8, Math.round(cfg.flight.count)))]);
+    // It opens on empty air; the butterflies fly in one by one.
+    const count = Math.max(0, Math.min(8, Math.round(cfg.flight.count)));
+    this.since += dt;
+    const shown = new Set(SHOWN[count].slice(0, arrived(this.since, count)));
     const first = !this.started;
     if (!this.host) look.update(colors, cfg.colour.palette, dt, first, cfg.colour.style);
     if (first) {
       this.started = true;
-      this.flock.forEach((b, i) => { b.presence = shown.has(i) ? 1 : 0; });
+      this.flock.forEach((b) => { b.presence = 0; });
     }
 
     // ── the flock ────────────────────────────────────────────────────────────

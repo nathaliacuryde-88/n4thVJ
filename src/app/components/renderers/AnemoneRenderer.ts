@@ -4,6 +4,7 @@ import { AnemoneConfig } from '../../config/AnemoneRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { disposeThree } from './disposeThree';
 import {
+  arrived,
   CORE, InflatedLook, LOOP, Playing, Shared, TAU, TUBE,
   drawUnavailable, frameCamera, makeRenderer,
 } from './inflated/style';
@@ -86,6 +87,8 @@ export class AnemoneRenderer {
   private motionTime = 0;
   private colourTime = 0;
   private started = false;
+  /** Seconds since the visual came up: the garden grows in one by one. */
+  private since = 0;
   /** A clap's hold on the crowns: 1 just after it, easing back to 0. */
   private shut = 0;
 
@@ -176,10 +179,13 @@ export class AnemoneRenderer {
 
     const first = !this.started;
     look.update(colors, cfg.colour.palette, dt, first, cfg.colour.style);
-    const shown = new Set(SHOWN[Math.max(0, Math.min(7, Math.round(cfg.garden.count)))]);
+    // It opens on an empty sea floor; the anemones grow in one by one.
+    const count = Math.max(0, Math.min(7, Math.round(cfg.garden.count)));
+    this.since += dt;
+    const shown = new Set(SHOWN[count].slice(0, arrived(this.since, count)));
     if (first) {
       this.started = true;
-      this.garden.forEach((a, i) => { a.presence = shown.has(i) ? 1 : 0; });
+      this.garden.forEach((a) => { a.presence = 0; });
     }
 
     // ── the hand ─────────────────────────────────────────────────────────

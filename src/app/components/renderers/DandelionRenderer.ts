@@ -5,6 +5,7 @@ import { ParamValues, withOverrides } from '../../params/types';
 import { disposeThree } from './disposeThree';
 import { DandelionModel, loadDandelion } from './dandelion/model';
 import {
+  arrived,
   InflatedLook, LOOP, MotifHost, Playing, Shared, TAU,
   drawBackdrop, drawUnavailable, frameCamera, makeRenderer,
 } from './inflated/style';
@@ -360,6 +361,8 @@ export class DandelionRenderer {
   private flowers: Flower[] = [];
   private materials: THREE.ShaderMaterial[] = [];
   private started = false;
+  /** Seconds since the visual came up: the field grows in one by one. */
+  private since = 0;
 
   // The seeds' flight, every seed of every dandelion.
   private seedTex: THREE.DataTexture | null = null;
@@ -629,7 +632,12 @@ export class DandelionRenderer {
     const aspect = width / height;
 
     // ── the field ───────────────────────────────────────────────────────────
-    const count = Math.max(1, Math.min(MAX, Math.round(cfg.field.count)));
+    // Laid out for the whole count, but it opens on an empty field and they
+    // grow in one by one, each straight into its place.
+    const wanted = Math.max(0, Math.min(MAX, Math.round(cfg.field.count)));
+    const count = Math.max(1, wanted);
+    this.since += dt;
+    const here = arrived(this.since, wanted);
     // Sizes fall as the field fills, so twenty still fit.
     const size = 2.2 * Math.pow(count, -0.42) * this.scale;
     let meanX = 0;
@@ -652,9 +660,9 @@ export class DandelionRenderer {
 
     this.flowers.forEach((f, i) => {
       const slot = SLOTS[i];
-      const shown = i < count;
+      const shown = i < here;
       f.presence += ((shown ? 1 : 0) - f.presence) * (1 - Math.exp(-dt * 1.4));
-      if (first) f.presence = shown ? 1 : 0;
+      if (first) f.presence = 0;
       if (!shown && f.presence < 0.004) f.presence = 0;
       f.root.visible = f.presence > 0.002;
       if (!f.root.visible) {

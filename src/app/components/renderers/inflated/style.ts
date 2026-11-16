@@ -27,6 +27,19 @@ import { vjTime } from '../../../motion/clock';
 export const LOOP = 12;
 export const TAU = Math.PI * 2;
 
+/**
+ * How many of a field have arrived, `since` seconds after the visual came up.
+ * The flowers, butterflies, dandelions, anemones and jellyfish all open on
+ * an empty frame and come in one by one: one at once, then the next a couple
+ * of seconds after — quicker when there are many, so a big field still fills
+ * in about ten seconds.
+ */
+export function arrived(since: number, count: number): number {
+  if (count <= 0) return 0;
+  const gap = Math.min(2.2, 10 / count);
+  return Math.min(count, 1 + Math.floor(since / gap));
+}
+
 type Stop = [number, string];
 
 /**
