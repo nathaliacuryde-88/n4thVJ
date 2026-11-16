@@ -95,6 +95,23 @@ interface FadingDeck extends Deck {
 interface Slot {
   current: Deck;
   outgoing: FadingDeck | null;
+  /** A layer just added to the stack: when it began to fade in, and for how long. */
+  appear?: { start: number; duration: number };
+}
+
+/** A layer taken off the stack, fading away on its own before it is let go. */
+interface Leaving {
+  deck: FadingDeck;
+  /** Where it was in the stack, and how it was laid over the rest. */
+  index: number;
+  opacity: number;
+  blend: GlobalCompositeOperation;
+}
+
+/** The set's easing for anything coming or going: soft at both ends. */
+function eased(t: number): number {
+  const x = Math.max(0, Math.min(1, t));
+  return x * x * x * (x * (x * 6 - 15) + 10);
 }
 
 /**
@@ -271,6 +288,12 @@ export function VJCanvas({
   const [revived, setRevived] = useState(0);
   /** The stack, bottom first. Index-matched to the `layers` prop. */
   const slotsRef = useRef<Slot[]>([]);
+  /** Layers on their way out of the stack, still drawing until they have faded. */
+  const leavingRef = useRef<Leaving[]>([]);
+  /** The stack as it was last reconciled, to know how a removed layer was laid. */
+  const lastLayersRef = useRef<Layer[]>([]);
+  /** Whether the stack has been built once: the very first build appears at once. */
+  const builtRef = useRef(false);
   /** Read by the compose step for each layer's fader, without rebuilding anything. */
   const layersRef = useRef<Layer[]>(layers);
   /**
@@ -519,10 +542,24 @@ export function VJCanvas({
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-      slotsRef.current.forEach((slot, index) => {
+      // The stack, then whatever has just been taken off it, fading away over it.
+      const entries: { slot: Slot | undefined; index: number; leaving: Leaving | null }[] = [
+        ...slotsRef.current.map((slot, index) => ({ slot, index, leaving: null })),
+        ...leavingRef.current.map((l) => ({ slot: { current: l.deck, outgoing: null } as Slot, index: l.index, leaving: l })),
+      ];
+      entries.forEach(({ slot, index, leaving }) => {
         if (!slot) return;
-        const isBase = index === 0;
-        const opacity = layersRef.current[index]?.opacity ?? 1;
+        const isBase = index === 0 && !leaving;
+        // A layer coming in or going out is faded by the set's transition, as a switch is.
+        let presence = 1;
+        if (leaving) {
+          presence = 1 - eased(fadeProgress(leaving.deck, now));
+        } else if (slot.appear) {
+          const t = slot.appear.duration > 0 ? (now - slot.appear.start) / 1000 / slot.appear.duration : 1;
+          if (t >= 1) slot.appear = undefined;
+          else presence = eased(t);
+        }
+        const opacity = (leaving ? leaving.opacity : layersRef.current[index]?.opacity ?? 1) * presence;
         if (opacity <= 0) return;
 
         const fade = slot.outgoing ? fadeProgress(slot.outgoing, now) : 1;
@@ -562,9 +599,11 @@ export function VJCanvas({
           }
         };
 
-        ctx.globalCompositeOperation = isBase
-          ? 'source-over'
-          : BLEND_OP[layersRef.current[index]?.blend ?? 'screen'] ?? LAYER_BLEND;
+        ctx.globalCompositeOperation = leaving
+          ? leaving.blend
+          : isBase
+            ? 'source-over'
+            : BLEND_OP[layersRef.current[index]?.blend ?? 'screen'] ?? LAYER_BLEND;
 
         const width = ctx.canvas.width;
         const height = ctx.canvas.height;
@@ -582,7 +621,7 @@ export function VJCanvas({
          * Eased at both ends, so the last of the old one thins away rather
          * than dropping out.
          */
-        const ease = fade * fade * fade * (fade * (fade * 6 - 15) + 10);
+        const ease = eased(fade);
         if (slot.outgoing) {
           ctx.globalAlpha = opacity * (1 - ease);
           draw(slot.outgoing);
@@ -761,7 +800,26 @@ export function VJCanvas({
         }
       });
 
-      if (ctx && slotsRef.current.length > 0) {
+      // Layers taken off the stack keep playing, on what they last had, until faded.
+      leavingRef.current = leavingRef.current.filter((l) => {
+        if (fadeProgress(l.deck, now) >= 1) {
+          dropClock(l.deck.lane);
+          l.deck.renderer.destroy?.();
+          const gone = l.deck.pattern;
+          const stillUp = slotsRef.current.some((s) => s?.current.pattern === gone || s?.outgoing?.pattern === gone)
+            || leavingRef.current.some((o) => o !== l && o.deck.pattern === gone);
+          if (!stillUp) {
+            pipelinesRef.current.get(gone)?.pipeline.destroy();
+            pipelinesRef.current.delete(gone);
+          }
+          return false;
+        }
+        useLayerClock(l.deck.lane);
+        drawDeck(l.deck, l.index, l.deck);
+        return true;
+      });
+
+      if (ctx && (slotsRef.current.length > 0 || leavingRef.current.length > 0)) {
         const began = performance.now();
         compose(ctx, now);
         shownMaster += (masterRef.current - shownMaster) * Math.min(1, delta * 14);
@@ -815,6 +873,8 @@ export function VJCanvas({
         slot?.current.renderer.destroy?.();
       }
       slotsRef.current = [];
+      for (const l of leavingRef.current) l.deck.renderer.destroy?.();
+      leavingRef.current = [];
       compositeCtxRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -867,12 +927,37 @@ export function VJCanvas({
         if (!matched[index]) spare[index] = null;
       }
     });
-    for (const gone of spare) {
-      if (!gone) continue;
+    const animate = builtRef.current && duration > 0;
+    const before = lastLayersRef.current;
+    /** A layer off the stack: faded away by the set's transition, or let go at once on a cut. */
+    const retire = (gone: Slot, k: number) => {
       if (gone.outgoing) dropClock(gone.outgoing.lane);
       gone.outgoing?.renderer.destroy?.();
-      gone.current.renderer.destroy?.();
-    }
+      if (!animate) {
+        gone.current.renderer.destroy?.();
+        return;
+      }
+      const was = before[k];
+      leavingRef.current.push({
+        deck: {
+          ...gone.current,
+          fadeStart: performance.now(),
+          duration,
+          lane: forkClock(k),
+          held: gone.current.last ?? {
+            hands: handDataRef.current,
+            colors: layerColorsRef.current[k] ?? layerColorsRef.current[0] ?? [],
+            audio: audioDataRef.current,
+            colorMode: colorModesRef.current[k],
+          },
+        },
+        index: k,
+        opacity: was?.opacity ?? 1,
+        // The base was laid down solid; leaving over the new base, it is screened instead.
+        blend: k === 0 ? LAYER_BLEND : BLEND_OP[was?.blend ?? 'screen'] ?? LAYER_BLEND,
+      });
+    };
+    spare.forEach((gone, k) => { if (gone) retire(gone, k); });
 
     layers.forEach(({ pattern }, index) => {
       const slot = slots[index];
@@ -882,7 +967,8 @@ export function VJCanvas({
       if (!deck) return;
 
       if (!slot) {
-        slots[index] = { current: deck, outgoing: null };
+        // A new layer on the stack comes up over the set's transition.
+        slots[index] = { current: deck, outgoing: null, appear: animate ? { start: performance.now(), duration } : undefined };
         return;
       }
 
@@ -912,11 +998,9 @@ export function VJCanvas({
       slot.current = deck;
     });
 
-    for (const gone of slots.splice(layers.length)) {
-      if (gone?.outgoing) dropClock(gone.outgoing.lane);
-      gone?.outgoing?.renderer.destroy?.();
-      gone?.current.renderer.destroy?.();
-    }
+    slots.splice(layers.length).forEach((gone, j) => { if (gone) retire(gone, layers.length + j); });
+    lastLayersRef.current = layers;
+    builtRef.current = true;
     // Only the patterns rebuild decks; a fader move must not tear a renderer down.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layers.map((l) => l.pattern).join('|'), revived]);
