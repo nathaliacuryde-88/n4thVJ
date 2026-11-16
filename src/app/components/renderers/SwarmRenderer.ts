@@ -394,7 +394,8 @@ export class SwarmRenderer {
 
     // ── draw ─────────────────────────────────────────────────────────────
     if (this.surface.width !== width || this.surface.height !== height) renderer.setSize(width, height, false);
-    const drawAs = Math.max(0, Math.min(2, Math.round(cfg.look.style)));
+    // The galaxy is only ever points of light; the other two take the Style slider.
+    const drawAs = style === 2 ? 2 : Math.max(0, Math.min(2, Math.round(cfg.look.style)));
     if (drawAs !== this.drawnAs) {
       // Beads are solid and hide what is behind them; light adds up.
       this.drawnAs = drawAs;

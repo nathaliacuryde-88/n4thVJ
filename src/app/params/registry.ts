@@ -205,20 +205,21 @@ function arrivalParams(
   };
 }
 
-function swarmParams(follow: string, beat: string): RendererParams {
+function swarmParams(follow: string, beat: string, styled = true): RendererParams {
   return {
     config: SwarmConfig,
     groups: [
       {
         name: 'Swarm',
         params: [
-          { path: 'look.style', label: 'Style', min: 0, max: 2, step: 1, labels: ['Beads', 'Discs', 'Light'], hint: 'solid balls, flat cut paper, or points of light' },
-          { path: 'look.palette', label: 'Palette', min: 0, max: 3, step: 1, labels: ['Reel', 'Ember', 'Lagoon', 'Ink'] },
+          ...(styled ? [{ path: 'look.style', label: 'Style', min: 0, max: 2, step: 1, labels: ['Beads', 'Discs', 'Light'], hint: 'solid balls, flat cut paper, or points of light' }] : []),
+          // Palette and backdrop belong to the solid styles; points of light take the colour bar and sit on black.
+          ...(styled ? [{ path: 'look.palette', label: 'Palette', min: 0, max: 3, step: 1, labels: ['Reel', 'Ember', 'Lagoon', 'Ink'] }] : []),
           { path: 'look.count', label: 'Points', min: 0, max: 3, step: 1, labels: ['16k', '65k', '150k', '260k'], hint: 'fewer if it runs slowly' },
           { path: 'look.size', label: 'Size', min: 0.3, max: 3, step: 0.05 },
-          { path: 'look.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
-          { path: 'look.blur', label: 'Depth blur', min: 0, max: 3, step: 0.05, hint: 'Light style only' },
-          { path: 'look.trail', label: 'Trail', min: 0, max: 1, step: 0.05, hint: 'Light style only' },
+          ...(styled ? [{ path: 'look.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' }] : []),
+          { path: 'look.blur', label: 'Depth blur', min: 0, max: 3, step: 0.05, hint: styled ? 'Light style only' : undefined },
+          { path: 'look.trail', label: 'Trail', min: 0, max: 1, step: 0.05, hint: styled ? 'Light style only' : undefined },
           { path: 'motion.flow', label: 'Flow', min: 0, max: 3, step: 0.05 },
           { path: 'motion.fold', label: 'Fold', min: 0, max: 3, step: 0.05 },
         ],
@@ -850,7 +851,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
   'macro-water': macroParams(false),
   'swarm-flock': swarmParams('Follows hand', 'Kick draws in'),
   'swarm-plankton': swarmParams('Hand stirs', 'Kick ring'),
-  'swarm-galaxy': swarmParams('Hand tilts', 'Kick flare'),
+  'swarm-galaxy': swarmParams('Hand tilts', 'Kick flare', false),
   line: {
     config: FirstLineConfig,
     groups: [
