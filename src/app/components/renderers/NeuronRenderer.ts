@@ -126,10 +126,12 @@ export class NeuronRenderer {
       cells.push({ x: best.x, y: best.y, size: 0.008 + 0.006 * rnd(), charge: 0, firedAt: -10, flash: 0, held: 0, dendrites: [], axons: [] });
     }
 
-    // Dendrites: short trees round each cell, forking twice or three times.
-    const depth = cfg.network.branching >= 1.4 ? 3 : cfg.network.branching >= 0.6 ? 2 : 1;
+    // Dendrites: kept few and short, so the cells read as nodes rather than
+    // drawings of neurons. Branching brings them back: more, longer, forking.
+    const b = Math.max(0, cfg.network.branching);
+    const depth = b >= 1.4 ? 3 : b >= 0.8 ? 2 : 1;
     for (const c of cells) {
-      const stems = 4 + Math.floor(rnd() * 3);
+      const stems = Math.round(b * 3 + rnd() * b * 2);
       const grow = (x: number, y: number, angle: number, length: number, level: number) => {
         const line = [x, y];
         let px = x, py = y, a = angle;
@@ -149,7 +151,7 @@ export class NeuronRenderer {
       };
       for (let s = 0; s < stems; s++) {
         const angle = (s / stems) * Math.PI * 2 + rnd() * 0.8;
-        grow(c.x + Math.cos(angle) * c.size, c.y + Math.sin(angle) * c.size, angle, 0.028 + rnd() * 0.03, 1);
+        grow(c.x + Math.cos(angle) * c.size, c.y + Math.sin(angle) * c.size, angle, (0.018 + rnd() * 0.02) * (0.6 + 0.5 * Math.min(2, b)), 1);
       }
     }
 
@@ -272,9 +274,12 @@ export class NeuronRenderer {
       const n = a.along.length - 1;
       const ex = a.points[n * 2], ey = a.points[n * 2 + 1];
       const ang = Math.atan2(ey - a.points[n * 2 - 1], ex - a.points[n * 2 - 2]);
-      for (const turn of [-0.6, 0, 0.6]) {
-        g.moveTo(ex * H, ey * H);
-        g.lineTo((ex + Math.cos(ang + turn) * 0.012) * H, (ey + Math.sin(ang + turn) * 0.012) * H);
+      // Only when Branching asks for the drawn look; at the default the axon simply ends.
+      if (this.cfg.network.branching >= 0.8) {
+        for (const turn of [-0.6, 0, 0.6]) {
+          g.moveTo(ex * H, ey * H);
+          g.lineTo((ex + Math.cos(ang + turn) * 0.012) * H, (ey + Math.sin(ang + turn) * 0.012) * H);
+        }
       }
     }
     g.stroke();

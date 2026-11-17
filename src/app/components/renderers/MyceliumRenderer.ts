@@ -82,6 +82,8 @@ export class MyceliumRenderer {
   private lastBeatAt = 0;
   private beatsSeen = 0;
   private lastSnare = 0;
+  /** How readily the beat's fork splits the tips: hardest on the first of the bar. */
+  private forkHard = 1;
   private hand = { x: 0.5, y: 0.5, on: 0 };
   private aspect = 16 / 9;
   private paths: Path2D[] = [];
@@ -105,9 +107,12 @@ export class MyceliumRenderer {
         angle = (i / fan) * Math.PI * 2 + Math.random() * 0.6;
       } else {
         const side = Math.random();
-        if (side < 0.55) { x = Math.random() * a; y = 1.02; angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.9; }
-        else if (side < 0.775) { x = -0.02; y = 0.2 + Math.random() * 0.7; angle = (Math.random() - 0.5) * 0.9; }
-        else { x = a + 0.02; y = 0.2 + Math.random() * 0.7; angle = Math.PI + (Math.random() - 0.5) * 0.9; }
+        // In from an edge, but leaning along it, so the network spreads round
+        // the frame instead of all of it heading for the middle.
+        const lean = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.7);
+        if (side < 0.55) { x = Math.random() * a; y = 1.02; angle = -Math.PI / 2 + lean; }
+        else if (side < 0.775) { x = -0.02; y = 0.1 + Math.random() * 0.85; angle = lean; }
+        else { x = a + 0.02; y = 0.1 + Math.random() * 0.85; angle = Math.PI + lean; }
       }
       this.tips.push({ x, y, angle, depth: 0, along: 0, left: 0.9 + Math.random() * 0.9, seed: Math.random() * 1000 });
     }
@@ -145,7 +150,9 @@ export class MyceliumRenderer {
       this.hand.y += (y - this.hand.y) * ease(8);
     }
     // A hand that is really there is followed closely; the stand-in only suggests a way.
-    this.hand.on += ((hands.length ? cfg.hands.reach * (real ? 1 : 0.35) : 0) - this.hand.on) * ease(3);
+    // Only her own hand draws the roots; the stand-in figure sits in the middle
+    // and pulled every root there.
+    this.hand.on += ((real ? cfg.hands.reach : 0) - this.hand.on) * ease(3);
     // A fist stops the growth; an open palm hurries it.
     const eager = real ? 0.05 + 1.5 * (1 - play.fist) : 1;
 
@@ -172,9 +179,10 @@ export class MyceliumRenderer {
       this.surge = Math.max(this.surge, Math.min(1.2, 0.75 + 0.35 * Math.max(kick, 0.6)));
       this.pulses.push({ at: 0, strength: Math.min(1.2, Math.max(0.7, kick)) * cfg.sound.beat });
       if (this.pulses.length > 4) this.pulses.shift();
-      // The first beat of each bar: the roots fork together.
+      // Every beat a few forks; the first beat of each bar, the roots fork together.
       const downbeat = at ? ((at.beat % 4) + 4) % 4 === 0 : this.beatsSeen % 4 === 1;
-      if (downbeat) this.fork = 0.2;
+      this.fork = Math.max(this.fork, downbeat ? 0.24 : 0.1);
+      this.forkHard = downbeat ? 1 : 0.45;
     } else if (kicked && !rhythmic) {
       this.pulses.push({ at: 0, strength: Math.min(1.2, kick) });
       if (this.pulses.length > 4) this.pulses.shift();
@@ -201,7 +209,7 @@ export class MyceliumRenderer {
     // In step, the roots lunge forward on each beat and nearly stop before the
     // next; the slider blends between that and an even flow.
     const lock = Math.max(0, Math.min(1, cfg.sound.lock));
-    const gait = rhythmic ? 1 - lock + lock * (0.08 + 2.7 * this.surge) : 1;
+    const gait = rhythmic ? 1 - lock + lock * (0.06 + 3.4 * this.surge) : 1;
     const advance = pace * step * gait;
     // Never empty: a few roots are always on their way in.
     const wanted = Math.round(5 + 6 * play.energy + 8 * play.build);
@@ -232,7 +240,7 @@ export class MyceliumRenderer {
         tip.left -= length;
 
         // Forking: now and then, and readily just after a kick.
-        const chance = length * (11 + (this.fork > 0 ? 30 : 0)) * cfg.growth.branching / (1 + tip.depth * 0.5);
+        const chance = length * (11 + (this.fork > 0 ? 55 * this.forkHard : 0)) * cfg.growth.branching / (1 + tip.depth * 0.5);
         if (Math.random() < chance && this.tips.length + born.length < MAX_TIPS && tip.depth < 7) {
           const side = Math.random() < 0.5 ? -1 : 1;
           born.push({
