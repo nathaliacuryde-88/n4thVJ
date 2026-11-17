@@ -37,7 +37,7 @@ export const ParticleConfig = {
      * Format: [min, max]
      * Current: 100-300 pixels
      */
-    baseRange: [100, 200],
+    baseRange: [45, 120],
     
     /**
      * How much particles grow when hand is OPEN
@@ -202,6 +202,8 @@ export const ParticleConfig = {
   // HAND GESTURE CONTROLS
   // ═══════════════════════════════════════════════════════════════════════════
   controls: {
+    /** How strongly the particles follow an open hand; a fist lets them settle. */
+    follow: 1,
     /**
      * FINGER COUNT SPEED CONTROL
      * Maps number of extended fingers to animation speed multiplier

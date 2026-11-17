@@ -331,12 +331,12 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'limits.maxParticles', label: 'Max', min: 5, max: 500, step: 5 },
           { path: 'emission.openHandRate', label: 'Open hand', min: 0, max: 1, step: 0.01 },
           { path: 'emission.closedHandRate', label: 'Closed hand', min: 0, max: 1, step: 0.01 },
-          { path: 'controls.fadeOutRate', label: 'Fade out', min: 0.005, max: 0.5, step: 0.005 },
         ],
       },
       {
         name: 'Motion',
         params: [
+          { path: 'controls.follow', label: 'Follow hand', min: 0, max: 3, step: 0.05, hint: 'open hand draws them after it; a fist calms them' },
           { path: 'physics.initialVelocity', label: 'Velocity', min: 0.5, max: 20, step: 0.5 },
           { path: 'physics.damping', label: 'Damping', min: 0.8, max: 1, step: 0.005, hint: '1 = never slows' },
           { path: 'trail.fadeAlpha', label: 'Trail', min: 0.02, max: 1, step: 0.01, hint: 'lower = longer' },

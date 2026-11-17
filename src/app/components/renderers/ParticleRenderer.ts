@@ -43,42 +43,53 @@ class Particle {
     this.color = color;
   }
 
+  /** Seconds it has been alive: it thins away at the end of its life rather than all at once. */
+  age = 0;
+
+  /**
+   * One step. `open` is how open the hand is, 0 a fist to 1 wide open; `to`
+   * is the hand it follows, if any.
+   */
   update(
-    handIsOpen: boolean,
+    open: number,
+    to: { x: number; y: number } | null,
     vibrationIntensity: number,
     speedMultiplier: number,
     cfg: ParticleCfg,
   ) {
-    // ═════════════════════════════════════════════════════════════════════════
-    // HAND OPEN = GROW & APPEAR, HAND CLOSED = SHRINK & FADE OUT
-    // ═════════════════════════════════════════════════════════════════════════
-    if (handIsOpen) {
-      this.targetSize = this.baseSize * cfg.size.growthMultiplier;
-      this.alpha = cfg.controls.openOpacity;
-      
-      // CLAP VIBRATION - Explosive movement
-      if (vibrationIntensity > 0) {
-        this.vx += (Math.random() - 0.5) * vibrationIntensity * cfg.explosion.forceMultiplier * speedMultiplier;
-        this.vy += (Math.random() - 0.5) * vibrationIntensity * cfg.explosion.forceMultiplier * speedMultiplier;
-        this.targetSize = this.baseSize * (1.2 + vibrationIntensity * cfg.explosion.growthFactor);
-      }
-    } else {
-      // Hand closed - particles shrink AND fade out quickly
-      this.targetSize = this.baseSize * cfg.size.shrinkMultiplier;
-      // Fade out quickly when hand closes
-      this.alpha = Math.max(0, this.alpha - cfg.controls.fadeOutRate);
+    this.age += 0.016 * speedMultiplier;
+    // Open: full and large. Closed: small and quiet, but still there.
+    this.targetSize = this.baseSize * (cfg.size.shrinkMultiplier + (cfg.size.growthMultiplier - cfg.size.shrinkMultiplier) * open);
+    // A few seconds each, so an open hand never fills the frame solid.
+    const life = Math.max(0, 1 - Math.max(0, this.age - 2.2) / 1.8);
+    const want = cfg.controls.openOpacity * (0.45 + 0.55 * open) * life;
+    this.alpha += (want - this.alpha) * 0.08;
+
+    if (vibrationIntensity > 0) {
+      this.vx += (Math.random() - 0.5) * vibrationIntensity * cfg.explosion.forceMultiplier * speedMultiplier;
+      this.vy += (Math.random() - 0.5) * vibrationIntensity * cfg.explosion.forceMultiplier * speedMultiplier;
+      this.targetSize = this.baseSize * (1.2 + vibrationIntensity * cfg.explosion.growthFactor);
     }
 
-    // SMOOTH SIZE TRANSITIONS
+    // The open hand draws them after it, swirling round it; a fist lets them settle.
+    if (to && open > 0.05) {
+      const dx = to.x - this.x;
+      const dy = to.y - this.y;
+      const d = Math.hypot(dx, dy) + 1;
+      const pull = 0.035 * open * cfg.controls.follow;
+      this.vx += (dx / d) * pull * Math.min(d, 400) * 0.05 - (dy / d) * pull * 2.2;
+      this.vy += (dy / d) * pull * Math.min(d, 400) * 0.05 + (dx / d) * pull * 2.2;
+    }
+
     this.size += (this.targetSize - this.size) * cfg.size.transitionSpeed;
 
-    // Move particle
     this.x += this.vx * speedMultiplier;
     this.y += this.vy * speedMultiplier;
 
-    // Damping - slow down over time
-    this.vx *= cfg.physics.damping;
-    this.vy *= cfg.physics.damping;
+    // Calmer with a fist: they slow right down.
+    const damping = cfg.physics.damping - (1 - open) * 0.06;
+    this.vx *= damping;
+    this.vy *= damping;
   }
 }
 
@@ -96,6 +107,8 @@ export class ParticleRenderer {
   private time = 0;
   private vibrationTimer = 0;
   private isExploding = false; // Prevent multiple explosions
+  /** How open the hands are, eased: 0 a fist, 1 wide open. */
+  private open = 0.6;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
     this.canvas = canvas;
@@ -129,87 +142,48 @@ export class ParticleRenderer {
 
     // FINGER COUNT SPEED CONTROL
     // ═════════════════════════════════════════════════════════════════════════
-    let speedMultiplier = this.cfg.controls.fingerCountSpeed.twoFingers; // Default medium speed
-    let leftHandOpen = false;
-    let rightHandOpen = false;
-    let leftFingerCount = 0;
-    let rightFingerCount = 0;
+    // The shared clock's tempo (the finger count) sets the speed, as on every visual.
+    const speedMultiplier = Math.max(0.2, Math.min(3, timeScale()));
+    const W = this.canvas.width;
+    const H = this.canvas.height;
+    const hands = [handData.left, handData.right].filter((h): h is NonNullable<typeof h> => !!h);
+    const openOf = (h: NonNullable<HandData['left']>) =>
+      h.openness ?? (h.gesture === 'fist' ? 0 : h.gesture === 'open' ? 1 : 0.6);
+    let open = 0.6;
+    if (hands.length) open = Math.max(...hands.map(openOf));
+    this.open += (open - this.open) * 0.12;
 
-    if (handData.left) {
-      leftHandOpen = handData.left.gesture === 'open';
-      leftFingerCount = handData.left.fingerCount || 0;
-      // PINCH GESTURE = Treat as 1 finger (slow)
-      if (handData.left.gesture === 'pinch') {
-        leftFingerCount = 1;
-      }
-    }
-
-    if (handData.right) {
-      rightHandOpen = handData.right.gesture === 'open';
-      rightFingerCount = handData.right.fingerCount || 0;
-      // PINCH GESTURE = Treat as 1 finger (slow)
-      if (handData.right.gesture === 'pinch') {
-        rightFingerCount = 1;
-      }
-    }
-
-    const anyHandOpen = leftHandOpen || rightHandOpen;
-    
-    // Use the higher finger count from either hand to determine speed
-    const maxFingerCount = Math.max(leftFingerCount, rightFingerCount);
-    
-    // Map finger count to speed multiplier
-    if (maxFingerCount === 1) {
-      speedMultiplier = this.cfg.controls.fingerCountSpeed.oneFinger;
-    } else if (maxFingerCount === 2) {
-      speedMultiplier = this.cfg.controls.fingerCountSpeed.twoFingers;
-    } else if (maxFingerCount === 3) {
-      speedMultiplier = this.cfg.controls.fingerCountSpeed.threeFingers;
-    } else if (maxFingerCount === 4) {
-      speedMultiplier = this.cfg.controls.fingerCountSpeed.fourFingers;
-    } else if (maxFingerCount >= 5) {
-      speedMultiplier = this.cfg.controls.fingerCountSpeed.fiveFingers;
-    }
-
-    // EMIT NEW PARTICLES FROM HANDS
-    if (handData.left) {
-      const isOpen = handData.left.gesture === 'open';
-      
-      const emissionRate = isOpen ? this.cfg.emission.openHandRate : this.cfg.emission.closedHandRate;
-      
-      if (Math.random() < emissionRate) {
+    // Each hand gives off particles where it is: many when open, a few when closed.
+    for (const hand of hands) {
+      const o = openOf(hand);
+      const rate = this.cfg.emission.closedHandRate + (this.cfg.emission.openHandRate - this.cfg.emission.closedHandRate) * o;
+      if (Math.random() < rate) {
         this.particles.push(new Particle(
-          handData.left.position.x * this.canvas.width,
-          handData.left.position.y * this.canvas.height,
+          hand.position.x * W,
+          hand.position.y * H,
           colors[Math.floor(Math.random() * colors.length)],
           1,
           this.cfg,
         ));
       }
     }
-
-    if (handData.right) {
-      const isOpen = handData.right.gesture === 'open';
-      
-      const emissionRate = isOpen ? this.cfg.emission.openHandRate : this.cfg.emission.closedHandRate;
-      
-      if (Math.random() < emissionRate) {
-        this.particles.push(new Particle(
-          handData.right.position.x * this.canvas.width,
-          handData.right.position.y * this.canvas.height,
-          colors[Math.floor(Math.random() * colors.length)],
-          1,
-          this.cfg,
-        ));
+    const nearest = (x: number, y: number) => {
+      let best: { x: number; y: number } | null = null;
+      let bestD = Infinity;
+      for (const h of hands) {
+        const hx = h.position.x * W;
+        const hy = h.position.y * H;
+        const d = (hx - x) * (hx - x) + (hy - y) * (hy - y);
+        if (d < bestD) { bestD = d; best = { x: hx, y: hy }; }
       }
-    }
+      return best;
+    };
 
-    // UPDATE AND DRAW ALL PARTICLES
     this.particles = this.particles.filter(particle => {
-      particle.update(anyHandOpen, vibrationIntensity, speedMultiplier, this.cfg);
+      particle.update(this.open, nearest(particle.x, particle.y), vibrationIntensity, speedMultiplier, this.cfg);
       
       // Remove particles that are too faded
-      if (particle.alpha < 0.01) return false;
+      if (particle.alpha < 0.01 && particle.age > 1) return false;
       
       this.ctx.save();
       this.ctx.globalAlpha = particle.alpha;

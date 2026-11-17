@@ -99,6 +99,8 @@ export class SwarmRenderer {
   private wave = 99;
   private waveAmp = 0;
   private view = new THREE.Vector2();
+  /** The camera's roll from the hands' turn, eased on its own. */
+  private roll = 0;
   /** The flower family's palettes and grounds, for the beads. */
   private look = new InflatedLook();
   private shared: Shared = this.look.shared();
@@ -292,7 +294,7 @@ export class SwarmRenderer {
 
     // ── the hands ────────────────────────────────────────────────────────
     const follow = cfg.hands.follow;
-    this.distance += ((FAR + (NEAR - FAR) * Math.max(0, (play.depth - 0.35) / 0.65)) * STAND[style] - this.distance) * ease(2.5);
+    this.distance += ((FAR + (NEAR - FAR) * Math.max(0, (play.depth - 0.35) / 0.65)) * STAND[style] - this.distance) * ease(style === 2 ? 1 : 2.5);
     const left = handData.left;
     const right = handData.right;
     const one = left ?? right;
@@ -379,8 +381,12 @@ export class SwarmRenderer {
     // The flock is led about the frame by the hand, so the camera stays put;
     // the water and the galaxy are looked around instead.
     const look = style === 0 ? 0.12 : 0.55;
-    this.view.x += (play.aim.x * look * follow - this.view.x) * ease(2);
-    this.view.y += (play.aim.y * look * follow - this.view.y) * ease(2);
+    // The galaxy is turned slowly and evenly, so the hand's small jumps (the
+    // tracker sees it only so many times a second) never reach the camera.
+    const glide = style === 2 ? 1.1 : 2;
+    this.view.x += (play.aim.x * look * follow - this.view.x) * ease(glide);
+    this.view.y += (play.aim.y * look * follow - this.view.y) * ease(glide);
+    this.roll += (play.turn * (style === 2 ? 0.25 : 0.5) - this.roll) * ease(style === 2 ? 1.2 : 4);
     const azimuth = this.view.x + (style === 0 ? Math.sin(this.wander * 0.05) * 0.15 : this.wander * 0.03);
     const tilt = (style === 2 ? 0.5 : 0.05) + this.view.y * 0.8;
     this.camera.position.set(
@@ -388,7 +394,7 @@ export class SwarmRenderer {
       Math.sin(tilt) * this.distance,
       Math.cos(azimuth) * Math.cos(tilt) * this.distance,
     );
-    this.camera.up.set(Math.sin(play.turn * 0.5), Math.cos(play.turn * 0.5), 0);
+    this.camera.up.set(Math.sin(this.roll), Math.cos(this.roll), 0);
     this.camera.lookAt(0, 0, 0);
     this.camera.updateProjectionMatrix();
 
@@ -451,7 +457,10 @@ export class SwarmRenderer {
     u.uFocus.value = this.distance;
     // The same light whatever the count, and whatever the trail: more
     // points are each fainter, and what lingers is added in smaller parts.
-    u.uLight.value = 1.6 * Math.pow(65536 / (side * side), 0.85) * (1 - keep);
+    // ...and the same light whatever the Size: smaller points are finer, not
+    // fainter, or at the low end the disc fades out and only the dense core is left.
+    const sized = Math.pow(Math.max(0.3, cfg.look.size), -1.6);
+    u.uLight.value = 1.6 * Math.pow(65536 / (side * side), 0.85) * (1 - keep) * sized;
 
     renderer.setRenderTarget(this.accum);
     this.fadeMaterial.uniforms.uKeep.value = keep;
