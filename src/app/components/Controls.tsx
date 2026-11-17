@@ -289,8 +289,8 @@ export function Controls({
     setNaming(true);
   };
 
-  // A long set packs the bar tighter and nudges it right, clear of the
-  // status bar in the corner; the bar is the most important thing up here.
+  // A long set packs the bar tighter and nudges it a little right: clear of
+  // the status bar on the left and the set clock on the right.
   const compact = set.length > 10;
   const rowRef = useRef<HTMLDivElement>(null);
   const playing = layers[selectedLayer]?.pattern;
@@ -305,7 +305,7 @@ export function Controls({
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* TOP - VISUAL PATTERN SELECTOR (Similar to Color Bar) */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <div className={`absolute top-4 left-1/2 w-max -translate-x-1/2 z-50 ${compact ? 'ml-[80px]' : ''}`}>
+      <div className={`absolute top-4 left-1/2 w-max -translate-x-1/2 z-50 ${compact ? 'ml-[20px]' : ''}`}>
         <div className={`bg-black/70 backdrop-blur-sm ${set.length > 10 ? 'rounded-3xl' : 'rounded-full'} py-2 border border-white/20 font-mono ${compact ? 'px-3' : 'px-6'}`}>
           <div className={`flex items-center ${compact ? 'gap-2' : 'gap-4'}`}>
             {/* Back to the library */}
@@ -416,7 +416,7 @@ export function Controls({
                 if (row && row.scrollWidth > row.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) row.scrollLeft += e.deltaY;
               }}
               className="set-row flex shrink-0 flex-col gap-1 overflow-x-auto pl-1.5 pt-1.5 -mt-1.5"
-              style={{ width: 'max-content', maxWidth: 'calc(100vw - 480px)', scrollbarWidth: 'none' }}
+              style={{ width: 'max-content', maxWidth: 'calc(100vw - 640px)', scrollbarWidth: 'none' }}
             >
               {(set.length > 10 ? [set.slice(0, 10), set.slice(10)] : [set]).map((row, r) => (
               <div key={r} className="flex items-center gap-1">

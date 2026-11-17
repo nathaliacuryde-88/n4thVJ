@@ -23,6 +23,7 @@ import { SoundSource, nextSound, openTakeAudio } from './record/audio';
 import { OutputWindow } from './output/OutputWindow';
 import { SavedSet, loadSavedSets, pick, storeSavedSets } from './config/savedSets';
 import { StatusBar, PILOT_BARS } from './components/StatusBar';
+import { SetTimer } from './components/SetTimer';
 import { beatPosition, clearTempo, currentBpm, hasTapped, nudgeTempo, tap, toggleListening } from './motion/tempo';
 import { MidiTarget, setMidiHandler, setMidiReader } from './control/midi';
 import { setLfo, useLfos } from './control/lfo';
@@ -1755,6 +1756,9 @@ export default function App() {
           }
         />
       )}
+
+      {/* The set's clock, top right: started when the set starts. */}
+      {showUI && <SetTimer underCamera={showCamera} />}
 
       {/* Tempo, auto-pilot, health and MIDI: what runs the set over time. */}
       {showUI && (
