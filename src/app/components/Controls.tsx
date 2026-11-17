@@ -73,6 +73,16 @@ interface ControlsProps {
   /** The visual being prepared off screen, if any, and how to start or stop preparing one. */
   preparing: VisualPattern | null;
   onPrepare: (pattern: VisualPattern | null) => void;
+  /**
+   * The cue test (the page opened with ?cue): visuals lined up to go on
+   * together, in the order they were cued. Undefined: the usual bar.
+   */
+  cue?: VisualPattern[];
+  /** Right-click or ✎ on a card: cue it (and edit it), edit it, or take it out of the cue. */
+  onCue?: (pattern: VisualPattern) => void;
+  /** Everything cued goes on screen; whatever else is up fades away. */
+  onGo?: () => void;
+  onCueClear?: () => void;
   /** The set's transition, in seconds. */
   fade: number;
   onFadeChange: (seconds: number) => void;
@@ -188,6 +198,10 @@ export function Controls({
   onSaveSet,
   preparing,
   onPrepare,
+  cue,
+  onCue,
+  onGo,
+  onCueClear,
   fade,
   onFadeChange,
   audioEnabled,
@@ -354,6 +368,24 @@ export function Controls({
                 </form>
               )}
             </div>
+            {/* The cue test: GO puts everything cued on screen at once. */}
+            {cue && (
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => onGo?.()}
+                  disabled={cue.length === 0}
+                  title={cue.length ? 'Put everything cued on screen; the rest fades away (Space)' : 'Right-click cards to cue them, then GO'}
+                  className={`whitespace-nowrap rounded px-2 py-1 text-[10px] font-semibold tracking-wider transition-all ${
+                    cue.length ? 'bg-cyan-300 text-black hover:bg-cyan-200' : 'text-white/25'
+                  }`}
+                >
+                  GO{cue.length ? ` ${cue.length}` : ''}
+                </button>
+                {cue.length > 0 && (
+                  <button onClick={() => onCueClear?.()} title="Clear the cue" className="px-1 text-[11px] text-white/40 hover:text-white">×</button>
+                )}
+              </div>
+            )}
             {/* The set's own timing: how one visual crosses into the next. */}
             <div className="relative">
               <button
@@ -456,19 +488,22 @@ export function Controls({
                       e.preventDefault();
                       e.stopPropagation();
                       cancelHold();
+                      if (onCue) { onCue(pattern); return; }
                       if (layerIndex !== -1) return;
                       onPrepare(preparing === pattern ? null : pattern);
                     }}
                     className={`relative flex w-[56px] shrink-0 cursor-grab flex-col items-center gap-0.5 group/set active:cursor-grabbing ${dragging === pattern ? 'opacity-40' : ''}`}
                     title={`${RENDERER_CATEGORIES[pattern].name} (${slotKey(index) || 'no key: click'})${
                       layerIndex !== -1 ? ` — layer ${layerIndex + 1}` : ''
-                    } · hold to stack · drag to reorder${layerIndex === -1 ? ' · right-click to prepare' : ''}`}
+                    } · hold to stack · drag to reorder${onCue ? ' · right-click to cue' : layerIndex === -1 ? ' · right-click to prepare' : ''}`}
                   >
                     {/* A still of the visual, so the key is recognised by what it
                         plays, its key in the corner. */}
                     <span
                       className={`relative flex h-[32px] w-[52px] items-center justify-center overflow-hidden rounded-md text-xs transition-all ${
-                        isSelected
+                        cue?.includes(pattern)
+                          ? `outline-dashed outline-2 outline-offset-1 outline-cyan-300 ${isSelected ? 'ring-2 ring-white' : isStacked ? 'ring-2 ring-emerald-400/80' : ''}`
+                          : isSelected
                           ? 'ring-2 ring-white shadow-lg shadow-white/40'
                           : preparing === pattern
                             ? 'ring-2 ring-amber-300 opacity-100'
@@ -483,6 +518,11 @@ export function Controls({
                       {slotKey(index) && (
                         <span className={thumbs[pattern] ? 'absolute bottom-0 left-0 rounded-tr bg-black/75 px-1 text-[9px] leading-[12px] text-white' : 'relative'}>
                           {slotKey(index)}
+                        </span>
+                      )}
+                      {cue?.includes(pattern) && (
+                        <span className={`absolute bottom-0 right-0 h-3 min-w-3 rounded-tl px-0.5 text-center text-[7px] font-bold leading-3 text-black ${preparing === pattern ? 'bg-amber-300' : 'bg-cyan-300'}`}>
+                          {cue.indexOf(pattern) + 1}
                         </span>
                       )}
                       {layerIndex !== -1 && layers.length > 1 && (
@@ -511,14 +551,14 @@ export function Controls({
                       </span>
                     )}
                     {/* Prepare it: its settings, off screen. Appears on a rest, like the ×. */}
-                    {layerIndex === -1 && (
+                    {(layerIndex === -1 || onCue) && (
                       <span
                         role="button"
                         aria-label={`Prepare ${RENDERER_CATEGORIES[pattern].name} without playing it`}
                         title={preparing === pattern ? 'Stop preparing' : `Prepare ${RENDERER_CATEGORIES[pattern].name}: set it up without playing it (or right-click)`}
                         onPointerDown={(e) => { e.stopPropagation(); cancelHold(); }}
                         onPointerUp={(e) => e.stopPropagation()}
-                        onClick={(e) => { e.stopPropagation(); onPrepare(preparing === pattern ? null : pattern); }}
+                        onClick={(e) => { e.stopPropagation(); if (onCue) onCue(pattern); else onPrepare(preparing === pattern ? null : pattern); }}
                         draggable={false}
                         className={`absolute -right-1 -top-1.5 z-10 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border text-[9px] leading-none transition-[visibility] ${
                           preparing === pattern

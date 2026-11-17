@@ -29,6 +29,8 @@ import { MidiTarget, setMidiHandler, setMidiReader } from './control/midi';
 import { setLfo, useLfos } from './control/lfo';
 /** The picture's own zoom, shown in a visual's panel as if it were one of its sliders. */
 const PICTURE_ZOOM = '__zoom';
+/** The page opened with ?cue: the cue-then-GO bar, to compare with plain taps. */
+const CUE_TEST = typeof location !== 'undefined' && new URLSearchParams(location.search).has('cue');
 import { COUNTS, KNOB_FX, KNOB_OFF, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, knobPosition, knobValue } from './control/knobs';
 import { stageDoing } from './pipeline/PostPipeline';
 import { getByPath } from './params/types';
@@ -254,6 +256,31 @@ export default function App() {
     return { ...rest, pattern, opacity: kept.opacity, motion: kept.motion, ...(kept.blend ? { blend: kept.blend } : {}) };
   }, []);
 
+  /*
+   * THE CUE TEST — the page opened with ?cue, to compare with plain taps.
+   *
+   * Right-click (or ✎) cards to line them up as what comes next; each is
+   * edited as it is cued, without coming on screen. GO (or Space) puts the
+   * whole cue up at once, every visual at the faders it had last time, and
+   * whatever else is up fades away over the set's transition.
+   */
+  const [cue, setCue] = useState<VisualPattern[]>([]);
+  const cueTo = useCallback((pattern: VisualPattern) => {
+    const onScreen = layers.some((l) => l.pattern === pattern);
+    if (!cue.includes(pattern)) {
+      if (cue.length >= MAX_LAYERS) return;
+      setCue([...cue, pattern]);
+      setPreparing(onScreen ? null : pattern);
+    } else if (preparing === pattern || onScreen) {
+      // A second right-click on the one being edited: out of the cue.
+      setCue(cue.filter((p) => p !== pattern));
+      setPreparing(null);
+    } else {
+      setPreparing(pattern);
+    }
+  }, [cue, layers, preparing]);
+  const clearCue = useCallback(() => { setCue([]); setPreparing(null); }, []);
+
   /** Puts a changed stack in the set's order, and keeps the selection on `pattern`. */
   const arrange = useCallback((next: Layer[], pattern: VisualPattern) => {
     const ordered = inSetOrder(next, setRef.current);
@@ -302,6 +329,19 @@ export default function App() {
      */
     arrange([...layers, withFaders({ pattern, opacity: STACKED_OPACITY, motion: from.motion }, pattern)], pattern);
   }, [layers, selectedLayer, arrange, withFaders]);
+
+  const goCue = useCallback(() => {
+    if (!cue.length) return;
+    const motion = (layers[selectedLayer] ?? layers[0]).motion;
+    const next = inSetOrder(cue.map((p) => layers.find((l) => l.pattern === p)
+      ?? withFaders({ pattern: p, opacity: -1, motion }, p)), setRef.current);
+    // First time up with nothing remembered: the bottom one full, those over it at the stacked level.
+    const filled = next.map((l, i) => (l.opacity < 0 ? { ...l, opacity: i === 0 ? 1 : STACKED_OPACITY } : l));
+    setLayers(filled);
+    setSelectedLayer(Math.max(0, filled.findIndex((l) => l.pattern === cue[cue.length - 1])));
+    setCue([]);
+    setPreparing(null);
+  }, [cue, layers, selectedLayer, withFaders]);
 
   /*
    * The stack is remembered — which visuals are up, their faders and which one
@@ -1514,6 +1554,13 @@ export default function App() {
         return;
       }
 
+      // The cue test: Space puts the cue on screen.
+      if (CUE_TEST && e.key === ' ' && cue.length) {
+        e.preventDefault();
+        goCue();
+        return;
+      }
+
       // Move the selection through the stack (L), and fade it ([ and ])
       if (e.key.toLowerCase() === 'l') {
         cycleLayer();
@@ -1578,7 +1625,7 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyPress);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [set, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity, nudgeMotion, toggleRecording, toggleOutput, flash, toggleFxStage, stepCount, fxParams, autoHueEnabled]);
+  }, [set, cue, goCue, cyclePattern, toggleFx, setCurrentPattern, toggleLayer, cycleLayer, nudgeLayerOpacity, nudgeMotion, toggleRecording, toggleOutput, flash, toggleFxStage, stepCount, fxParams, autoHueEnabled]);
 
   // Right-click to toggle UI visibility
   useEffect(() => {
@@ -1785,6 +1832,15 @@ export default function App() {
           showing={editPattern}
           header={
             <>
+            {CUE_TEST && cue.length > 0 && (
+              <div className="flex items-center gap-2 border-b border-cyan-300/30 bg-cyan-300/10 px-3 py-2">
+                <span className="min-w-0 flex-1 text-[10px] leading-tight text-cyan-50/90">
+                  NEXT <span className="font-semibold">{cue.map((p) => RENDERER_CATEGORIES[p].short).join(' + ')}</span>
+                  <span className="block text-[9px] text-cyan-50/50">right-click to add · again to edit · again to drop</span>
+                </span>
+                <button onClick={goCue} title="Space" className="shrink-0 rounded bg-cyan-300 px-2 py-0.5 text-[9px] font-semibold text-black">GO</button>
+              </div>
+            )}
             {preparing && (
               <div className="flex items-center gap-2 border-b border-amber-300/30 bg-amber-300/10 px-3 py-2">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
@@ -1887,6 +1943,7 @@ export default function App() {
           onSaveSet={saveNamedSet}
           preparing={preparing}
           onPrepare={setPreparing}
+          {...(CUE_TEST ? { cue, onCue: cueTo, onGo: goCue, onCueClear: clearCue } : {})}
           fade={fade}
           onFadeChange={setFade}
           audioEnabled={audioEnabled}
