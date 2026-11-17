@@ -292,13 +292,19 @@ export function Slider({
 export function ParamPanel({
   sections,
   header,
+  showing,
 }: {
   sections: ParamSection[];
   /** Rendered above the tabs — the layer strip, which scopes everything below it. */
   header?: React.ReactNode;
+  /** Which visual the panel is for: when it changes, the panel goes back to its first tab. */
+  showing?: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [activeKey, setActiveKey] = useState(sections[0]?.key);
+  // Another visual: back to its shape, whichever tab the last one was left on.
+  const firstKey = sections[0]?.key;
+  useEffect(() => { setActiveKey(firstKey); }, [showing, firstKey]);
 
   const available = sections.filter((s) => s.entry.groups.length > 0);
   /*

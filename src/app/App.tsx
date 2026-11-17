@@ -1748,6 +1748,7 @@ export default function App() {
       {/* What this visual is — its own controls. Effects live opposite. */}
       {showUI && (
         <ParamPanel
+          showing={editPattern}
           header={
             <>
             {preparing && (
