@@ -533,7 +533,7 @@ export class DandelionRenderer {
     drawBackdrop(ctx, width, height, cfg.field.backdrop);
     if (!this.model) return;
     frameCamera(this.camera, width, height);
-    this.camera.position.set(0, 0.5, 15.5);
+    this.camera.position.set(0, 0.5, 15.5 / Math.max(0.3, cfg.field.zoom));
     this.camera.lookAt(0, 0.1, 0);
     this.update(handData, colors, audioData, width, height);
     if (this.surface.width !== width || this.surface.height !== height) {
@@ -704,13 +704,15 @@ export class DandelionRenderer {
       // All wider in a louder room, leaning with the wind, bowed by a gust.
       const d = this.dance;
       const across = f.at.x * 0.35;
-      const sway = cfg.field.sway * (0.3 + level * 0.8);
-      const bx = sway * (0.7 * Math.sin((TAU * d) / 4.2 - across + slot.ph * 0.3)
-        + 0.3 * Math.sin((TAU * d) / 1.9 + slot.ph * 1.7))
+      // From side to side, long and slow like grass in a steady wind, wider
+      // the louder the room; no quick shiver on top.
+      const sway = cfg.field.sway * (0.45 + level * 1.0);
+      const bx = sway * (0.85 * Math.sin((TAU * d) / 5.2 - across + slot.ph * 0.3)
+        + 0.15 * Math.sin((TAU * d) / 3.3 + slot.ph * 1.7))
         + wind.x * 0.22 + this.gust * 0.5;
-      const bz = sway * 0.5 * Math.sin((TAU * d) / 5.6 + slot.ph * 2.3) + wind.z * 0.22;
-      f.bend.x += (bx - f.bend.x) * (1 - Math.exp(-dt * 3));
-      f.bend.y += (bz - f.bend.y) * (1 - Math.exp(-dt * 3));
+      const bz = sway * 0.3 * Math.sin((TAU * d) / 7.1 + slot.ph * 2.3) + wind.z * 0.22;
+      f.bend.x += (bx - f.bend.x) * (1 - Math.exp(-dt * 1.6));
+      f.bend.y += (bz - f.bend.y) * (1 - Math.exp(-dt * 1.6));
       // World bend, in head radii, into the dandelion's own turned frame.
       const wx = f.bend.x;
       const wz = f.bend.y;

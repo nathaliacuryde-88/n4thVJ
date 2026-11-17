@@ -152,6 +152,9 @@ export class JellyfishRenderer {
   private started = false;
   /** Seconds since the visual came up: the swarm arrives one by one from below. */
   private since = 0;
+  /** How far the music's current has carried the swarm, and how strongly it carries it now. */
+  private current = 0;
+  private carry = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, host: MotifHost | null = null) {
     this.canvas = canvas;
@@ -270,7 +273,7 @@ export class JellyfishRenderer {
       return;
     }
     frameCamera(this.camera, width, height);
-    this.camera.position.set(0, 0.5, 15.5);
+    this.camera.position.set(0, 0.5, 15.5 / Math.max(0.3, cfg.swarm.zoom));
     this.camera.lookAt(0, 0.1, 0);
     this.update(handData, colors, audioData);
     if (this.surface.width !== width || this.surface.height !== height) {
@@ -320,6 +323,12 @@ export class JellyfishRenderer {
     const hand = new THREE.Vector3(play.aim.x * 4.6, play.aim.y * 2.1, 0)
       .multiplyScalar(cfg.hands.follow * handed);
     const wander = cfg.swarm.drift * (1 + play.bass * cfg.sound.bass * 0.8);
+    // The current: with music it runs faster and sways them further, slowly
+    // easing in and out so a change in the music is a change of tide, not a jolt.
+    const live = !!audioData?.live;
+    const fullness = live ? 0.35 + 0.65 * play.energy + 0.4 * play.mid : 0.35;
+    this.carry += (cfg.sound.flow * fullness - this.carry) * (1 - Math.exp(-dt * 0.8));
+    this.current += dt * (0.18 + 0.5 * this.carry);
     const spec = 0.16 * (1 + play.high * cfg.sound.high * 2.5);
     const ripple = 1 + play.high * cfg.sound.high * 1.5;
     const size = cfg.swarm.size;
@@ -356,6 +365,11 @@ export class JellyfishRenderer {
         sw.c[1] * Math.min(1.4, scatter) + sw.a[1] * wander * Math.sin(2 * w + sw.ph * 1.7),
         sw.c[2] + sw.a[2] * wander * Math.cos(w + sw.ph * 0.6),
       );
+      // Carried on the current, each a little behind the one before.
+      const tide = this.current - index * 0.35;
+      p.x += Math.sin(tide + sw.ph * 0.5) * 1.3 * this.carry;
+      p.y += Math.sin(tide * 0.63 + sw.ph) * 0.45 * this.carry;
+      p.z += Math.cos(tide * 0.8 + sw.ph * 1.3) * 0.5 * this.carry;
       const lag = 0.8 + 1.6 * (1 - index / SWARM.length);
       j.pull.lerp(hand, 1 - Math.exp(-dt * lag));
       p.add(j.pull);

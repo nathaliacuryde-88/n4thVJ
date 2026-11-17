@@ -548,7 +548,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         name: 'Field',
         params: [
           { path: 'field.count', label: 'Flowers', min: 0, max: 7, step: 1, hint: 'on coming up they grow in one by one' },
-          { path: 'field.distance', label: 'Distance', min: 8, max: 26, step: 0.25, hint: 'nearer = bigger' },
+          { path: 'field.zoom', label: 'Zoom', min: 0.4, max: 2.5, step: 0.05, hint: '1 = as framed; higher = closer' },
           { path: 'motion.amount', label: 'Sway', min: 0, max: 2.5, step: 0.05 },
           { path: 'motion.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
           { path: 'field.orbit', label: 'Orbit', min: 0, max: 1, step: 0.05, hint: 'slow camera swing' },
@@ -605,6 +605,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         name: 'Flight',
         params: [
           { path: 'flight.count', label: 'Butterflies', min: 0, max: 8, step: 1, hint: 'on coming up they fly in one by one' },
+          { path: 'flight.zoom', label: 'Zoom', min: 0.4, max: 2.5, step: 0.05, hint: '1 = as framed; higher = closer' },
           { path: 'flight.size', label: 'Size', min: 0.4, max: 2, step: 0.05 },
           { path: 'flight.swing', label: 'Loops', min: 0, max: 2.5, step: 0.05, hint: '0 hovers in place' },
           { path: 'flight.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
@@ -1113,7 +1114,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         name: 'Garden',
         params: [
           { path: 'garden.count', label: 'Anemones', min: 0, max: 7, step: 1, hint: 'on coming up they grow in one by one' },
-          { path: 'garden.distance', label: 'Distance', min: 8, max: 26, step: 0.25, hint: 'nearer = bigger' },
+          { path: 'garden.zoom', label: 'Zoom', min: 0.4, max: 2.5, step: 0.05, hint: '1 = as framed; higher = closer' },
           { path: 'garden.reach', label: 'Arms', min: 0.4, max: 1.8, step: 0.05 },
           { path: 'garden.sway', label: 'Sway', min: 0, max: 2.5, step: 0.05 },
           { path: 'garden.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
@@ -1438,6 +1439,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         name: 'Swarm',
         params: [
           { path: 'swarm.count', label: 'Jellyfish', min: 0, max: 8, step: 1, hint: '0 = empty water; on coming up they arrive one by one from below' },
+          { path: 'swarm.zoom', label: 'Zoom', min: 0.4, max: 2.5, step: 0.05, hint: '1 = as framed; higher = closer' },
           { path: 'swarm.size', label: 'Size', min: 0.4, max: 2, step: 0.05 },
           { path: 'swarm.drift', label: 'Drift', min: 0, max: 2.5, step: 0.05, hint: '0 holds each in place' },
           { path: 'swarm.pulse', label: 'Pulse', min: 0, max: 1.5, step: 0.05 },
@@ -1473,6 +1475,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.bass', label: 'Bass swell', min: 0, max: 2, step: 0.05 },
           { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hat ripple', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.flow', label: 'Music current', min: 0, max: 2.5, step: 0.05, hint: 'the music sways the swarm side to side, wider as it fills' },
         ],
       },
     ],
@@ -1485,6 +1488,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         name: 'Field',
         params: [
           { path: 'field.count', label: 'Dandelions', min: 0, max: 20, step: 1, hint: 'on coming up they grow in one by one' },
+          { path: 'field.zoom', label: 'Zoom', min: 0.4, max: 2.5, step: 0.05, hint: '1 = as framed; higher = closer' },
           { path: 'field.sway', label: 'Sway', min: 0, max: 2, step: 0.05 },
           { path: 'field.bounce', label: 'Bounce', min: 0, max: 2, step: 0.05, hint: 'up and down; deeper with the music' },
           { path: 'field.drift', label: 'Seeds flying', min: 0, max: 1, step: 0.01, hint: '0 = the heads stay whole' },

@@ -19,6 +19,8 @@ export const AnemoneConfig = {
   garden: {
     /** How many anemones. They grow in and sink away when this changes. */
     count: 5,
+    /** Zoom: 1 as framed, above 1 closer, below 1 further away. */
+    zoom: 1,
     /** How long the arms are. */
     reach: 1,
     /** How much they sway in the current. */

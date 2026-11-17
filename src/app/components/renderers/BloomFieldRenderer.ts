@@ -420,7 +420,7 @@ export class BloomFieldRenderer {
     const slideY = -play.aim.y * reach * 1.3;
     const yaw = cfg.field.orbit * 0.42 * Math.sin((TAU * t) / (LOOP * 2))
       - play.aim.x * reach * 0.12;
-    const distance = Math.max(5, cfg.field.distance
+    const distance = Math.max(3, (cfg.field.distance / Math.max(0.3, cfg.field.zoom))
       * (1 - (play.spread - 0.4) * cfg.hands.dolly * 0.55));
     camera.position.set(
       slideX + Math.sin(yaw) * distance,

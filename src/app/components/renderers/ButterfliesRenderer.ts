@@ -280,7 +280,7 @@ export class ButterfliesRenderer {
       return;
     }
     frameCamera(this.camera, width, height);
-    this.camera.position.set(0, 0.5, 15.5);
+    this.camera.position.set(0, 0.5, 15.5 / Math.max(0.3, cfg.flight.zoom));
     this.camera.lookAt(0, 0.1, 0);
     this.update(handData, colors, audioData);
 

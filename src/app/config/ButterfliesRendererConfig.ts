@@ -33,6 +33,8 @@ export const ButterfliesConfig = {
   flight: {
     /** Butterflies in the air. Newcomers fly in from the side; leavers fly off. */
     count: 5,
+    /** Zoom: 1 as framed, above 1 closer, below 1 further away. */
+    zoom: 1,
     /** Scales every butterfly. */
     size: 1,
     /** How wide the flight loops are. 0 hovers in place. */

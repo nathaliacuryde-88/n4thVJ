@@ -20,6 +20,8 @@ export const JellyfishConfig = {
   swarm: {
     /** Jellyfish, 1 to 8. They drift in and away when this changes. */
     count: 4,
+    /** Zoom: 1 as framed, above 1 closer, below 1 further away. */
+    zoom: 1,
     /** How big they are. */
     size: 1,
     /** How far each wanders round its patch of water. */
@@ -50,5 +52,7 @@ export const JellyfishConfig = {
     mid: 1,
     /** Hats and air ripple the tentacles and brighten the highlights. */
     high: 1,
+    /** The music carries the swarm on a current, swaying it side to side, wider and faster as it fills. */
+    flow: 1,
   },
 };

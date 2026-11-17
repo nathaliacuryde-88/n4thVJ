@@ -285,7 +285,7 @@ export class AnemoneRenderer {
     frameCamera(this.camera, width, height);
     const slideX = -play.aim.x * 1.2;
     const slideY = -play.aim.y * 0.7;
-    const distance = Math.max(5, cfg.garden.distance * (1 - (play.spread - 0.4) * 0.5));
+    const distance = Math.max(3, (cfg.garden.distance / Math.max(0.3, cfg.garden.zoom)) * (1 - (play.spread - 0.4) * 0.5));
     this.camera.position.set(slideX, 0.5 + slideY, distance);
     this.camera.lookAt(slideX, 0.1 + slideY, 0);
 

@@ -47,6 +47,8 @@ export const BloomFieldConfig = {
   field: {
     /** Flowers in the field. They grow in and sink away when this changes. */
     count: 5,
+    /** Zoom: 1 as framed, above 1 closer, below 1 further away. */
+    zoom: 1,
     /** Slow camera orbit, 0 for a locked-off shot. */
     orbit: 0,
     /** Camera distance. Lower is closer. */
