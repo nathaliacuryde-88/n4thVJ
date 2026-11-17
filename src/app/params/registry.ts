@@ -49,6 +49,7 @@ import { MyceliumConfig } from '../config/MyceliumRendererConfig';
 import { CellConfig } from '../config/CellRendererConfig';
 import { StandbyConfig } from '../config/StandbyRendererConfig';
 import { NeuronConfig } from '../config/NeuronRendererConfig';
+import { MorphingSphereConfig } from '../config/MorphingSphereRendererConfig';
 import { ArrivalConfig } from '../config/ArrivalRendererConfig';
 import { BreathConfig } from '../config/BreathRendererConfig';
 import { ConstellationConfig } from '../config/ConstellationRendererConfig';
@@ -1008,6 +1009,45 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
   'arrival-planet': arrivalParams(
     ['Clouds', 'how cloudy the planet is'], ['Approach', 'how quickly you come in and pull back'],
     ['Turn', 'how far the hand turns the planet'], 'Clap sunrise', 'Kick flares edge'),
+  morphing: {
+    config: MorphingSphereConfig,
+    groups: [
+      {
+        name: 'Shape',
+        params: [
+          { path: 'shape.size', label: 'Size', min: 0.3, max: 2, step: 0.05 },
+          { path: 'shape.morph', label: 'Morph', min: 0, max: 0.8, step: 0.01, hint: '0 = round at rest; the music adds more' },
+          { path: 'shape.lobes', label: 'Lobes', min: 0.3, max: 3, step: 0.05, hint: 'low = a few big soft lobes' },
+          { path: 'shape.detail', label: 'Detail', min: 2, max: 6, step: 1 },
+          { path: 'shape.style', label: 'Style', min: 0, max: 1, step: 1, labels: ['Wire', 'Points'] },
+        ],
+      },
+      {
+        name: 'Motion',
+        params: [
+          { path: 'motion.spin', label: 'Spin', min: 0, max: 3, step: 0.05, hint: 'turning about its centre' },
+          { path: 'motion.flow', label: 'Flow', min: 0, max: 3, step: 0.05, hint: 'how fast the shape moves on' },
+          { path: 'motion.dust', label: 'Stars', min: 0, max: 1, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.shape', label: 'Fist pulls', min: 0, max: 2, step: 0.05, hint: 'pinch or fist pulls it out of shape; open rounds it' },
+          { path: 'hands.follow', label: 'Follow hand', min: 0, max: 1, step: 0.05, hint: '0 = stays at the middle' },
+          { path: 'hands.clap', label: 'Clap burst', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.bass', label: 'Bass swells', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.beat', label: 'Kick pulse', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.spin', label: 'Music spins', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+    ],
+  },
   neurons: {
     config: NeuronConfig,
     groups: [

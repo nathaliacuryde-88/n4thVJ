@@ -179,7 +179,7 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     short: 'Sphere',
     category: '3D',
     key: '=',
-    description: 'Three.js morphing icosphere'
+    description: 'A wire sphere that stays round at rest and swells into soft lobes with the music, turning about its centre; a fist pulls it out of shape'
   },
   cubewall: {
     pattern: 'cubewall',
