@@ -89,6 +89,8 @@ export class NeuronRenderer {
   private glowKey = '';
   private real = 0;
   private lastKick = 0;
+  /** Kicks heard, for firing on every Nth. */
+  private kicks = 0;
   private lastDrop = 0;
   private storm = 0;
   private holding = false;
@@ -326,7 +328,7 @@ export class NeuronRenderer {
   /** `from`: the cell whose signal set this one off, which it does not answer. `force`: even if resting. */
   private fire(i: number, strength = 1, from = -1, force = false) {
     const c = this.cells[i];
-    if (!c || (!force && this.real - c.firedAt < REST)) return;
+    if (!c || (!force && this.real - c.firedAt < Math.max(REST, this.cfg.network.rest))) return;
     c.firedAt = this.real;
     c.flash = Math.min(1.4, Math.max(c.flash, strength));
     c.charge = 0;
@@ -370,8 +372,8 @@ export class NeuronRenderer {
     this.storm = Math.max(0, this.storm - dt);
     // How much of a charge an arriving signal passes on: low, one firing
     // stays one; high, it runs on through the rest.
-    const passOn = Math.min(1.3,
-      0.32 + 0.55 * open * cfg.hands.chain + 0.5 * play.build * cfg.sound.build + (this.storm > 0 ? 0.6 : 0));
+    const passOn = Math.min(1.3, cfg.network.spread *
+      (0.32 + 0.55 * open * cfg.hands.chain + 0.5 * play.build * cfg.sound.build + (this.storm > 0 ? 0.6 * cfg.sound.drop : 0)));
 
     // ── the fist: holding the charge in ──────────────────────────────────
     const hold = cfg.hands.hold > 0.01;
@@ -388,7 +390,9 @@ export class NeuronRenderer {
     }
     let focus = -1;
     for (const [k, hand] of hands.entries()) {
-      if (!hand) { this.was[k] = null; continue; }
+      // Only a real hand touches the cells: the music's stand-in hands would
+      // fire whatever they drift over, on top of the music itself.
+      if (!hand || !real) { this.was[k] = null; continue; }
       const x = hand.position.x * aspect;
       const y = hand.position.y;
       if (this.holding) {
@@ -426,13 +430,20 @@ export class NeuronRenderer {
     // ── the music ────────────────────────────────────────────────────────
     const kick = Math.max(play.kick, play.bump) * cfg.sound.beat;
     if (kick > 0.45 && this.lastKick <= 0.45 && !this.holding) {
-      const pick = focus >= 0 && Math.random() < 0.7 ? focus : Math.floor(Math.random() * cells.length);
-      this.fire(pick, Math.min(1.2, 0.7 + 0.4 * kick));
+      // Only every Nth kick, so fast music does not keep the whole thing lit.
+      this.kicks += 1;
+      if (this.kicks % Math.max(1, Math.round(cfg.sound.every)) === 0) {
+        for (let n = 0; n < Math.max(1, Math.round(cfg.sound.cells)); n++) {
+          const pick = n === 0 && focus >= 0 && Math.random() < 0.7 ? focus : Math.floor(Math.random() * cells.length);
+          this.fire(pick, Math.min(1.2, 0.7 + 0.4 * kick));
+        }
+      }
     }
     this.lastKick = kick;
-    if (play.drop > 0.5 && this.lastDrop <= 0.5 && cfg.sound.build > 0) {
-      this.storm = 2.2;
-      cells.forEach((_, i) => { if (Math.random() < 0.5) this.fire(i, 1.1); });
+    if (play.drop > 0.5 && this.lastDrop <= 0.5 && cfg.sound.drop > 0.01) {
+      this.storm = 2.2 * Math.min(1, cfg.sound.drop);
+      const share = 0.5 * Math.min(2, cfg.sound.drop);
+      cells.forEach((_, i) => { if (Math.random() < share) this.fire(i, 1.1); });
     }
     this.lastDrop = play.drop;
     // Left alone with no hand and no music, a cell fires now and then.

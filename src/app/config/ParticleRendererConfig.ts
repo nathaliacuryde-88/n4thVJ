@@ -196,6 +196,8 @@ export const ParticleConfig = {
      * Current: 20ms
      */
     flashDelay: 20,
+    /** How bright the whole-screen flash on a clap is: 0 none, 1 a full white flash. */
+    flash: 0.2,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════

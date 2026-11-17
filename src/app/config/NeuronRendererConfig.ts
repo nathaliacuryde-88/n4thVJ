@@ -10,6 +10,10 @@ export const NeuronConfig = {
     links: 2.4,
     /** How much of a neuron each cell is drawn as: low, a node with a stub or two; high, a full tree of dendrites. */
     branching: 0,
+    /** How far one firing runs on through the others: low, it stays a single spark; high, it cascades. */
+    spread: 0.75,
+    /** Seconds a cell rests after firing before it can fire again: longer is calmer. */
+    rest: 0.8,
   },
 
   hands: {
@@ -24,9 +28,15 @@ export const NeuronConfig = {
   },
 
   sound: {
-    /** The kick fires a cell. */
+    /** How strongly a kick fires a cell; 0, the kick does nothing. */
     beat: 1,
-    /** A build-up makes the network more excitable; the drop sets it all off. */
-    build: 1,
+    /** Fires on every Nth kick: 1 for slow music, 4 or 8 for fast techno. */
+    every: 2,
+    /** How many cells each of those kicks sets off. */
+    cells: 1,
+    /** A build-up makes the network more excitable. */
+    build: 0.6,
+    /** The drop sets much of it off at once; 0, the drop passes quietly. */
+    drop: 0.6,
   },
 };

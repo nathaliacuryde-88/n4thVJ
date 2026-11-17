@@ -126,7 +126,9 @@ export class ParticleRenderer {
     // CLAPPING EXPLOSION
     let vibrationIntensity = 0;
     if (handData.clapping && !this.isExploding) {
-      this.createExplosionParticles(colors);
+      // The music's own beats come in as claps when no hand is in view: they
+      // burst, but only her real clap flashes the screen.
+      this.createExplosionParticles(colors, handData.synthetic ? 0 : this.cfg.explosion.flash);
       this.isExploding = true; // ⭐ CRITICAL FIX: Prevent infinite explosions!
     }
     
@@ -235,7 +237,7 @@ export class ParticleRenderer {
     }
   }
 
-  private createExplosionParticles(colors: string[]) {
+  private createExplosionParticles(colors: string[], flash: number) {
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
     
@@ -257,14 +259,15 @@ export class ParticleRenderer {
       this.particles.push(particle);
     }
     
-    // FLASH EFFECTS
-    this.ctx.fillStyle = '#FFFFFFDD'; // White flash
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    
-    setTimeout(() => {
-      this.ctx.fillStyle = colors[0] + '80'; // Color flash
+    // FLASH EFFECTS, as strong as the Flash slider says.
+    if (flash > 0.005) {
+      this.ctx.fillStyle = '#FFFFFF' + alphaHex(Math.min(1, flash) * 221); // White flash
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    }, this.cfg.explosion.flashDelay);
+      setTimeout(() => {
+        this.ctx.fillStyle = colors[0] + alphaHex(Math.min(1, flash) * 128); // Color flash
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      }, this.cfg.explosion.flashDelay);
+    }
     
     this.vibrationTimer = this.cfg.explosion.vibrationDuration;
     

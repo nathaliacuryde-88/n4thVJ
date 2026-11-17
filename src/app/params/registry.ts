@@ -367,6 +367,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'explosion.particleCount', label: 'Burst', min: 0, max: 300, step: 5 },
           { path: 'explosion.forceMultiplier', label: 'Force', min: 0, max: 50, step: 1 },
           { path: 'explosion.sizeMultiplier', label: 'Size', min: 0.2, max: 6, step: 0.1 },
+          { path: 'explosion.flash', label: 'Flash', min: 0, max: 1, step: 0.05, hint: 'the whole-screen flash on a real clap · 0 = none' },
         ],
       },
     ],
@@ -1058,6 +1059,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'network.cells', label: 'Cells', min: 4, max: 60, step: 1 },
           { path: 'network.links', label: 'Links', min: 1, max: 5, step: 0.1, hint: 'how many others each one reaches' },
           { path: 'network.branching', label: 'Branching', min: 0, max: 2, step: 0.05, hint: 'how finely the dendrites fork' },
+          { path: 'network.spread', label: 'Spread', min: 0, max: 1.5, step: 0.05, hint: 'how far one firing runs on: low a single spark, high a cascade' },
+          { path: 'network.rest', label: 'Rest', min: 0.45, max: 4, step: 0.05, hint: 'seconds before a cell can fire again — longer is calmer' },
         ],
       },
       {
@@ -1072,8 +1075,11 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Sound',
         params: [
-          { path: 'sound.beat', label: 'Kick fires', min: 0, max: 2, step: 0.05 },
-          { path: 'sound.build', label: 'Build excites', min: 0, max: 2, step: 0.05, hint: 'a build-up makes it excitable; the drop sets it all off' },
+          { path: 'sound.beat', label: 'Kick fires', min: 0, max: 2, step: 0.05, hint: '0 = the kick does nothing' },
+          { path: 'sound.every', label: 'Every Nth kick', min: 1, max: 8, step: 1, hint: '1 for slow music · 4 or 8 for fast' },
+          { path: 'sound.cells', label: 'Cells per kick', min: 1, max: 8, step: 1 },
+          { path: 'sound.build', label: 'Build excites', min: 0, max: 2, step: 0.05, hint: 'a build-up makes it more excitable' },
+          { path: 'sound.drop', label: 'Drop', min: 0, max: 2, step: 0.05, hint: 'the drop sets much of it off · 0 = quiet' },
         ],
       },
     ],
