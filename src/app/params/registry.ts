@@ -1016,7 +1016,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Shape',
         params: [
-          { path: 'shape.style', label: 'Style', min: 0, max: 2, step: 0.01, hint: '0 Wire · 1 Glass · 2 Points — slide between them' },
+          { path: 'shape.style', label: 'Style', min: 0, max: 2, step: 0.01, hint: '0 points only · lines grow out of each point · 2 full outline' },
           { path: 'shape.size', label: 'Size', min: 0.3, max: 2, step: 0.05 },
           { path: 'shape.morph', label: 'Morph', min: 0, max: 0.8, step: 0.01, hint: '0 = round at rest; the music adds more' },
           { path: 'shape.lobes', label: 'Lobes', min: 0.3, max: 3, step: 0.05, hint: 'low = a few big soft lobes' },

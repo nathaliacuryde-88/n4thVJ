@@ -12,8 +12,8 @@ export const MorphingSphereConfig = {
     lobes: 1,
     /** How finely the wire is drawn, 2 to 6. */
     detail: 4,
-    /** A slide through the styles: 0 Wire, 1 Glass, 2 Points; in between, one dissolves into the next. */
-    style: 0,
+    /** From points to outline: 0 only the points, lines growing out of each towards its neighbours, 2 the full outline. Never filled faces. */
+    style: 2,
   },
 
   motion: {

@@ -126,11 +126,12 @@ export interface HandData {
 }
 
 /**
- * The stack in the set's order: what comes first in the set lies underneath.
+ * The stack in the set's order: what comes first in the set lies on top.
  *
- * She reads the set bar left to right as back to front, so a visual further
- * left belongs lower in the stack. A layer whose visual is not in the set
- * (the set was edited under it) stays just above the one it was above.
+ * A visual brought in that sits later in the set than the ones playing goes
+ * underneath them; one that sits earlier goes over them. A layer whose visual
+ * is not in the set (the set was edited under it) stays next to the one it
+ * was beside.
  */
 function inSetOrder(layers: Layer[], set: VisualPattern[]): Layer[] {
   let last = -1;
@@ -140,7 +141,8 @@ function inSetOrder(layers: Layer[], set: VisualPattern[]): Layer[] {
       if (at !== -1) last = at;
       return { layer, key: at !== -1 ? at : last + 0.5, i };
     })
-    .sort((a, b) => a.key - b.key || a.i - b.i)
+    // Later in the set, further down the stack (index 0 is the bottom).
+    .sort((a, b) => b.key - a.key || a.i - b.i)
     .map((k) => k.layer);
 }
 
@@ -711,7 +713,7 @@ export default function App() {
 
   /**
    * Dragging a card along the set bar: the keys follow the new order, and so
-   * do the layers — whatever is now further left lies further down.
+   * do the layers — whatever is now further left lies further up.
    */
   const reorderSet = useCallback((next: VisualPattern[]) => {
     setSet(next);

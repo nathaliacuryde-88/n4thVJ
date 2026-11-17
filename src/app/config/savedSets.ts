@@ -54,7 +54,7 @@ const BUILT_IN_KEY = 'vj-builtin-sets';
  *   7 Machine   Machine Vision, and Standby to close on     keys U, F
  *
  * The set's order is the layer order, so what comes earlier in the story sits
- * underneath what comes later. Everything on black, in the sea palette, so
+ * over what comes later. Everything on black, in the sea palette, so
  * any two neighbours stack. It opens on the line alone.
  */
 /**

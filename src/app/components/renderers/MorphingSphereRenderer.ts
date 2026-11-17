@@ -40,38 +40,15 @@ export class MorphingSphereRenderer {
   private camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 100);
   private renderer: THREE.WebGLRenderer;
   private group = new THREE.Group();
-  private mesh: THREE.Mesh | null = null;
-  private glass: THREE.Mesh | null = null;
+  /** The sphere's corners, each once, and the edges between them as pairs of corners. */
+  private corners: Float32Array = new Float32Array(0);
+  private edges: Uint32Array = new Uint32Array(0);
+  private shaped: Float32Array = new Float32Array(0);
   private points: THREE.Points | null = null;
-  private original: Float32Array = new Float32Array(0);
+  private lines: THREE.LineSegments | null = null;
   private builtDetail = -1;
-  private wire: THREE.MeshBasicMaterial;
+  private wire: THREE.LineBasicMaterial;
   private dots: THREE.PointsMaterial;
-  /** Glass: the surface itself, clear where it faces you and lit at its edge. */
-  private glassMaterial = new THREE.ShaderMaterial({
-    uniforms: { uColor: { value: new THREE.Color(0x66ccff) }, uEdge: { value: new THREE.Color(0xffffff) }, uAmount: { value: 0 } },
-    vertexShader: `
-      varying vec3 vNormal; varying vec3 vView;
-      void main() {
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        vNormal = normalize(normalMatrix * normal);
-        vView = normalize(-mv.xyz);
-        gl_Position = projectionMatrix * mv;
-      }`,
-    fragmentShader: `
-      uniform vec3 uColor; uniform vec3 uEdge; uniform float uAmount;
-      varying vec3 vNormal; varying vec3 vView;
-      void main() {
-        float facing = abs(dot(normalize(vNormal), normalize(vView)));
-        float rim = pow(1.0 - facing, 2.2);
-        vec3 col = uColor * (0.12 + 0.9 * rim) + uEdge * pow(rim, 5.0) * 0.8;
-        gl_FragColor = vec4(col * uAmount, 1.0);
-      }`,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
   private dust: THREE.Points;
 
   private time = 0;
@@ -94,7 +71,7 @@ export class MorphingSphereRenderer {
     this.camera.lookAt(0, 0, 0);
     this.scene.add(this.group);
 
-    this.wire = new THREE.MeshBasicMaterial({ color: 0x66ccff, wireframe: true, transparent: true, opacity: 0.85 });
+    this.wire = new THREE.LineBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.85 });
     this.dots = new THREE.PointsMaterial({ color: 0x66ccff, size: 0.09, transparent: true, opacity: 1, depthWrite: false });
 
     const count = 1400;
@@ -117,20 +94,57 @@ export class MorphingSphereRenderer {
     this.cfg = withOverrides(MorphingSphereConfig, values);
   }
 
-  /** The sphere at this detail: a wire mesh and the same points, sharing one geometry. */
+  /**
+   * The sphere at this detail, as its corners and its edges: drawn as points,
+   * and as lines that grow out of each corner towards its neighbours.
+   */
   private build(detail: number) {
-    if (this.mesh) {
-      this.group.remove(this.mesh);
-      this.group.remove(this.points!);
-      this.group.remove(this.glass!);
-      this.mesh.geometry.dispose();
+    if (this.points) {
+      this.group.remove(this.points, this.lines!);
+      this.points.geometry.dispose();
+      this.lines!.geometry.dispose();
     }
-    const geometry = new THREE.IcosahedronGeometry(1, detail);
-    this.original = Float32Array.from(geometry.attributes.position.array as Float32Array);
-    this.mesh = new THREE.Mesh(geometry, this.wire);
-    this.points = new THREE.Points(geometry, this.dots);
-    this.glass = new THREE.Mesh(geometry, this.glassMaterial);
-    this.group.add(this.glass, this.mesh, this.points);
+    const source = new THREE.IcosahedronGeometry(1, detail);
+    const flat = source.attributes.position.array as Float32Array;
+    // The geometry repeats a corner for every face it touches: one of each.
+    const index = new Map<string, number>();
+    const corners: number[] = [];
+    const which: number[] = [];
+    for (let i = 0; i < flat.length; i += 3) {
+      const key = `${flat[i].toFixed(4)},${flat[i + 1].toFixed(4)},${flat[i + 2].toFixed(4)}`;
+      let at = index.get(key);
+      if (at === undefined) {
+        at = corners.length / 3;
+        index.set(key, at);
+        corners.push(flat[i], flat[i + 1], flat[i + 2]);
+      }
+      which.push(at);
+    }
+    const seen = new Set<number>();
+    const edges: number[] = [];
+    const n = corners.length / 3;
+    for (let f = 0; f < which.length; f += 3) {
+      for (const [a, b] of [[which[f], which[f + 1]], [which[f + 1], which[f + 2]], [which[f + 2], which[f]]]) {
+        const key = a < b ? a * n + b : b * n + a;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        edges.push(a, b);
+      }
+    }
+    source.dispose();
+    this.corners = Float32Array.from(corners);
+    this.shaped = new Float32Array(corners.length);
+    this.edges = Uint32Array.from(edges);
+    const pointGeometry = new THREE.BufferGeometry();
+    pointGeometry.setAttribute('position', new THREE.BufferAttribute(this.shaped, 3));
+    // Each edge is two half-lines, one from each end, that meet in the middle when full.
+    const lineGeometry = new THREE.BufferGeometry();
+    lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(edges.length * 2 * 3), 3));
+    this.points = new THREE.Points(pointGeometry, this.dots);
+    this.lines = new THREE.LineSegments(lineGeometry, this.wire);
+    this.points.frustumCulled = false;
+    this.lines.frustumCulled = false;
+    this.group.add(this.lines, this.points);
     this.builtDetail = detail;
   }
 
@@ -167,9 +181,8 @@ export class MorphingSphereRenderer {
     this.flow += step * 0.35 * cfg.motion.flow * (1 + this.swell);
     const f = 1.1 * Math.max(0.3, cfg.shape.lobes);
     const t = this.flow;
-    const pos = this.mesh!.geometry.attributes.position as THREE.BufferAttribute;
-    const arr = pos.array as Float32Array;
-    const o = this.original;
+    const o = this.corners;
+    const arr = this.shaped;
     for (let i = 0; i < o.length; i += 3) {
       const x = o[i], y = o[i + 1], z = o[i + 2];
       const n = Math.sin(x * f * 1.7 + t) * 0.5
@@ -179,7 +192,26 @@ export class MorphingSphereRenderer {
       const r = 1 + n * amount + this.pulse * 0.08 * (0.6 + 0.4 * Math.sin(y * 3 + t)) + this.burst * 0.6 * (0.7 + 0.3 * n);
       arr[i] = x * r; arr[i + 1] = y * r; arr[i + 2] = z * r;
     }
-    pos.needsUpdate = true;
+    (this.points!.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+
+    // The lines: from points alone (Style 0) growing out of each corner
+    // until they meet their neighbours' in a full outline (Style 2).
+    const st = Math.max(0, Math.min(2, cfg.shape.style));
+    const reach = 0.5 * Math.min(1, st / 2);
+    const linePos = this.lines!.geometry.attributes.position as THREE.BufferAttribute;
+    const L = linePos.array as Float32Array;
+    const e = this.edges;
+    for (let k = 0, w = 0; k < e.length; k += 2) {
+      const a = e[k] * 3, b = e[k + 1] * 3;
+      const ax = arr[a], ay = arr[a + 1], az = arr[a + 2];
+      const bx = arr[b], by = arr[b + 1], bz = arr[b + 2];
+      L[w++] = ax; L[w++] = ay; L[w++] = az;
+      L[w++] = ax + (bx - ax) * reach; L[w++] = ay + (by - ay) * reach; L[w++] = az + (bz - az) * reach;
+      L[w++] = bx; L[w++] = by; L[w++] = bz;
+      L[w++] = bx + (ax - bx) * reach; L[w++] = by + (ay - by) * reach; L[w++] = bz + (az - bz) * reach;
+    }
+    linePos.needsUpdate = true;
+    this.lines!.visible = reach > 0.004;
 
     // ── turning about its centre, leaning a little to the hand ───────────
     this.spin += step * 0.35 * cfg.motion.spin * (1 + cfg.sound.spin * (0.8 * play.mid + 0.6 * play.energy));
@@ -191,27 +223,16 @@ export class MorphingSphereRenderer {
     this.group.scale.setScalar(1.6 * Math.max(0.2, cfg.shape.size) * (1 + 0.05 * this.pulse));
 
     // ── look ─────────────────────────────────────────────────────────────
-    // The style slides: each look fades out as the next fades in.
-    const st = Math.max(0, Math.min(2, cfg.shape.style));
-    const wireW = Math.max(0, 1 - st);
-    const glassW = Math.max(0, 1 - Math.abs(st - 1));
-    const dotsW = Math.max(0, st - 1);
-    this.mesh!.visible = wireW > 0.01;
-    this.points!.visible = dotsW > 0.01;
-    this.glass!.visible = glassW > 0.01;
-    if (glassW > 0.01) this.mesh!.geometry.computeVertexNormals();
+    // The points are always there, a touch smaller once the outline has grown in.
+    const outline = Math.min(1, st / 2);
     const c = new THREE.Color(colors[0] ?? '#66ccff');
     const c2 = new THREE.Color(colors[1] ?? colors[0] ?? '#3300ff');
     const lit = c.clone().lerp(new THREE.Color(1, 1, 1), 0.25 + 0.4 * this.pulse);
     this.wire.color.copy(lit);
     this.dots.color.copy(lit.clone().lerp(c2, 0.3));
-    this.dots.size = (0.08 + 0.05 * this.pulse) * (0.4 + 0.6 * dotsW);
-    this.dots.opacity = Math.min(1, dotsW * 1.4);
-    this.wire.opacity = (0.55 + 0.4 * Math.min(1, this.swell + this.pulse)) * Math.min(1, wireW * 1.4);
-    const g = this.glassMaterial.uniforms;
-    (g.uColor.value as THREE.Color).copy(c.clone().lerp(c2, 0.35));
-    (g.uEdge.value as THREE.Color).copy(lit);
-    g.uAmount.value = glassW * (0.9 + 0.5 * this.pulse + 0.3 * this.swell);
+    this.dots.size = (0.08 + 0.05 * this.pulse) * (1 - 0.35 * outline);
+    this.dots.opacity = 1;
+    this.wire.opacity = 0.55 + 0.4 * Math.min(1, this.swell + this.pulse);
     const dustMat = this.dust.material as THREE.PointsMaterial;
     dustMat.opacity = Math.max(0, Math.min(1, cfg.motion.dust));
     this.dust.visible = cfg.motion.dust > 0.01;
