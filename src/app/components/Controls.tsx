@@ -292,6 +292,8 @@ export function Controls({
   // A long set packs the bar tighter and nudges it a little right: clear of
   // the status bar on the left and the set clock on the right.
   const compact = set.length > 10;
+  /** Cards in the top row when the set takes two. */
+  const half = Math.ceil(set.length / 2);
   const rowRef = useRef<HTMLDivElement>(null);
   const playing = layers[selectedLayer]?.pattern;
   useEffect(() => {
@@ -405,8 +407,8 @@ export function Controls({
             <div className="w-px h-6 bg-white/20" />
 
             {/* The set, on the keys the library gave it. Past ten it takes two
-                rows, laid out as the keyboard is: the number keys on top, the
-                letters under them. However long it is, it keeps to the screen
+                rows of the same length (the top one a card longer when the
+                count is odd), so neither row ends in an empty stretch. However long it is, it keeps to the screen
                 and scrolls (wheel or trackpad), always bringing the visual that
                 is playing into view. */}
             <div
@@ -418,10 +420,10 @@ export function Controls({
               className="set-row flex shrink-0 flex-col gap-1 overflow-x-auto pl-1.5 pt-1.5 -mt-1.5"
               style={{ width: 'max-content', maxWidth: 'calc(100vw - 640px)', scrollbarWidth: 'none' }}
             >
-              {(set.length > 10 ? [set.slice(0, 10), set.slice(10)] : [set]).map((row, r) => (
+              {(set.length > 10 ? [set.slice(0, half), set.slice(half)] : [set]).map((row, r) => (
               <div key={r} className="flex items-center gap-1">
               {row.map((pattern, inRow) => {
-                const index = r * 10 + inRow;
+                const index = r * half + inRow;
                 const layerIndex = layers.findIndex((l) => l.pattern === pattern);
                 const isSelected = layerIndex === selectedLayer;
                 const isStacked = layerIndex !== -1 && !isSelected;

@@ -41,11 +41,37 @@ export class MorphingSphereRenderer {
   private renderer: THREE.WebGLRenderer;
   private group = new THREE.Group();
   private mesh: THREE.Mesh | null = null;
+  private glass: THREE.Mesh | null = null;
   private points: THREE.Points | null = null;
   private original: Float32Array = new Float32Array(0);
   private builtDetail = -1;
   private wire: THREE.MeshBasicMaterial;
   private dots: THREE.PointsMaterial;
+  /** Glass: the surface itself, clear where it faces you and lit at its edge. */
+  private glassMaterial = new THREE.ShaderMaterial({
+    uniforms: { uColor: { value: new THREE.Color(0x66ccff) }, uEdge: { value: new THREE.Color(0xffffff) }, uAmount: { value: 0 } },
+    vertexShader: `
+      varying vec3 vNormal; varying vec3 vView;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vNormal = normalize(normalMatrix * normal);
+        vView = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      uniform vec3 uColor; uniform vec3 uEdge; uniform float uAmount;
+      varying vec3 vNormal; varying vec3 vView;
+      void main() {
+        float facing = abs(dot(normalize(vNormal), normalize(vView)));
+        float rim = pow(1.0 - facing, 2.2);
+        vec3 col = uColor * (0.12 + 0.9 * rim) + uEdge * pow(rim, 5.0) * 0.8;
+        gl_FragColor = vec4(col * uAmount, 1.0);
+      }`,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
   private dust: THREE.Points;
 
   private time = 0;
@@ -96,13 +122,15 @@ export class MorphingSphereRenderer {
     if (this.mesh) {
       this.group.remove(this.mesh);
       this.group.remove(this.points!);
+      this.group.remove(this.glass!);
       this.mesh.geometry.dispose();
     }
     const geometry = new THREE.IcosahedronGeometry(1, detail);
     this.original = Float32Array.from(geometry.attributes.position.array as Float32Array);
     this.mesh = new THREE.Mesh(geometry, this.wire);
     this.points = new THREE.Points(geometry, this.dots);
-    this.group.add(this.mesh, this.points);
+    this.glass = new THREE.Mesh(geometry, this.glassMaterial);
+    this.group.add(this.glass, this.mesh, this.points);
     this.builtDetail = detail;
   }
 
@@ -163,16 +191,27 @@ export class MorphingSphereRenderer {
     this.group.scale.setScalar(1.6 * Math.max(0.2, cfg.shape.size) * (1 + 0.05 * this.pulse));
 
     // ── look ─────────────────────────────────────────────────────────────
-    const asDots = Math.round(cfg.shape.style) === 1;
-    this.mesh!.visible = !asDots;
-    this.points!.visible = asDots;
+    // The style slides: each look fades out as the next fades in.
+    const st = Math.max(0, Math.min(2, cfg.shape.style));
+    const wireW = Math.max(0, 1 - st);
+    const glassW = Math.max(0, 1 - Math.abs(st - 1));
+    const dotsW = Math.max(0, st - 1);
+    this.mesh!.visible = wireW > 0.01;
+    this.points!.visible = dotsW > 0.01;
+    this.glass!.visible = glassW > 0.01;
+    if (glassW > 0.01) this.mesh!.geometry.computeVertexNormals();
     const c = new THREE.Color(colors[0] ?? '#66ccff');
     const c2 = new THREE.Color(colors[1] ?? colors[0] ?? '#3300ff');
     const lit = c.clone().lerp(new THREE.Color(1, 1, 1), 0.25 + 0.4 * this.pulse);
     this.wire.color.copy(lit);
     this.dots.color.copy(lit.clone().lerp(c2, 0.3));
-    this.dots.size = 0.08 + 0.05 * this.pulse;
-    this.wire.opacity = 0.55 + 0.4 * Math.min(1, this.swell + this.pulse);
+    this.dots.size = (0.08 + 0.05 * this.pulse) * (0.4 + 0.6 * dotsW);
+    this.dots.opacity = Math.min(1, dotsW * 1.4);
+    this.wire.opacity = (0.55 + 0.4 * Math.min(1, this.swell + this.pulse)) * Math.min(1, wireW * 1.4);
+    const g = this.glassMaterial.uniforms;
+    (g.uColor.value as THREE.Color).copy(c.clone().lerp(c2, 0.35));
+    (g.uEdge.value as THREE.Color).copy(lit);
+    g.uAmount.value = glassW * (0.9 + 0.5 * this.pulse + 0.3 * this.swell);
     const dustMat = this.dust.material as THREE.PointsMaterial;
     dustMat.opacity = Math.max(0, Math.min(1, cfg.motion.dust));
     this.dust.visible = cfg.motion.dust > 0.01;

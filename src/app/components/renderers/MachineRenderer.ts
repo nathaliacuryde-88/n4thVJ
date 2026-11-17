@@ -192,19 +192,23 @@ export class MachineRenderer {
         path.arc(x, y, size, 0, Math.PI * 2);
       }
     }
+    // Every colour from the colour bar: the room in its second colour, the
+    // person and everything read off them in its first.
     const [cr, cg, cb] = rgb(colors[0] ?? '#7fd8ff');
+    const [sr, sg, sb] = rgb(colors[1] ?? colors[0] ?? '#9aa0b0');
     const pale = (v: number, k: number) => Math.round(v + (255 - v) * k);
-    ctx.fillStyle = 'rgb(150,156,170)';
-    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = `rgb(${pale(sr, 0.25)},${pale(sg, 0.25)},${pale(sb, 0.25)})`;
+    ctx.globalAlpha = 0.45;
     ctx.fill(ground);
-    ctx.fillStyle = `rgb(${pale(cr, 0.35)},${pale(cg, 0.35)},${pale(cb, 0.35)})`;
+    ctx.fillStyle = `rgb(${pale(cr, 0.12)},${pale(cg, 0.12)},${pale(cb, 0.12)})`;
     ctx.globalAlpha = 0.95;
     ctx.fill(person);
 
     // ── what it has made of it ───────────────────────────────────────────
     const marks = cfg.reading.marks;
     const words = cfg.reading.words;
-    const ink = `rgb(${pale(cr, 0.7)},${pale(cg, 0.7)},${pale(cb, 0.7)})`;
+    const ink = `rgb(${pale(cr, 0.45)},${pale(cg, 0.45)},${pale(cb, 0.45)})`;
+    const bright = `rgb(${pale(cr, 0.7)},${pale(cg, 0.7)},${pale(cb, 0.7)})`;
     const font = Math.max(9, Math.round(11 * unit));
     ctx.font = `500 ${font}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     ctx.textBaseline = 'middle';
@@ -251,7 +255,7 @@ export class MachineRenderer {
         if (p.y < y0) y0 = p.y;
         if (p.y > y1) y1 = p.y;
       }
-      ctx.strokeStyle = '#fff';
+      ctx.strokeStyle = bright;
       ctx.lineWidth = Math.max(1, 1.5 * unit);
       ctx.globalAlpha = 0.8 * marks;
       ctx.beginPath();
@@ -260,7 +264,7 @@ export class MachineRenderer {
         ctx.lineTo(points[b].x * W, points[b].y * H);
       }
       ctx.stroke();
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = bright;
       ctx.beginPath();
       for (const p of points) {
         ctx.moveTo(p.x * W + 3 * unit, p.y * H);

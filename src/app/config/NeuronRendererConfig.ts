@@ -9,7 +9,7 @@ export const NeuronConfig = {
     /** How many others each one reaches. */
     links: 2.4,
     /** How much of a neuron each cell is drawn as: low, a node with a stub or two; high, a full tree of dendrites. */
-    branching: 0.35,
+    branching: 0,
   },
 
   hands: {

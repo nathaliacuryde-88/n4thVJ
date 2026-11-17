@@ -1016,11 +1016,11 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Shape',
         params: [
+          { path: 'shape.style', label: 'Style', min: 0, max: 2, step: 0.01, hint: '0 Wire · 1 Glass · 2 Points — slide between them' },
           { path: 'shape.size', label: 'Size', min: 0.3, max: 2, step: 0.05 },
           { path: 'shape.morph', label: 'Morph', min: 0, max: 0.8, step: 0.01, hint: '0 = round at rest; the music adds more' },
           { path: 'shape.lobes', label: 'Lobes', min: 0.3, max: 3, step: 0.05, hint: 'low = a few big soft lobes' },
           { path: 'shape.detail', label: 'Detail', min: 2, max: 6, step: 1 },
-          { path: 'shape.style', label: 'Style', min: 0, max: 1, step: 1, labels: ['Wire', 'Points'] },
         ],
       },
       {
@@ -1534,7 +1534,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Dice',
         params: [
-          { path: 'dice.count', label: 'Dice', min: 1, max: 8, step: 1 },
+          { path: 'dice.count', label: 'Dice', min: 0, max: 8, step: 1, hint: 'on coming up they drop in one by one' },
           { path: 'dice.size', label: 'Size', min: 0.5, max: 2, step: 0.05 },
           { path: 'dice.bounce', label: 'Bounce', min: 0, max: 0.9, step: 0.01 },
           { path: 'dice.spin', label: 'Tumble', min: 0, max: 2.5, step: 0.05 },

@@ -4,7 +4,7 @@ import { AudioData, HandData } from '../../App';
 import { DiceConfig } from '../../config/DiceRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
 import { disposeThree } from './disposeThree';
-import { Playing, drawUnavailable, hexToHsl, turnFrom } from './inflated/style';
+import { Playing, arrived, drawUnavailable, hexToHsl, turnFrom } from './inflated/style';
 import { loadDie } from './dice/die';
 
 /**
@@ -75,6 +75,8 @@ interface Die {
 }
 
 export class DiceRenderer {
+  /** Seconds since the visual came up: the dice drop in one by one. */
+  private since = 0;
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private cfg: Cfg = DiceConfig;
@@ -466,7 +468,9 @@ export class DiceRenderer {
   /** One small step of the simulation: `t` in clock seconds, `real` in wall seconds. */
   private simulate(t: number, real: number) {
     const { cfg } = this;
-    const count = Math.max(1, Math.min(MAX_DICE, Math.round(cfg.dice.count)));
+    // It opens on an empty table: the dice drop in one by one, as the flowers grow in.
+    this.since += real;
+    const count = arrived(this.since, Math.max(0, Math.min(MAX_DICE, Math.round(cfg.dice.count))));
     const half = MODEL_SCALE * cfg.dice.size;
     const rest = half * 0.93; // the corners are rounded, so it sits a little low
     const gravity = 22 * cfg.dice.gravity;

@@ -1,4 +1,4 @@
-import { HandData } from '../../App';
+import { AudioData, HandData } from '../../App';
 import { alphaHex } from './alpha';
 import { ParticleConfig } from '../../config/ParticleRendererConfig';
 import { ParamValues, withOverrides } from '../../params/types';
@@ -109,13 +109,14 @@ export class ParticleRenderer {
   private isExploding = false; // Prevent multiple explosions
   /** How open the hands are, eased: 0 a fist, 1 wide open. */
   private open = 0.6;
+  private lastKick = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
     this.canvas = canvas;
     this.ctx = ctx;
   }
 
-  render(handData: HandData, colors: string[]) {
+  render(handData: HandData, colors: string[], audioData?: AudioData) {
     this.time += (0.016) * timeScale();
 
     // BACKGROUND FADE - Creates motion trails
@@ -167,6 +168,22 @@ export class ParticleRenderer {
         ));
       }
     }
+    // No hand in view: a point drifts slowly about the frame and gives them
+    // off, so the visual lives on its own; each kick of the music lets a few go.
+    const wanderX = (0.5 + 0.32 * Math.sin(this.time * 0.37) + 0.08 * Math.sin(this.time * 1.1)) * W;
+    const wanderY = (0.5 + 0.25 * Math.sin(this.time * 0.29 + 1.3)) * H;
+    if (!hands.length) {
+      const rate = 0.12 + (this.cfg.emission.closedHandRate + this.cfg.emission.openHandRate) * 0.25;
+      if (Math.random() < rate) {
+        this.particles.push(new Particle(wanderX, wanderY, colors[Math.floor(Math.random() * colors.length)], 1, this.cfg));
+      }
+    }
+    const kick = audioData?.live ? Math.max(audioData.kick ?? 0, audioData.beat ? audioData.beatIntensity || 1 : 0) : 0;
+    if (kick > 0.5 && this.lastKick <= 0.5) {
+      const from = hands[0] ? { x: hands[0].position.x * W, y: hands[0].position.y * H } : { x: wanderX, y: wanderY };
+      for (let k = 0; k < 3; k++) this.particles.push(new Particle(from.x, from.y, colors[Math.floor(Math.random() * colors.length)], 0.8, this.cfg));
+    }
+    this.lastKick = kick;
     const nearest = (x: number, y: number) => {
       let best: { x: number; y: number } | null = null;
       let bestD = Infinity;
@@ -176,7 +193,8 @@ export class ParticleRenderer {
         const d = (hx - x) * (hx - x) + (hy - y) * (hy - y);
         if (d < bestD) { bestD = d; best = { x: hx, y: hy }; }
       }
-      return best;
+      // With no hand, they drift after the wandering point instead.
+      return best ?? { x: wanderX, y: wanderY };
     };
 
     this.particles = this.particles.filter(particle => {

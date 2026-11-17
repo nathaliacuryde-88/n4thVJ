@@ -75,7 +75,7 @@ export class SmokeHandRenderer {
     uColor: { value: new THREE.Vector3(0.5, 0.7, 1.0) }
   };
 
-  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, model: 'torus' | 'hand' = 'torus') {
     this.canvas = canvas;
     this.ctx = ctx;
     
@@ -117,8 +117,10 @@ export class SmokeHandRenderer {
     // Create background dust particles
     this.createBackgroundDust();
     
-    // Create default torus knot particle system
-    this.createTorusGeometry();
+    // The torus at once; the hand when its mesh arrives, and nothing but the
+    // dust until then — showing the torus meanwhile read as a glitch to another shape.
+    if (model === 'hand') this.setSmokeHandModel('hand');
+    else this.createTorusGeometry();
     
     console.log('💨 SmokeHandRenderer initialized');
   }
@@ -410,8 +412,11 @@ export class SmokeHandRenderer {
       return;
     }
 
-    // Something to look at while the mesh arrives, rather than an empty scene.
-    this.createTorusGeometry();
+    // Only the dust while the mesh arrives: no other shape in between.
+    if (this.handGroup) {
+      this.scene.remove(this.handGroup);
+      this.handGroup = null;
+    }
     SmokeHandRenderer.loadHandGeometry().then(
       (geometry) => {
         // It may have been switched away from, or destroyed, while we waited.
@@ -420,7 +425,8 @@ export class SmokeHandRenderer {
         }
       },
       (error) => {
-        console.error('Hand model unavailable, staying on the torus:', error);
+        console.error('Hand model unavailable, showing the torus instead:', error);
+        if (this.currentModel === 'hand' && !this.disposed) this.createTorusGeometry();
       },
     );
   }

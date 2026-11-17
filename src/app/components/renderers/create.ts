@@ -192,10 +192,9 @@ export function createRenderer(
       renderer = new SmokeHandRenderer(canvas, ctx);
       break;
     case 'smokehand-hand':
-      renderer = new SmokeHandRenderer(canvas, ctx);
       // The two are one renderer with a different model; picking it at
       // construction is what makes them two entries in the library.
-      renderer.setSmokeHandModel?.('hand');
+      renderer = new SmokeHandRenderer(canvas, ctx, 'hand');
       break;
     case 'network-cube':
       renderer = new NetworkCubeRenderer(canvas, ctx);
