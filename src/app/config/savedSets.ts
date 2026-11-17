@@ -18,6 +18,8 @@ export interface SavedSet {
   looks: Record<string, Look>;
   /** The set's transition, in seconds; older saves have none and keep whatever is set. */
   fade?: number;
+  /** Each visual's last opacity, hands and blend, so one that comes back returns as it was. */
+  faders?: Record<string, Pick<Layer, 'opacity' | 'motion' | 'blend'>>;
   stack: { layers: Layer[]; selected: number } | null;
 }
 

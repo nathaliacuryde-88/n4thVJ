@@ -229,6 +229,31 @@ export default function App() {
   /** The set, for the callbacks declared before it is: kept current further down. */
   const setRef = useRef<VisualPattern[]>([]);
 
+  /*
+   * A visual's faders belong to the visual, not to the slot it played in.
+   * Each time the stack changes, what every layer has is noted under its
+   * visual; when that visual comes back — tapped onto a layer or stacked
+   * again — it comes back at exactly the opacity, hands and blend it had,
+   * instead of taking on whatever the slot or the default was.
+   */
+  type Faders = Pick<Layer, 'opacity' | 'motion' | 'blend'>;
+  const fadersRef = useRef<Record<string, Faders>>(
+    loadSetting<Record<string, Faders>>('vj-faders', {}, (v) => typeof v === 'object' && v !== null),
+  );
+  useEffect(() => {
+    const next = { ...fadersRef.current };
+    for (const l of layers) next[l.pattern] = { opacity: l.opacity, motion: l.motion, ...(l.blend ? { blend: l.blend } : {}) };
+    fadersRef.current = next;
+    saveSetting('vj-faders', next);
+  }, [layers]);
+  /** A layer for `pattern`: its remembered faders over `base`. */
+  const withFaders = useCallback((base: Layer, pattern: VisualPattern): Layer => {
+    const kept = fadersRef.current[pattern];
+    if (!kept) return { ...base, pattern };
+    const { blend: _drop, ...rest } = base;
+    return { ...rest, pattern, opacity: kept.opacity, motion: kept.motion, ...(kept.blend ? { blend: kept.blend } : {}) };
+  }, []);
+
   /** Puts a changed stack in the set's order, and keeps the selection on `pattern`. */
   const arrange = useCallback((next: Layer[], pattern: VisualPattern) => {
     const ordered = inSetOrder(next, setRef.current);
@@ -243,8 +268,8 @@ export default function App() {
       setSelectedLayer(existing);
       return;
     }
-    arrange(layers.map((l, i) => (i === selectedLayer ? { ...l, pattern } : l)), pattern);
-  }, [layers, selectedLayer, arrange]);
+    arrange(layers.map((l, i) => (i === selectedLayer ? withFaders(l, pattern) : l)), pattern);
+  }, [layers, selectedLayer, arrange, withFaders]);
 
   /** Hold: add the pattern as a new layer, or take it off if it is already up. */
   const toggleLayer = useCallback((pattern: VisualPattern) => {
@@ -268,8 +293,8 @@ export default function App() {
      * means the next thing you reach for quietly changes the wrong visual.
      * The layer you just brought up is the one you are working on.
      */
-    arrange([...layers, { pattern, opacity: STACKED_OPACITY, motion: from.motion }], pattern);
-  }, [layers, selectedLayer, arrange]);
+    arrange([...layers, withFaders({ pattern, opacity: STACKED_OPACITY, motion: from.motion }, pattern)], pattern);
+  }, [layers, selectedLayer, arrange, withFaders]);
 
   /*
    * The stack is remembered — which visuals are up, their faders and which one
@@ -740,9 +765,9 @@ export default function App() {
     } else {
       // The only thing playing: its neighbour in the set takes its place.
       const neighbour = next[Math.min(at, next.length - 1)];
-      setLayers(layers.map((l) => ({ ...l, pattern: neighbour })));
+      setLayers(layers.map((l) => withFaders(l, neighbour)));
     }
-  }, [set, layers]);
+  }, [set, layers, withFaders]);
   
   const [handData, setHandData] = useState<HandData>({ left: null, right: null });
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
@@ -968,6 +993,7 @@ export default function App() {
       fx: pick(fxByPattern, set),
       looks: pick(looks, set),
       fade,
+      faders: pick(fadersRef.current, set),
       stack: view === 'vj' ? { layers, selected: selectedLayer }
         : loadSetting('vj-stack', null, (v) => typeof v === 'object'),
     };
@@ -993,6 +1019,7 @@ export default function App() {
     setFxByPattern((prev) => replace(prev, entry.fx));
     setLooks((prev) => replace(prev, entry.looks));
     if (typeof entry.fade === 'number') setFade(entry.fade);
+    if (entry.faders) fadersRef.current = { ...fadersRef.current, ...entry.faders };
     if (entry.stack) {
       saveSetting('vj-stack', entry.stack);
       if (view === 'vj') {
