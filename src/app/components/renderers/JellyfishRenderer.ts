@@ -328,7 +328,8 @@ export class JellyfishRenderer {
     const live = !!audioData?.live;
     const fullness = live ? 0.35 + 0.65 * play.energy + 0.4 * play.mid : 0.35;
     this.carry += (cfg.sound.flow * fullness - this.carry) * (1 - Math.exp(-dt * 0.8));
-    this.current += dt * (0.18 + 0.5 * this.carry);
+    // On the shared clock, so the finger count sets its pace as everywhere.
+    this.current += step * (0.18 + 0.5 * this.carry);
     const spec = 0.16 * (1 + play.high * cfg.sound.high * 2.5);
     const ripple = 1 + play.high * cfg.sound.high * 1.5;
     const size = cfg.swarm.size;

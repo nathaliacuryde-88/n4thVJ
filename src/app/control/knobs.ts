@@ -78,6 +78,7 @@ export const COUNTS: Record<string, { path: string; step: number }[]> = {
   ],
   jellyfish: [{ path: 'swarm.count', step: 1 }],
   dandelion: [{ path: 'field.count', step: 1 }],
+  anemone: [{ path: 'garden.count', step: 1 }],
   dice: [{ path: 'dice.count', step: 1 }],
   atlas: [{ path: 'type.density', step: 0.1 }],
   crowd: [{ path: 'crowd.figures', step: 4 }],

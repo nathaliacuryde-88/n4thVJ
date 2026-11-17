@@ -1865,7 +1865,8 @@ export const PIPELINE_PARAMS: RendererParams = {
     {
       name: 'Colour',
       stage: 'colour',
-      turnOn: { 'colour.hue': 1.1 },
+      // Switched on, it lifts the contrast; the hue stays where it is.
+      turnOn: { 'colour.contrast': 1.3 },
       togglePath: 'colour.enabled',
       params: [
         { path: 'colour.hue', label: 'Hue', min: -3.14, max: 3.14, step: 0.01, hint: 'turns the whole frame' },

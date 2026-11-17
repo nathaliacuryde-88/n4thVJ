@@ -27,6 +27,8 @@ import { SetTimer } from './components/SetTimer';
 import { beatPosition, clearTempo, currentBpm, hasTapped, nudgeTempo, tap, toggleListening } from './motion/tempo';
 import { MidiTarget, setMidiHandler, setMidiReader } from './control/midi';
 import { setLfo, useLfos } from './control/lfo';
+/** The picture's own zoom, shown in a visual's panel as if it were one of its sliders. */
+const PICTURE_ZOOM = '__zoom';
 import { COUNTS, KNOB_FX, KNOB_OFF, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, knobPosition, knobValue } from './control/knobs';
 import { stageDoing } from './pipeline/PostPipeline';
 import { getByPath } from './params/types';
@@ -1599,15 +1601,57 @@ export default function App() {
   const panelSections = useMemo<ParamSection[]>(() => {
     const entry = RENDERER_PARAMS[editPattern];
     if (!entry) return [];
-    const { look, play } = splitPlay(entry);
-    const values = paramValues[editPattern] ?? {};
+    const split = splitPlay(entry);
+    let look = split.look;
+    const play = split.play;
+    let values = paramValues[editPattern] ?? {};
+    let onChange = setParam;
+    let lfo = paramLfo;
+    /*
+     * Zoom under the count, for every visual that counts something. The ones
+     * with a camera have a Zoom of their own; the rest get the picture's own
+     * zoom here (the same one the arrows step for visuals with no count).
+     */
+    const counts = COUNTS[editPattern];
+    const hasOwnZoom = entry.groups.some((g) => g.params.some((p) => p.path.endsWith('.zoom')));
+    if (counts && !hasOwnZoom) {
+      const countPath = counts[0].path;
+      look = {
+        ...look,
+        // The panel shows a slider only if the config has a value for it: 1, as drawn.
+        config: { ...(look.config as object), [PICTURE_ZOOM]: 1 },
+        groups: look.groups.map((g) => {
+          const at = g.params.findIndex((p) => p.path === countPath);
+          if (at === -1) return g;
+          const params = [...g.params];
+          params.splice(at + 1, 0, { path: PICTURE_ZOOM, label: 'Zoom', min: ZOOM_MIN, max: ZOOM_MAX, step: 0.05, hint: 'the whole picture, in or out' });
+          return { ...g, params };
+        }),
+      };
+      if (zooms[editPattern] !== undefined && zooms[editPattern] !== 1) values = { ...values, [PICTURE_ZOOM]: zooms[editPattern] };
+      const pattern = editPattern;
+      onChange = (path: string, value: number) => {
+        if (path === PICTURE_ZOOM) setZooms((prev) => ({ ...prev, [pattern]: value }));
+        else setParam(path, value);
+      };
+      lfo = {
+        // The picture's zoom has no LFO of its own: asked for one, it answers as an unknown slider does.
+        get: (path: string) => paramLfo.get(path === PICTURE_ZOOM ? '' : path),
+        set: (path: string, l: Parameters<typeof setLfo>[3]) => { if (path !== PICTURE_ZOOM) paramLfo.set(path, l); },
+      };
+    }
     const pathsOf = (e: typeof look) => new Set(e.groups.flatMap((g) => g.params.map((p) => p.path)));
+    const pattern = editPattern;
     const scoped = (paths: Set<string>) => (path?: string) => {
-      if (path !== undefined) { resetParam(path); return; }
-      for (const p of paths) resetParam(p);
+      const reset = (p: string) => {
+        if (p === PICTURE_ZOOM) setZooms((prev) => ({ ...prev, [pattern]: 1 }));
+        else resetParam(p);
+      };
+      if (path !== undefined) { reset(path); return; }
+      for (const p of paths) reset(p);
     };
     return [
-      { key: 'shape', label: 'SHAPE', entry: look, values, onChange: setParam, onReset: scoped(pathsOf(look)), lfo: paramLfo },
+      { key: 'shape', label: 'SHAPE', entry: look, values, onChange, onReset: scoped(pathsOf(look)), lfo },
       {
         key: 'play',
         label: 'Hands & sound',
@@ -1617,9 +1661,9 @@ export default function App() {
             <AudioLines className="h-3 w-3" />
           </span>
         ),
-        entry: play, values, onChange: setParam, onReset: scoped(pathsOf(play)), lfo: paramLfo },
+        entry: play, values, onChange, onReset: scoped(pathsOf(play)), lfo },
     ];
-  }, [editPattern, paramValues, setParam, resetParam, paramLfo]);
+  }, [editPattern, paramValues, setParam, resetParam, paramLfo, zooms]);
 
   if (view === 'library') {
     return (

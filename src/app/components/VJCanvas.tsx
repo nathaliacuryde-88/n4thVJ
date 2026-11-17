@@ -561,13 +561,19 @@ export function VJCanvas({
           if (t >= 1) slot.appear = undefined;
           else presence = eased(t);
         }
-        if (!leaving) {
+        // The fader is read from the stack only while the stack still says this
+        // slot is this visual. A frame can be drawn after a layer is taken off
+        // but before the slots are put in line with it; then this index is
+        // another layer's, or none, and the slot keeps the level it last had.
+        const layer = layersRef.current[index];
+        const agrees = !leaving && layer?.pattern === slot.current.pattern;
+        if (agrees) {
           slot.shown = {
-            opacity: layersRef.current[index]?.opacity ?? 1,
-            blend: isBase ? LAYER_BLEND : BLEND_OP[layersRef.current[index]?.blend ?? 'screen'] ?? LAYER_BLEND,
+            opacity: layer.opacity ?? 1,
+            blend: isBase ? LAYER_BLEND : BLEND_OP[layer.blend ?? 'screen'] ?? LAYER_BLEND,
           };
         }
-        const opacity = (leaving ? leaving.opacity : layersRef.current[index]?.opacity ?? 1) * presence;
+        const opacity = (leaving ? leaving.opacity : agrees ? layer.opacity ?? 1 : slot.shown?.opacity ?? layer?.opacity ?? 1) * presence;
         if (opacity <= 0) return;
 
         const fade = slot.outgoing ? fadeProgress(slot.outgoing, now) : 1;
