@@ -97,6 +97,8 @@ interface Slot {
   outgoing: FadingDeck | null;
   /** A layer just added to the stack: when it began to fade in, and for how long. */
   appear?: { start: number; duration: number };
+  /** Its fader and blend as last drawn, so a layer taken off leaves at the level it was at. */
+  shown?: { opacity: number; blend: GlobalCompositeOperation };
 }
 
 /** A layer taken off the stack, fading away on its own before it is let go. */
@@ -559,6 +561,12 @@ export function VJCanvas({
           if (t >= 1) slot.appear = undefined;
           else presence = eased(t);
         }
+        if (!leaving) {
+          slot.shown = {
+            opacity: layersRef.current[index]?.opacity ?? 1,
+            blend: isBase ? LAYER_BLEND : BLEND_OP[layersRef.current[index]?.blend ?? 'screen'] ?? LAYER_BLEND,
+          };
+        }
         const opacity = (leaving ? leaving.opacity : layersRef.current[index]?.opacity ?? 1) * presence;
         if (opacity <= 0) return;
 
@@ -937,6 +945,8 @@ export function VJCanvas({
         gone.current.renderer.destroy?.();
         return;
       }
+      // Where its fader actually was: the stack as last reconciled only knows
+      // what it was set to when it came in, not where she has taken it since.
       const was = before[k];
       leavingRef.current.push({
         deck: {
@@ -952,9 +962,9 @@ export function VJCanvas({
           },
         },
         index: k,
-        opacity: was?.opacity ?? 1,
+        opacity: gone.shown?.opacity ?? was?.opacity ?? 1,
         // The base was laid down solid; leaving over the new base, it is screened instead.
-        blend: k === 0 ? LAYER_BLEND : BLEND_OP[was?.blend ?? 'screen'] ?? LAYER_BLEND,
+        blend: gone.shown?.blend ?? (k === 0 ? LAYER_BLEND : BLEND_OP[was?.blend ?? 'screen'] ?? LAYER_BLEND),
       });
     };
     spare.forEach((gone, k) => { if (gone) retire(gone, k); });

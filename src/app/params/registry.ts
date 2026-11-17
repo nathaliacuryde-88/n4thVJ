@@ -1235,9 +1235,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Data',
         params: [
-          { path: 'data.source', label: 'Data', min: 0, max: 4, step: 1, labels: ['Auto', 'Sound', 'Sky', 'Weather', 'Air'], hint: 'Auto takes turns; weather and air are Stuttgart, kept for offline' },
-          { path: 'data.every', label: 'Change every', min: 10, max: 300, step: 5, hint: 'seconds, then on the next kick' },
-          { path: 'data.shape', label: 'Shape', min: 0, max: 3, step: 1, labels: ['Auto', 'Bloom', 'Rings', 'Radar'], hint: 'Auto changes with the data and on a clap' },
+          { path: 'data.shape', label: 'Shape', min: 0, max: 3, step: 1, labels: ['Auto', 'Bloom', 'Rings', 'Radar'], hint: 'Auto changes every so often and on a clap' },
+          { path: 'data.every', label: 'Change every', min: 10, max: 300, step: 5, hint: 'Auto shape: seconds, then on the next kick' },
         ],
       },
       {
@@ -1538,7 +1537,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Terrain',
         params: [
-          { path: 'terrain.scale', label: 'Scale', min: 1, max: 16, step: 0.1, hint: 'hills across the frame' },
+          { path: 'type.size', label: 'Module size', min: 0, max: 1, step: 0.01, hint: '0 = the smallest characters' },
+          { path: 'terrain.scale', label: 'Scale', min: 1, max: 16, step: 0.1, hint: 'hills of colour across the frame; Module size sets the characters' },
           { path: 'terrain.warp', label: 'Warp', min: 0, max: 1, step: 0.01 },
           { path: 'terrain.terraces', label: 'Terraces', min: 2, max: 16, step: 1 },
           { path: 'terrain.contrast', label: 'Contrast', min: 0, max: 1, step: 0.01 },
@@ -1552,7 +1552,6 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
             path: 'type.set', label: 'Character set', min: 0, max: CHARSET_NAMES.length - 1, step: 1,
             labels: CHARSET_NAMES, samples: CHARSET_SAMPLES, menu: true, customAt: CUSTOM,
           },
-          { path: 'type.columns', label: 'Columns', min: 20, max: 220, step: 1 },
           { path: 'type.density', label: 'Density', min: 0, max: 1, step: 0.01, hint: 'the music adds more' },
           { path: 'type.variety', label: 'Variety', min: 0, max: 1, step: 0.01 },
         ],
@@ -1827,6 +1826,7 @@ export const PIPELINE_PARAMS: RendererParams = {
       params: [
         { path: 'colour.hue', label: 'Hue', min: -3.14, max: 3.14, step: 0.01, hint: 'turns the whole frame' },
         { path: 'colour.saturation', label: 'Saturation', min: 0, max: 2, step: 0.01, hint: '1 = untouched' },
+        { path: 'colour.contrast', label: 'Contrast', min: 0, max: 2.5, step: 0.01, hint: '1 = untouched; above 1 darker darks and brighter lights' },
       ],
     },
     {

@@ -316,7 +316,9 @@ export class AtlasRenderer {
     this.seedMix = Math.min(1, this.seedMix + dt / 0.5);
 
     this.follow(colors);
-    const columns = Math.max(8, cfg.type.columns);
+    // Module size: 0 the finest grid, 1 the coarsest, evenly to the eye in between.
+    const size = Math.max(0, Math.min(1, cfg.type.size));
+    const columns = Math.max(8, Math.round(220 * Math.pow(20 / 220, size)));
     this.glyphs(width / columns / 0.6);
 
     const u = this.uniforms;

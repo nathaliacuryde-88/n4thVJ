@@ -68,7 +68,7 @@ export function stageDoing(stage: string, values: ParamValues): boolean {
   const c = withOverrides(PipelineConfig, values);
   switch (stage) {
     case 'feedback': return stageLive(c.feedback, c.feedback.amount > 0);
-    case 'colour': return stageLive(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1);
+    case 'colour': return stageLive(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1 || (c.colour.contrast ?? 1) !== 1);
     case 'displace': return stageLive(c.displace, c.displace.amount > 0);
     case 'rgbSplit': return stageLive(c.rgbSplit, c.rgbSplit.amount > 0);
     case 'kaleido': return stageLive(c.kaleido, c.kaleido.segments >= 2);
@@ -93,7 +93,7 @@ export function fxActive(values: ParamValues): boolean {
   const c = withOverrides(PipelineConfig, values);
   if (c.master.enabled < 0.5) return false;
   return (
-    stageLive(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1) ||
+    stageLive(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1 || (c.colour.contrast ?? 1) !== 1) ||
     stageLive(c.feedback, c.feedback.amount > 0) ||
     stageLive(c.displace, c.displace.amount > 0) ||
     stageLive(c.rgbSplit, c.rgbSplit.amount > 0) ||
@@ -268,7 +268,7 @@ export class PostPipeline {
     const c = this.cfg;
     if (c.master.enabled < 0.5) return false;
     return (
-      this.live(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1) ||
+      this.live(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1 || (c.colour.contrast ?? 1) !== 1) ||
       this.live(c.feedback, c.feedback.amount > 0) ||
       this.live(c.displace, c.displace.amount > 0) ||
       this.live(c.rgbSplit, c.rgbSplit.amount > 0) ||
@@ -471,11 +471,12 @@ export class PostPipeline {
       current = target.texture;
     }
 
-    if (this.live(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1)) {
+    if (this.live(c.colour, c.colour.hue !== 0 || c.colour.saturation !== 1 || (c.colour.contrast ?? 1) !== 1)) {
       const program = this.use('colour');
       bindTexture(gl, program, 'uTex', current, 0);
       gl.uniform1f(gl.getUniformLocation(program, 'uHue'), c.colour.hue);
       gl.uniform1f(gl.getUniformLocation(program, 'uSaturation'), c.colour.saturation);
+      gl.uniform1f(gl.getUniformLocation(program, 'uContrast'), c.colour.contrast ?? 1);
       gl.uniform1f(gl.getUniformLocation(program, 'uMix'), c.colour.mix);
       target = this.next();
       drawFullscreen(gl, target, width, height);

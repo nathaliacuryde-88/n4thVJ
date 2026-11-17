@@ -239,7 +239,8 @@ export class MachineRenderer {
     const hands: [string, Hand | null][] = [['left hand', handData.left], ['right hand', handData.right]];
     let seenHands = 0;
     for (const [name, hand] of hands) {
-      const points = hand?.landmarks;
+      // Only hands that are really there: the stand-in figure is never drawn as one.
+      const points = handData.synthetic ? undefined : hand?.landmarks;
       if (!hand || !points || points.length < 21) continue;
       seenHands++;
       if (marks <= 0.01) continue;

@@ -197,7 +197,7 @@ export class DataRenderer {
     return {
       id: 'sound',
       title: 'Sound',
-      subtitle: bands ? `live${bpm ? ` · ${Math.round(bpm)} BPM` : ''}` : 'turn the mic on',
+      subtitle: bands ? (bpm ? `${Math.round(bpm)} BPM` : '') : 'turn the mic on',
       items,
     };
   }
@@ -269,7 +269,8 @@ export class DataRenderer {
 
   /** The next data to show, by the Source slider or in turn. */
   private nextViewId(): string {
-    const source = Math.round(this.cfg.data.source);
+    // Sound only: the other sources stay in the code but are no longer offered.
+    const source = 1;
     const pick = (s: number): string | null => {
       if (s === 1) return 'sound';
       if (s === 2) return 'sky';
@@ -336,7 +337,7 @@ export class DataRenderer {
     const every = Math.max(5, cfg.data.every);
     // A Data slider set to one source that is not up yet — just moved, or
     // its first download still on the way — goes to it as soon as it can.
-    const wanted = ['', 'sound', 'sky', 'weather', 'air'][Math.round(cfg.data.source)] ?? '';
+    const wanted: string = 'sound';
     const waiting = wanted !== '' && !this.viewId.startsWith(wanted) && this.since > 1;
     if (waiting || (this.since > every && (play.bump > 0.4 || this.since > every + 4))) {
       const next = this.nextViewId();

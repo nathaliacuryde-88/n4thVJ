@@ -174,7 +174,7 @@ void main() {
 
 
 /**
- * COLOUR — hue rotation and saturation over the whole frame.
+ * COLOUR — hue rotation, saturation and contrast over the whole frame.
  *
  * Its own stage because the only hue control used to live inside FEEDBACK,
  * which does not run until feedback Amount is above zero — so moving Hue drift
@@ -184,6 +184,7 @@ void main() {
 export const COLOUR = `${COMMON}
 uniform float uHue;
 uniform float uSaturation;
+uniform float uContrast;
 uniform float uMix;
 
 void main() {
@@ -191,6 +192,8 @@ void main() {
   vec3 wet = hueRotate(src, uHue);
   float grey = dot(wet, vec3(0.299, 0.587, 0.114));
   wet = mix(vec3(grey), wet, uSaturation);
+  // Contrast about the middle grey: the darks and the lights pulled apart, or together.
+  wet = (wet - 0.5) * uContrast + 0.5;
   fragColor = vec4(mix(src, clamp(wet, 0.0, 1.0), uMix), 1.0);
 }`;
 

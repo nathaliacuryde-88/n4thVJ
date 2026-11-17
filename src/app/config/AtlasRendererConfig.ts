@@ -19,8 +19,10 @@ export const AtlasConfig = {
   type: {
     /** Which character set — see config/charsets.ts. Code is the original's look. */
     set: 1,
-    /** Character cells across the frame. */
+    /** Character cells across the frame. Kept for older saves; Size sets it now. */
     columns: 110,
+    /** How big each character module is: 0 the smallest (220 across), 1 the largest (20 across). */
+    size: 0.29,
     /** Share of cells that carry a character, before the music adds more. */
     density: 0.62,
     /** How wide a stretch of the set each level draws from, 0 to 1. */

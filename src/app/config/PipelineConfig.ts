@@ -130,6 +130,8 @@ export const PipelineConfig = {
     hue: 0,
     /** 1 = untouched, 0 = grey, above 1 = pushed. */
     saturation: 1,
+    /** 1 = untouched, below 1 = flatter and greyer, above 1 = darks darker and lights lighter. */
+    contrast: 1,
   },
 
   /** DISPLACE — push pixels along a drifting noise field. */
