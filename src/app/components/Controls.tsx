@@ -215,7 +215,7 @@ export function Controls({
 }: ControlsProps) {
   const tempo = useTempo();
   
-  // Tap switches the selected layer, hold stacks — the same split, and the same
+  // Tap goes to the visual alone, hold stacks — the same split, and the same
   // hold length, as the number keys.
   const holdRef = useRef<{ pattern: VisualPattern; timer: number; fired: boolean } | null>(null);
 

@@ -261,15 +261,22 @@ export default function App() {
     setSelectedLayer(Math.max(0, ordered.findIndex((l) => l.pattern === pattern)));
   }, []);
 
-  /** Tap: swap the selected layer. A pattern already on the stack is selected, not duplicated. */
+  /*
+   * Tap: go to this visual, alone.
+   *
+   * Everything else on the stack fades out over the set's transition while it
+   * comes in, so moving on never means first remembering to take two or three
+   * layers down one by one. It comes in at the faders it had last time (or, the
+   * first time, the level of the layer it replaces). A visual already on the
+   * stack keeps playing as it is while the others leave. Holding still adds
+   * and removes layers; the layer list and L still pick which one to edit.
+   */
   const setCurrentPattern = useCallback((pattern: VisualPattern) => {
-    const existing = layers.findIndex((l) => l.pattern === pattern);
-    if (existing !== -1) {
-      setSelectedLayer(existing);
-      return;
-    }
-    arrange(layers.map((l, i) => (i === selectedLayer ? withFaders(l, pattern) : l)), pattern);
-  }, [layers, selectedLayer, arrange, withFaders]);
+    if (layers.length === 1 && layers[0].pattern === pattern) return;
+    const existing = layers.find((l) => l.pattern === pattern);
+    setLayers([existing ?? withFaders(layers[selectedLayer] ?? layers[0], pattern)]);
+    setSelectedLayer(0);
+  }, [layers, selectedLayer, withFaders]);
 
   /** Hold: add the pattern as a new layer, or take it off if it is already up. */
   const toggleLayer = useCallback((pattern: VisualPattern) => {
