@@ -51,6 +51,7 @@ import { StandbyConfig } from '../config/StandbyRendererConfig';
 import { NeuronConfig } from '../config/NeuronRendererConfig';
 import { MorphingSphereConfig } from '../config/MorphingSphereRendererConfig';
 import { ArrivalConfig } from '../config/ArrivalRendererConfig';
+import { SmokeHandConfig } from '../config/SmokeHandRendererConfig';
 import { BreathConfig } from '../config/BreathRendererConfig';
 import { ConstellationConfig } from '../config/ConstellationRendererConfig';
 import { MachineConfig } from '../config/MachineRendererConfig';
@@ -171,9 +172,16 @@ function breathParams(source: boolean, detail: [string, string]): RendererParams
   };
 }
 
+function smokeParams(): RendererParams {
+  return {
+    config: SmokeHandConfig,
+    groups: [{ name: 'Look', params: [{ path: 'look.zoom', label: 'Zoom', min: 0.3, max: 2.5, step: 0.05, hint: 'the figure smaller or closer' }] }],
+  };
+}
+
 /** The three arrivals share an engine; each names the same few sliders for what they do there. */
 function arrivalParams(
-  cover: [string, string], speed: [string, string], reach: [string, string], clap: string, beat: string, styled = false,
+  cover: [string, string], speed: [string, string], reach: [string, string], clap: string, beat: string, styled = false, zoomed = false,
 ): RendererParams {
   return {
     config: ArrivalConfig,
@@ -182,6 +190,7 @@ function arrivalParams(
         name: 'Look',
         params: [
           ...(styled ? [{ path: 'look.style', label: 'Style', min: 0, max: 1, step: 1, labels: ['Vapour', 'Print'], hint: 'soft real cloud, or flat tones with clean edges' }] : []),
+          ...(zoomed ? [{ path: 'look.zoom', label: 'Zoom', min: 0.3, max: 2.5, step: 0.05, hint: 'out: smaller clouds, more of the sky — still the whole frame' }] : []),
           { path: 'look.cover', label: cover[0], min: 0, max: 1, step: 0.05, hint: cover[1] },
           { path: 'look.bands', label: 'Tones', min: 2, max: 12, step: 1, hint: styled ? 'Print only: few is graphic, many is smooth' : 'few is graphic, many is smooth' },
           { path: 'look.grain', label: 'Grain', min: 0, max: 1, step: 0.05 },
@@ -330,6 +339,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         name: 'Emission',
         params: [
           { path: 'limits.maxParticles', label: 'Max', min: 5, max: 500, step: 5 },
+          { path: 'size.zoom', label: 'Zoom', min: 0.2, max: 4, step: 0.05, hint: 'each particle and the cloud they make, smaller or larger' },
           { path: 'emission.openHandRate', label: 'Open hand', min: 0, max: 1, step: 0.01 },
           { path: 'emission.closedHandRate', label: 'Closed hand', min: 0, max: 1, step: 0.01 },
         ],
@@ -862,6 +872,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         name: 'Line',
         params: [
           { path: 'line.count', label: 'Lines', min: 1, max: 40, step: 1, hint: 'how many it unfolds into' },
+          { path: 'line.zoom', label: 'Zoom', min: 0.3, max: 2.5, step: 0.05, hint: 'the fan smaller or larger; the lines still cross the frame' },
           { path: 'line.weight', label: 'Weight', min: 0.3, max: 4, step: 0.05 },
           { path: 'line.wave', label: 'Wave', min: 0, max: 3, step: 0.05 },
           { path: 'line.birth', label: 'Birth', min: 0, max: 3, step: 0.05, hint: 'how slowly the first line draws itself; 0 = already there' },
@@ -891,6 +902,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Growth',
         params: [
+          { path: 'growth.zoom', label: 'Zoom', min: 0.3, max: 2.5, step: 0.05, hint: 'out: smaller, finer roots, still to every edge' },
           { path: 'growth.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
           { path: 'growth.branching', label: 'Forking', min: 0, max: 3, step: 0.05 },
           { path: 'growth.lasting', label: 'Lasting', min: 0.2, max: 2.5, step: 0.05, hint: 'how long a thread stays' },
@@ -948,6 +960,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Picture',
         params: [
+          { path: 'picture.zoom', label: 'Zoom', min: 0.3, max: 2.5, step: 0.05, hint: 'out: smaller dots, more of them — still the whole frame' },
           { path: 'picture.detail', label: 'Detail', min: 0, max: 1, step: 0.05, hint: 'finer dots' },
           { path: 'picture.camera', label: 'Camera', min: 0, max: 1, step: 0.05, hint: '0 = only the reading, no picture' },
           { path: 'picture.dissolve', label: 'Dissolve', min: 0, max: 2, step: 0.05 },
@@ -1002,12 +1015,14 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
   'breath-pulse': breathParams(true, ['Lines', 'how many lines']),
   'breath-air': breathParams(false, ['Air', 'how much air']),
   'breath-leaf': breathParams(false, ['Branching', 'how finely it branches']),
+  'smokehand-hand': smokeParams(),
+  'smokehand-torus': smokeParams(),
   'arrival-clouds': arrivalParams(
     ['Cloud', 'how much of the sky is cloud'], ['Fall', 'how fast you fall'],
-    ['Steer', 'the hand steers, and opens a hole to look down'], 'Clap tears', 'Kick pushes', true),
+    ['Steer', 'the hand steers, and opens a hole to look down'], 'Clap tears', 'Kick pushes', true, true),
   'arrival-fog': arrivalParams(
     ['Thickness', 'how thick the fog is'], ['Return', 'how fast it drifts, and mists over where it was wiped'],
-    ['Wipe', 'how wide the open hand wipes'], 'Clap clears', 'Kick breathes'),
+    ['Wipe', 'how wide the open hand wipes'], 'Clap clears', 'Kick breathes', false, true),
   'arrival-planet': arrivalParams(
     ['Clouds', 'how cloudy the planet is'], ['Approach', 'how quickly you come in and pull back'],
     ['Turn', 'how far the hand turns the planet'], 'Clap sunrise', 'Kick flares edge'),
@@ -1057,6 +1072,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         name: 'Network',
         params: [
           { path: 'network.cells', label: 'Cells', min: 4, max: 60, step: 1 },
+          { path: 'network.size', label: 'Size', min: 0.3, max: 3, step: 0.05, hint: 'how big each cell is drawn; the network still fills the frame' },
           { path: 'network.links', label: 'Links', min: 1, max: 5, step: 0.1, hint: 'how many others each one reaches' },
           { path: 'network.branching', label: 'Branching', min: 0, max: 2, step: 0.05, hint: 'how finely the dendrites fork' },
           { path: 'network.spread', label: 'Spread', min: 0, max: 1.5, step: 0.05, hint: 'how far one firing runs on: low a single spark, high a cascade' },
@@ -1090,6 +1106,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Field',
         params: [
+          { path: 'grid.zoom', label: 'Zoom', min: 0.3, max: 2.5, step: 0.05, hint: 'out: smaller dots, more of them — still the whole frame' },
           { path: 'grid.detail', label: 'Detail', min: 0, max: 1, step: 0.05, hint: 'finer dots' },
           { path: 'grid.field', label: 'Field', min: 0, max: 1.5, step: 0.05, hint: '0 = only what the hand lights' },
           { path: 'grid.figure', label: 'Figure', min: 0, max: 1, step: 0.05, hint: 'your own outline, faintly, in the dots' },

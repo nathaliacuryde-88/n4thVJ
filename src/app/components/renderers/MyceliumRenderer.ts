@@ -98,8 +98,20 @@ export class MyceliumRenderer {
   }
 
   /** A new root: from an edge, growing in; or from a point, growing out. */
-  private seed(at?: { x: number; y: number }, fan = 1) {
+  /*
+   * Zoom: the world the roots grow in is the frame divided by it, about the
+   * middle. Zoomed out, the same roots are smaller and finer and the world
+   * reaches further — still to every edge of the screen, never a smaller
+   * picture on black.
+   */
+  private bounds() {
+    const v = 1 / Math.max(0.2, this.cfg.growth.zoom);
     const a = this.aspect;
+    return { x0: a / 2 * (1 - v), x1: a / 2 * (1 + v), y0: 0.5 - v / 2, y1: 0.5 + v / 2, v };
+  }
+
+  private seed(at?: { x: number; y: number }, fan = 1) {
+    const { x0, x1, y0, y1, v } = this.bounds();
     for (let i = 0; i < fan && this.tips.length < MAX_TIPS; i++) {
       let x: number, y: number, angle: number;
       if (at) {
@@ -110,9 +122,9 @@ export class MyceliumRenderer {
         // In from an edge, but leaning along it, so the network spreads round
         // the frame instead of all of it heading for the middle.
         const lean = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.7);
-        if (side < 0.55) { x = Math.random() * a; y = 1.02; angle = -Math.PI / 2 + lean; }
-        else if (side < 0.775) { x = -0.02; y = 0.1 + Math.random() * 0.85; angle = lean; }
-        else { x = a + 0.02; y = 0.1 + Math.random() * 0.85; angle = Math.PI + lean; }
+        if (side < 0.55) { x = x0 + Math.random() * (x1 - x0); y = y1 + 0.02; angle = -Math.PI / 2 + lean; }
+        else if (side < 0.775) { x = x0 - 0.02; y = y0 + (0.1 + Math.random() * 0.85) * v; angle = lean; }
+        else { x = x1 + 0.02; y = y0 + (0.1 + Math.random() * 0.85) * v; angle = Math.PI + lean; }
       }
       this.tips.push({ x, y, angle, depth: 0, along: 0, left: 0.9 + Math.random() * 0.9, seed: Math.random() * 1000 });
     }
@@ -146,8 +158,11 @@ export class MyceliumRenderer {
     if (hands.length) {
       const x = hands.reduce((s, h) => s + h!.position.x, 0) / hands.length;
       const y = hands.reduce((s, h) => s + h!.position.y, 0) / hands.length;
-      this.hand.x += (x * this.aspect - this.hand.x) * ease(8);
-      this.hand.y += (y - this.hand.y) * ease(8);
+      const { v } = this.bounds();
+      const wx = this.aspect / 2 + (x * this.aspect - this.aspect / 2) * v;
+      const wy = 0.5 + (y - 0.5) * v;
+      this.hand.x += (wx - this.hand.x) * ease(8);
+      this.hand.y += (wy - this.hand.y) * ease(8);
     }
     // A hand that is really there is followed closely; the stand-in only suggests a way.
     // Only her own hand draws the roots; the stand-in figure sits in the middle
@@ -212,7 +227,7 @@ export class MyceliumRenderer {
     const gait = rhythmic ? 1 - lock + lock * (0.06 + 3.4 * this.surge) : 1;
     const advance = pace * step * gait;
     // Never empty: a few roots are always on their way in.
-    const wanted = Math.round(5 + 6 * play.energy + 8 * play.build);
+    const wanted = Math.round((5 + 6 * play.energy + 8 * play.build) * Math.min(2.5, Math.max(0.6, this.bounds().v)));
     if (this.tips.length < wanted && eager > 0.3) this.seed();
 
     if (advance > 0) {
@@ -254,7 +269,8 @@ export class MyceliumRenderer {
         }
       }
       this.tips.push(...born);
-      this.tips = this.tips.filter((t) => t.left > 0 && t.x > -0.1 && t.x < this.aspect + 0.1 && t.y > -0.1 && t.y < 1.1);
+      const b = this.bounds();
+      this.tips = this.tips.filter((t) => t.left > 0 && t.x > b.x0 - 0.1 && t.x < b.x1 + 0.1 && t.y > b.y0 - 0.1 && t.y < b.y1 + 0.1);
     }
 
     // ── draw ─────────────────────────────────────────────────────────────
@@ -263,6 +279,10 @@ export class MyceliumRenderer {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
 
+    // World to screen, about the middle.
+    const zoom = 1 / this.bounds().v;
+    const SX = (x: number) => (x - this.aspect / 2) * H * zoom + W / 2;
+    const SY = (y: number) => (y - 0.5) * H * zoom + H / 2;
     const paths = this.paths;
     for (let i = 0; i < SHADES * WIDTHS; i++) paths[i] = new Path2D();
     const s = this.segs;
@@ -281,13 +301,13 @@ export class MyceliumRenderer {
       if (light < 0.04) continue;
       const width = Math.min(WIDTHS - 1, Math.round(s[k + 5]));
       const path = paths[shade * WIDTHS + width];
-      path.moveTo(s[k] * H, s[k + 1] * H);
-      path.lineTo(s[k + 2] * H, s[k + 3] * H);
+      path.moveTo(SX(s[k]), SY(s[k + 1]));
+      path.lineTo(SX(s[k + 2]), SY(s[k + 3]));
     }
 
     const [r1, g1, b1] = rgb(colors[2] ?? '#e8e4d4');
     const [r2, g2, b2] = rgb(colors[0] ?? '#55ccbb');
-    const unit = (H / 720) * cfg.growth.weight * (1 + 0.5 * play.bass * cfg.sound.bass);
+    const unit = (H / 720) * zoom * cfg.growth.weight * (1 + 0.5 * play.bass * cfg.sound.bass);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.globalCompositeOperation = 'lighter';
@@ -320,7 +340,7 @@ export class MyceliumRenderer {
       // They flash with each beat.
       ctx.globalAlpha = Math.min(1, 0.6 + 0.5 * this.surge);
       ctx.beginPath();
-      ctx.arc(tip.x * H, tip.y * H, Math.max(1, (2.4 - tip.depth * 0.22) * unit * (1 + 0.9 * this.surge)), 0, Math.PI * 2);
+      ctx.arc(SX(tip.x), SY(tip.y), Math.max(1, (2.4 - tip.depth * 0.22) * unit * (1 + 0.9 * this.surge)), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;

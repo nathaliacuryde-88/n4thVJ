@@ -116,7 +116,8 @@ export class MachineRenderer {
     }
 
     // ── read the camera ──────────────────────────────────────────────────
-    const columns = Math.round(48 + 80 * Math.min(1, Math.max(0, cfg.picture.detail)));
+    // Zoomed out, smaller dots and more of them; the picture still fills the frame.
+    const columns = Math.round(Math.max(16, Math.min(260, (48 + 80 * Math.min(1, Math.max(0, cfg.picture.detail))) / Math.max(0.2, cfg.picture.zoom))));
     const rows = Math.max(8, Math.round(columns * H / W));
     const cell = W / columns;
     let pixels: Uint8ClampedArray | null = null;

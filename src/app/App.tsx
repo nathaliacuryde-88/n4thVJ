@@ -1176,6 +1176,31 @@ export default function App() {
     loadSetting<Record<string, number>>('vj-zoom', {}, (v) => typeof v === 'object' && v !== null),
   );
   useEffect(() => { saveSetting('vj-zoom', zooms); }, [zooms]);
+  /*
+   * The picture zoom shrinks the whole frame onto black. A visual that has a
+   * size of its own scales its things instead, so the flat zoom is not
+   * applied to it — and one set before it had that, carries over once.
+   */
+  const pictureZooms = useMemo(
+    () => Object.fromEntries(Object.entries(zooms).filter(([p]) => !SIZES[p])),
+    [zooms],
+  );
+  useEffect(() => {
+    const moved = Object.entries(zooms).filter(([p, z]) => SIZES[p] && z !== 1);
+    if (!moved.length) return;
+    setParamValues((prev) => {
+      const next = { ...prev };
+      for (const [p, z] of moved) {
+        const path = SIZES[p];
+        if (!path.endsWith('zoom') && !path.endsWith('size')) continue;
+        if (next[p]?.[path] === undefined) next[p] = { ...(next[p] ?? {}), [path]: Math.round(z * 100) / 100 };
+      }
+      return next;
+    });
+    setZooms((prev) => Object.fromEntries(Object.entries(prev).filter(([p]) => !SIZES[p])));
+    // Once, on load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** A word on screen for a moment, for a change made from the controller with nothing else showing it. */
   const [notice, setNotice] = useState<string | null>(null);
@@ -1224,6 +1249,16 @@ export default function App() {
       const shown = Object.values(next)[0];
       const label = specs.find((p) => p.path === counts[0].path)?.label ?? 'Count';
       flash(counts.length > 1 ? `${name} · ${dir > 0 ? 'more' : 'fewer'}` : `${name} · ${label} ${Number.isInteger(shown) ? shown : Math.round(shown * 100) + '%'}`);
+      return;
+    }
+    // Its own size, where it has one: a step of an eighth of the slider.
+    const sizePath = SIZES[currentPattern];
+    const sizeSpec = sizePath ? entry?.groups.flatMap((g) => g.params).find((p) => p.path === sizePath) : undefined;
+    if (sizePath && sizeSpec && entry) {
+      const now = (paramValues[currentPattern]?.[sizePath] ?? getByPath(entry.config, sizePath) ?? 1) as number;
+      const v = Math.round(Math.max(sizeSpec.min, Math.min(sizeSpec.max, now + dir * (sizeSpec.max - sizeSpec.min) / 8)) * 100) / 100;
+      setParamValues((prev) => ({ ...prev, [currentPattern]: { ...(prev[currentPattern] ?? {}), [sizePath]: v } }));
+      flash(`${name} · ${sizeSpec.label} ${v}`);
       return;
     }
     const z = zooms[currentPattern] ?? 1;
@@ -1785,7 +1820,8 @@ export default function App() {
      */
     const counts = COUNTS[editPattern];
     const hasOwnZoom = entry.groups.some((g) => g.params.some((p) => p.path.endsWith('.zoom')));
-    if (counts && !hasOwnZoom) {
+    // A visual with a size of its own is never zoomed as a flat picture.
+    if (counts && !hasOwnZoom && !SIZES[editPattern]) {
       const countPath = counts[0].path;
       look = {
         ...look,
@@ -1881,7 +1917,7 @@ export default function App() {
         autoHandData={autoHands}
         autoDrive={idleDrive}
         master={blackout ? 0 : master}
-        zoomByPattern={zooms}
+        zoomByPattern={pictureZooms}
         finish={finish}
         fadeSeconds={fade}
         outputSize={outputSize}

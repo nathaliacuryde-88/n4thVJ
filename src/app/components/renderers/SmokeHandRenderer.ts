@@ -4,6 +4,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import type { HandData, AudioData } from '../../App';
+import { SmokeHandConfig } from '../../config/SmokeHandRendererConfig';
+import { ParamValues, withOverrides } from '../../params/types';
 
 export class SmokeHandRenderer {
   private canvas: HTMLCanvasElement;
@@ -19,6 +21,11 @@ export class SmokeHandRenderer {
   
   private pinchStrength = 0;
   private baseScale = 1.0;
+  private cfg = SmokeHandConfig;
+
+  setParams(values: ParamValues) {
+    this.cfg = withOverrides(SmokeHandConfig, values);
+  }
   
   private currentModel: 'torus' | 'hand' = 'torus';
   /** Set on teardown, so a mesh that lands late is not pushed into a dead scene. */
@@ -380,7 +387,7 @@ export class SmokeHandRenderer {
 
     // Scale based on expansion (grow when hand is open)
     if (this.handGroup) {
-      const targetScale = this.baseScale * (1.0 + this.pinchStrength * 0.5);
+      const targetScale = this.baseScale * Math.max(0.1, this.cfg.look.zoom) * (1.0 + this.pinchStrength * 0.5);
       const currentScale = this.handGroup.scale.x;
       const newScale = THREE.MathUtils.lerp(currentScale, targetScale, 0.1);
       this.handGroup.scale.set(newScale, newScale, newScale);

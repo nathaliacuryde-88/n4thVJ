@@ -100,6 +100,17 @@ export const COUNTS: Record<string, { path: string; step: number }[]> = {
  * is zoomed as a picture, which every visual can be.
  */
 export const SIZES: Record<string, string> = {
+  particles: 'size.zoom',
+  line: 'line.zoom',
+  mycelium: 'growth.zoom',
+  neurons: 'network.size',
+  standby: 'grid.zoom',
+  machine: 'picture.zoom',
+  'arrival-clouds': 'look.zoom',
+  'arrival-fog': 'look.zoom',
+  ink: 'ink.width',
+  'smokehand-hand': 'look.zoom',
+  'smokehand-torus': 'look.zoom',
   bloom: 'field.zoom',
   butterflies: 'flight.zoom',
   anemone: 'garden.zoom',

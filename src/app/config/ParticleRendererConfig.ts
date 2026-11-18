@@ -32,6 +32,8 @@ export const ParticleConfig = {
   // PARTICLE SIZE & APPEARANCE
   // ═══════════════════════════════════════════════════════════════════════════
   size: {
+    /** Zoom: how big each particle is drawn and how far they travel, together. 1 = as set. */
+    zoom: 1,
     /**
      * Base particle size range
      * Format: [min, max]

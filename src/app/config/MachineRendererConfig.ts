@@ -11,6 +11,8 @@ export const MachineConfig = {
     camera: 0.8,
     /** How readily the picture comes apart into a cloud. */
     dissolve: 1,
+    /** Zoom: bigger, fewer dots or smaller, more — always the whole frame. */
+    zoom: 1,
   },
 
   reading: {

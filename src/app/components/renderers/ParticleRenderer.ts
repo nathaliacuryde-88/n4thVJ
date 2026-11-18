@@ -83,8 +83,9 @@ class Particle {
 
     this.size += (this.targetSize - this.size) * cfg.size.transitionSpeed;
 
-    this.x += this.vx * speedMultiplier;
-    this.y += this.vy * speedMultiplier;
+    // Zoomed out, each one smaller and the cloud they make tighter.
+    this.x += this.vx * speedMultiplier * cfg.size.zoom;
+    this.y += this.vy * speedMultiplier * cfg.size.zoom;
 
     // Calmer with a fist: they slow right down.
     const damping = cfg.physics.damping - (1 - open) * 0.06;
@@ -210,7 +211,7 @@ export class ParticleRenderer {
       
       // MULTI-LAYER GLOW - Creates soft, massive look
       for (let layer = 0; layer < this.cfg.glow.layers; layer++) {
-        const layerSize = particle.size * (1 + layer * this.cfg.glow.expansion);
+        const layerSize = Math.max(0.5, particle.size * this.cfg.size.zoom * (1 + layer * this.cfg.glow.expansion));
         const gradient = this.ctx.createRadialGradient(
           particle.x, particle.y, 0,
           particle.x, particle.y, layerSize

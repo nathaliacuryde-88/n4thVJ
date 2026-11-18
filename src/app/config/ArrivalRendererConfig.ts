@@ -13,6 +13,8 @@ export const ArrivalConfig = {
     grain: 0.35,
     /** Clouds: how much of the sky is cloud. Fog: how thick. Planet: how cloudy. */
     cover: 0.5,
+    /** Clouds and fog: 1 as drawn; lower, smaller clouds and more of the sky, still the whole frame. */
+    zoom: 1,
   },
 
   motion: {

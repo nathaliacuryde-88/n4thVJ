@@ -14,6 +14,8 @@ export const NeuronConfig = {
     spread: 0.75,
     /** Seconds a cell rests after firing before it can fire again: longer is calmer. */
     rest: 0.8,
+    /** How big each cell, its glow and its threads are drawn; the network still fills the frame. */
+    size: 1,
   },
 
   hands: {

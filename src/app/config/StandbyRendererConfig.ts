@@ -13,6 +13,8 @@ export const StandbyConfig = {
     figure: 0.4,
     /** The one line of text in the corner. */
     words: 1,
+    /** Zoom: the dots bigger and fewer, or smaller and more — always the whole frame. */
+    zoom: 1,
   },
 
   hands: {

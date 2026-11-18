@@ -119,7 +119,8 @@ export class StandbyRenderer {
     if (cfg.grid.figure <= 0.01 && this.release) { this.release(); this.release = null; }
 
     // ── the grid ─────────────────────────────────────────────────────────
-    const rows = Math.round(22 + 34 * Math.max(0, Math.min(1, cfg.grid.detail)));
+    // Zoomed out, more dots and smaller, still filling the frame; in, fewer and bigger.
+    const rows = Math.round(Math.max(8, Math.min(150, (22 + 34 * Math.max(0, Math.min(1, cfg.grid.detail))) / Math.max(0.2, cfg.grid.zoom))));
     const columns = Math.round(rows * aspect);
     if (rows !== this.rows || columns !== this.columns) {
       this.rows = rows;

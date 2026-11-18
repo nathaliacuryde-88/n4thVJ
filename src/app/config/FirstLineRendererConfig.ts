@@ -12,6 +12,8 @@ export const FirstLineConfig = {
     wave: 1,
     /** How long the first line takes to draw itself. 0: it is already there. */
     birth: 1,
+    /** How big the fan is drawn — its height, waves and weight; the lines still cross the whole frame. */
+    zoom: 1,
   },
 
   hands: {

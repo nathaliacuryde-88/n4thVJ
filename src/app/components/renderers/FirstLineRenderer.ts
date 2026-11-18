@@ -129,8 +129,12 @@ export class FirstLineRenderer {
     const count = Math.max(1, Math.round(cfg.line.count));
     const [r1, g1, b1] = rgb(colors[0] ?? '#8899ff');
     const [r2, g2, b2] = rgb(colors[2] ?? colors[1] ?? '#ffffff');
-    const unit = H / 720;
-    const spread = H * 0.74 * this.unfold * (1 + 0.12 * this.breath);
+    // Zoom: the fan, its waves and its weight, smaller or larger — the lines
+    // still run from edge to edge.
+    const z = Math.max(0.1, cfg.line.zoom);
+    const Hz = H * z;
+    const unit = (H / 720) * z;
+    const spread = Hz * 0.74 * this.unfold * (1 + 0.12 * this.breath);
     const wave = cfg.line.wave;
     const t = this.time;
 
@@ -156,7 +160,7 @@ export class FirstLineRenderer {
         const place = count === 1 ? 0 : (i / (count - 1)) * 2 - 1;
         const phase = place * 2.6 * this.unfold;
         const tremble = this.shiver * Math.sin(i * 12.9898) * 43758.5453;
-        const jolt = (tremble - Math.floor(tremble) - 0.5) * this.shiver * H * 0.09;
+        const jolt = (tremble - Math.floor(tremble) - 0.5) * this.shiver * Hz * 0.09;
 
         ctx.beginPath();
         let prevX = 0;
@@ -167,12 +171,12 @@ export class FirstLineRenderer {
           const free = Math.sin(Math.PI * u);
           let y = H / 2 + place * spread * 0.5;
           y += (Math.sin(u * 6.2 + t * 0.55 + phase) * 0.6 + Math.sin(u * 13.7 - t * 0.38 + phase * 1.7) * 0.25)
-            * H * 0.035 * wave * free * (0.35 + 0.65 * this.unfold + this.breath * 0.6);
+            * Hz * 0.035 * wave * free * (0.35 + 0.65 * this.unfold + this.breath * 0.6);
           y += jolt * free * Math.sin(u * 20 + i);
           // Each pulse is a bump leaving the middle for both ends.
           for (const p of this.pulses) {
             const d = Math.abs(u - 0.5) - p.at;
-            y -= Math.exp(-(d * d) / 0.0016) * p.strength * H * 0.05 * (1 - p.at / 0.75) * (place === 0 ? 1 : Math.sign(place) * -1);
+            y -= Math.exp(-(d * d) / 0.0016) * p.strength * Hz * 0.05 * (1 - p.at / 0.75) * (place === 0 ? 1 : Math.sign(place) * -1);
           }
           // Drawn to the hand, all of them to the one point.
           if (this.hand.hold > 0.01) {

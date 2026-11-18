@@ -250,7 +250,8 @@ export class NeuronRenderer {
 
   /** The network at rest: faint, so the firing is what is seen. */
   private drawStill(W: number, H: number, colour: string) {
-    const key = `${W}x${H}:${colour}:${this.builtFor}`;
+    const z = this.cfg.network.size;
+    const key = `${W}x${H}:${colour}:${this.builtFor}:${z}`;
     if (key === this.stillKey) return;
     this.stillKey = key;
     this.still.width = W;
@@ -259,7 +260,7 @@ export class NeuronRenderer {
     g.clearRect(0, 0, W, H);
     const [r, gg, b] = rgb(colour);
     const pale = (v: number, k: number) => Math.round(v + (255 - v) * k);
-    const unit = H / 720;
+    const unit = (H / 720) * z;
     g.lineCap = 'round';
     g.lineJoin = 'round';
     g.strokeStyle = `rgb(${pale(r, 0.45)},${pale(gg, 0.45)},${pale(b, 0.45)})`;
@@ -290,9 +291,12 @@ export class NeuronRenderer {
     g.lineWidth = Math.max(0.6, 1 * unit);
     g.beginPath();
     for (const c of this.cells) {
+      // Each cell's dendrites drawn about its own middle, at its size.
+      const X = (v: number) => (c.x + (v - c.x) * z) * H;
+      const Y = (v: number) => (c.y + (v - c.y) * z) * H;
       for (const line of c.dendrites) {
-        g.moveTo(line[0] * H, line[1] * H);
-        for (let i = 2; i < line.length; i += 2) g.lineTo(line[i] * H, line[i + 1] * H);
+        g.moveTo(X(line[0]), Y(line[1]));
+        for (let i = 2; i < line.length; i += 2) g.lineTo(X(line[i]), Y(line[i + 1]));
       }
     }
     g.stroke();
@@ -301,7 +305,7 @@ export class NeuronRenderer {
     g.lineWidth = Math.max(1, 1.5 * unit);
     for (const c of this.cells) {
       g.beginPath();
-      g.arc(c.x * H, c.y * H, c.size * H, 0, Math.PI * 2);
+      g.arc(c.x * H, c.y * H, c.size * z * H, 0, Math.PI * 2);
       g.stroke();
     }
     g.globalAlpha = 1;
@@ -483,7 +487,8 @@ export class NeuronRenderer {
     ctx.fillRect(0, 0, W, H);
     ctx.drawImage(this.still, 0, 0, W, H);
 
-    const unit = H / 720;
+    const z = cfg.network.size;
+    const unit = (H / 720) * z;
     const [r, g, b] = rgb(colour);
     const pale = (v: number, k: number) => Math.round(v + (255 - v) * k);
     ctx.globalCompositeOperation = 'lighter';
@@ -497,9 +502,11 @@ export class NeuronRenderer {
       ctx.strokeStyle = `rgb(${pale(r, 0.55)},${pale(g, 0.55)},${pale(b, 0.55)})`;
       ctx.lineWidth = Math.max(1, 1.6 * unit);
       ctx.beginPath();
+      const X = (v: number) => (c.x + (v - c.x) * z) * H;
+      const Y = (v: number) => (c.y + (v - c.y) * z) * H;
       for (const line of c.dendrites) {
-        ctx.moveTo(line[0] * H, line[1] * H);
-        for (let i = 2; i < line.length; i += 2) ctx.lineTo(line[i] * H, line[i + 1] * H);
+        ctx.moveTo(X(line[0]), Y(line[1]));
+        for (let i = 2; i < line.length; i += 2) ctx.lineTo(X(line[i]), Y(line[i + 1]));
       }
       ctx.stroke();
     }
@@ -535,7 +542,7 @@ export class NeuronRenderer {
     for (const c of cells) {
       const light = c.flash + c.held * 0.6 + Math.min(0.4, c.charge * 0.3);
       if (light < 0.03) continue;
-      const size = (c.size * 3.5 + 0.06 * Math.min(1, c.flash) + 0.03 * c.held) * H;
+      const size = (c.size * 3.5 + 0.06 * Math.min(1, c.flash) + 0.03 * c.held) * H * z;
       ctx.globalAlpha = Math.min(1, light);
       ctx.drawImage(this.glow, c.x * H - size, c.y * H - size, size * 2, size * 2);
     }

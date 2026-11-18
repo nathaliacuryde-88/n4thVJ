@@ -16,7 +16,7 @@ const COMMON = /* glsl */ `
 precision highp float;
 varying vec2 vUv;
 uniform vec2 uRes;
-uniform float uTime, uHue, uBands, uCover, uPulse, uBass;
+uniform float uTime, uHue, uBands, uCover, uPulse, uBass, uZoom;
 uniform vec2 uGrain;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -113,7 +113,7 @@ void main() {
     float fk = float(k);
     float d = fk + 1.0 - within;            // how far below you this sheet is
     float id = passed + fk;                  // which sheet it is, so each has its own shape
-    vec2 q = p * d * 0.9 + uCam + vec2(id * 13.17, id * 7.31);
+    vec2 q = p * d * 0.9 / uZoom + uCam + vec2(id * 13.17, id * 7.31);
     float near = 1.0 - smoothstep(0.3, 5.5, d);
     float holeR = 0.06 + 0.22 * uHole.z;
     float opened = (1.0 - uHole.z * smoothstep(holeR, holeR * 0.3, length(p - uHole.xy)) * step(fk, 2.5));
@@ -161,7 +161,8 @@ uniform float uDrift;
 
 void main() {
   vec2 p = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
-  float f = 0.65 * fbm(p * 0.75 + vec2(uDrift, uDrift * 0.2)) + 0.35 * fbm(p * 1.9 - vec2(uDrift * 1.8, -uDrift * 0.4));
+  vec2 pz = p / uZoom;
+  float f = 0.65 * fbm(pz * 0.75 + vec2(uDrift, uDrift * 0.2)) + 0.35 * fbm(pz * 1.9 - vec2(uDrift * 1.8, -uDrift * 0.4));
   float density = clamp((f - 0.5) * 1.6 + 0.2 + uCover * 0.8 + 0.15 * uPulse + 0.1 * uBass, 0.0, 1.0);
   float wiped = texture2D(uMask, vUv).r;
   density *= 1.0 - wiped;

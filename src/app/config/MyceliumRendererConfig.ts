@@ -14,6 +14,8 @@ export const MyceliumConfig = {
     weight: 1,
     /** How much the threads wander rather than run straight. */
     wander: 1,
+    /** Closer or further: zoomed out the roots are smaller and finer, and still reach every edge. */
+    zoom: 1,
   },
 
   hands: {

@@ -88,6 +88,7 @@ export class ArrivalRenderer {
       uCover: { value: 0.6 },
       uPulse: { value: 0 },
       uBass: { value: 0 },
+      uZoom: { value: 1 },
       uGrain: { value: new THREE.Vector2() },
     });
     const frag = mode === ARRIVAL_FOG ? FOG_FRAG : mode === ARRIVAL_PLANET ? PLANET_FRAG : CLOUDS_FRAG;
@@ -175,6 +176,7 @@ export class ArrivalRenderer {
     u.uCover.value = Math.max(0, Math.min(1, cfg.look.cover));
     u.uPulse.value = this.pulse;
     u.uBass.value = play.bass * cfg.sound.bass;
+    u.uZoom.value = Math.max(0.2, cfg.look.zoom);
     (u.uGrain.value as THREE.Vector2).set(Math.max(0, Math.min(1, cfg.look.grain)), Math.floor(this.real * 12) % 997);
 
     if (this.mode === ARRIVAL_CLOUDS) {
