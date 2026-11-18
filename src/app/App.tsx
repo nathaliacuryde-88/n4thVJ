@@ -1460,8 +1460,12 @@ export default function App() {
       else if (id === 'tempo.down') nudgeTempo(-0.5);
       else if (id === 'tempo.up') nudgeTempo(0.5);
       else if (id === 'pilot') setPilotOn((p) => !p);
-      else if (id === 'next') cyclePattern('next');
-      else if (id === 'prev') cyclePattern('prev');
+      else if (id === 'next' || id === 'prev') {
+        cyclePattern(id);
+        const at = set.indexOf(currentPattern);
+        const to = set[at === -1 ? (id === 'next' ? 0 : set.length - 1) : (at + (id === 'next' ? 1 : -1) + set.length) % set.length];
+        if (to) flash(RENDERER_CATEGORIES[to].name);
+      }
       else if (id === 'layer.next' || id === 'layer.prev') {
         // Said on screen, so the step is seen even when the panel is hidden.
         if (layers.length < 2) { flash('Only one layer on'); return; }

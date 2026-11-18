@@ -238,7 +238,8 @@ export function unbind(target: string) {
  *
  * and the transport:
  *
- *   TRACK ◀ ▶    previous / next layer      CYCLE       auto colour
+ *   TRACK ◀ ▶    previous / next visual in the set, on its own (as a tap)
+ *                                           CYCLE       auto colour
  *   ◀◀ ▶▶        fewer / more objects — or zoom out / in, where nothing counts
  *   MARKER SET   tap tempo                  MARKER ◀ ▶  tempo −/+
  *   STOP         all effects on/off         PLAY        hands ↔ audio
@@ -260,7 +261,7 @@ export function nanoKontrol2Map(): Record<string, string> {
   for (let i = 0; i < 7; i++) out[`slot${i + 9}`] = cc(48 + i);
   Object.assign(out, {
     'fx:Kaleido': cc(68), 'fx:Noise': cc(69), pilot: cc(70), blackout: cc(71),
-    'layer.prev': cc(58), 'layer.next': cc(59), autohue: cc(46),
+    prev: cc(58), next: cc(59), autohue: cc(46),
     'count.down': cc(43), 'count.up': cc(44),
     tap: cc(60), 'tempo.down': cc(61), 'tempo.up': cc(62),
     fx: cc(42), mode: cc(41), record: cc(45),
@@ -269,7 +270,7 @@ export function nanoKontrol2Map(): Record<string, string> {
 }
 
 /** Which layout of the preset this is, so a map made by an older one can be brought up to date. */
-export const NANO_LAYOUT = 'set knobs 4';
+export const NANO_LAYOUT = 'set knobs 5';
 
 /**
  * A map an older preset made — the hands drive on the knobs, or then the
