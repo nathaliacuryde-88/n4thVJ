@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Activity, Gauge, Plane, Wifi, WifiOff } from 'lucide-react';
 import { useOffline } from '../offline/offline';
 import { beatPosition, clearTempo, hasTapped, tap, toggleListening, useTempo } from '../motion/tempo';
-import { KNOB_FX } from '../control/knobs';
 import { autoSize, frameReading, setAutoSize, setMeasuring } from '../pipeline/governor';
 import { RENDERER_CATEGORIES } from '../config/RendererCategories';
 import { MidiTarget, NANO_LAYOUT, applyMap, describe, enableMidi, learn, nanoKontrol2Map, unbind, useMidi } from '../control/midi';
@@ -280,14 +279,14 @@ export function StatusBar({
             {midi.lastSeen && <span className="ml-1 text-white/30">· last: {describe(midi.lastSeen)}</span>}
           </div>
           <button
-            onClick={() => applyMap(nanoKontrol2Map(KNOB_FX.map((k) => k.name)))}
+            onClick={() => applyMap(nanoKontrol2Map())}
             title="Map everything at once for a Korg nanoKONTROL2 in its factory setting"
             className={`mb-2 w-full rounded-lg px-2 py-1.5 text-left text-[10px] tracking-wider ${
               isNano ? 'bg-cyan-400 text-black hover:bg-cyan-300' : 'bg-white/10 text-white/75 hover:bg-white/20'
             }`}
           >
             NANOKONTROL2 PRESET{isNano ? ' — detected, click to map all' : ''}
-            <span className="block text-[9px] opacity-60">layout: {NANO_LAYOUT}, faders 5–8 = hands</span>
+            <span className="block text-[9px] opacity-60">knobs: size · count · trail · tunnel · spiral · sphere · colour · music — faders 1–3 layers · TRACK ◀ ▶ layers</span>
           </button>
           <div className="mb-2 text-white/35">
             Or press LEARN, then move the fader or hit the pad you want on it.

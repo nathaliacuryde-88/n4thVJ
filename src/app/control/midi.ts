@@ -1,5 +1,4 @@
 import { useSyncExternalStore } from 'react';
-import { KNOB_FX } from './knobs';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -218,38 +217,41 @@ export function unbind(target: string) {
 }
 
 /**
- * The Korg nanoKONTROL2 in its factory CC mode. The eight strips:
+ * The Korg nanoKONTROL2 in its factory CC mode, laid out for playing a set.
  *
- *   faders 1–4   layer faders            faders 5–8  each layer's hands drive
- *   knobs 1–8    effect amounts on the selected layer — Feedback, Colour,
- *                Displace, Chromatic, Pixelate, Echo, Atlas, Fluted
- *                (all the way down is off)
- *   S 1–8        visuals 1–8             M 1–7       visuals 9–15
- *   R 1–4        select layer 1–4        R 5–6       Kaleido, Noise on/off
- *   R 7          auto-pilot              R 8         blackout
+ *   knob 1   size — zoom, size or scale of the selected visual
+ *   knob 2   how many — dice, lines, flowers, cells… from none to all
+ *   knob 3   feedback trail (all the way down is off)
+ *   knob 4   feedback tunnel      knob 5   feedback spiral   (middle = none)
+ *   knob 6   the sphere, from points to full outline
+ *   knob 7   colour (hue of the selected visual)
+ *   knob 8   how strongly the music drives everything
+ *
+ *   faders 1–3   layer 1–3 opacity         faders 4–8  free, to LEARN
+ *   S 1–8        visuals 1–8               M 1–7       visuals 9–15
+ *   R 1–4        select layer 1–4          R 5–6       Kaleido, Noise on/off
+ *   R 7          auto-pilot                R 8         blackout
  *
  * and the transport:
  *
- *   TRACK ◀ ▶    previous / next visual   CYCLE       auto colour
+ *   TRACK ◀ ▶    previous / next layer      CYCLE       auto colour
  *   ◀◀ ▶▶        fewer / more objects — or zoom out / in, where nothing counts
- *   MARKER SET   tap tempo                MARKER ◀ ▶  tempo −/+
- *   STOP         all effects on/off       PLAY        hands ↔ audio
+ *   MARKER SET   tap tempo                  MARKER ◀ ▶  tempo −/+
+ *   STOP         all effects on/off         PLAY        hands ↔ audio
  *   REC          record
  */
-export function nanoKontrol2Map(knobFx: string[]): Record<string, string> {
+export function nanoKontrol2Map(): Record<string, string> {
   const cc = (n: number) => `cc:0:${n}`;
   const out: Record<string, string> = {};
-  for (let i = 0; i < 4; i++) {
-    out[`layer${i + 1}`] = cc(i);
-    out[`motion${i + 1}`] = cc(4 + i);
-    out[`select${i + 1}`] = cc(64 + i);
-  }
-  knobFx.slice(0, 8).forEach((name, i) => { out[`knob:${name}`] = cc(16 + i); });
+  for (let i = 0; i < 3; i++) out[`layer${i + 1}`] = cc(i);
+  for (let i = 0; i < 4; i++) out[`select${i + 1}`] = cc(64 + i);
+  ['set:size', 'set:count', 'knob:Feedback', 'set:tunnel', 'set:spiral', 'set:sphere', 'hue', 'gain']
+    .forEach((target, i) => { out[target] = cc(16 + i); });
   for (let i = 0; i < 8; i++) out[`slot${i + 1}`] = cc(32 + i);
   for (let i = 0; i < 7; i++) out[`slot${i + 9}`] = cc(48 + i);
   Object.assign(out, {
     'fx:Kaleido': cc(68), 'fx:Noise': cc(69), pilot: cc(70), blackout: cc(71),
-    prev: cc(58), next: cc(59), autohue: cc(46),
+    'layer.prev': cc(58), 'layer.next': cc(59), autohue: cc(46),
     'count.down': cc(43), 'count.up': cc(44),
     tap: cc(60), 'tempo.down': cc(61), 'tempo.up': cc(62),
     fx: cc(42), mode: cc(41), record: cc(45),
@@ -258,16 +260,16 @@ export function nanoKontrol2Map(knobFx: string[]): Record<string, string> {
 }
 
 /** Which layout of the preset this is, so a map made by an older one can be brought up to date. */
-export const NANO_LAYOUT = 'knobs = effects';
+export const NANO_LAYOUT = 'set knobs';
 
 /**
- * A map the preset made, from before the layout changed — the first one put
- * the layers' hands drive on the knobs — is replaced by the current layout,
- * so pressing the preset again is not something she has to know to do.
+ * A map an older preset made — the hands drive on the knobs, or then the
+ * effects on all eight — is replaced by the current layout, so pressing the
+ * preset again is not something she has to know to do.
  */
 (function upgrade() {
-  if (map['motion1'] === 'cc:0:16') {
-    map = nanoKontrol2Map(KNOB_FX.map((k) => k.name));
+  if (map['motion1'] === 'cc:0:16' || map['knob:Feedback'] === 'cc:0:16') {
+    map = nanoKontrol2Map();
     save();
     snapshot = make();
   }

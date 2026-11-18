@@ -82,10 +82,48 @@ export const COUNTS: Record<string, { path: string; step: number }[]> = {
   dice: [{ path: 'dice.count', step: 1 }],
   atlas: [{ path: 'type.density', step: 0.1 }],
   crowd: [{ path: 'crowd.figures', step: 4 }],
+  line: [{ path: 'line.count', step: 1 }],
+  neurons: [{ path: 'network.cells', step: 2 }],
+  cells: [{ path: 'cells.crowd', step: 1 }],
+  'swarm-galaxy': [{ path: 'look.count', step: 0.1 }],
+  constellation: [{ path: 'sky.stars', step: 0.05 }],
+  'dream-clouds': [{ path: 'clouds.amount', step: 0.05 }],
   waves: [
     { path: 'waveCount.active', step: 2 },
     { path: 'waveCount.idle', step: 2 },
   ],
+};
+
+/**
+ * The size knob: the one slider that reads as how big a visual is — its own
+ * zoom where it has a camera, its size where it is a thing. Anything not here
+ * is zoomed as a picture, which every visual can be.
+ */
+export const SIZES: Record<string, string> = {
+  bloom: 'field.zoom',
+  butterflies: 'flight.zoom',
+  anemone: 'garden.zoom',
+  jellyfish: 'swarm.zoom',
+  dandelion: 'field.zoom',
+  video: 'frame.zoom',
+  'macro-ink': 'look.zoom',
+  'macro-petals': 'look.zoom',
+  'macro-rings': 'look.zoom',
+  morphing: 'shape.size',
+  cells: 'cells.size',
+  crowd: 'crowd.size',
+  atlas: 'type.size',
+  'swarm-galaxy': 'look.size',
+  constellation: 'sky.size',
+  tonight: 'look.size',
+  data: 'look.size',
+  dice: 'dice.size',
+  particleimage: 'points.size',
+  'dream-clouds': 'clouds.size',
+  geometric: 'polygon.baseSize',
+  bigtype: 'type.size',
+  smear: 'source.size',
+  blend: 'blend.size',
 };
 
 export const ZOOM_MIN = 0.5;

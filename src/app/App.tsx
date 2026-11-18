@@ -31,7 +31,7 @@ import { setLfo, useLfos } from './control/lfo';
 const PICTURE_ZOOM = '__zoom';
 /** The page opened with ?cue: the cue-then-GO bar, to compare with plain taps. */
 const CUE_TEST = typeof location !== 'undefined' && new URLSearchParams(location.search).has('cue');
-import { COUNTS, KNOB_FX, KNOB_OFF, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, knobPosition, knobValue } from './control/knobs';
+import { COUNTS, KNOB_FX, KNOB_OFF, SIZES, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, knobPosition, knobValue } from './control/knobs';
 import { stageDoing } from './pipeline/PostPipeline';
 import { getByPath } from './params/types';
 import { Hand, AudioLines } from 'lucide-react';
@@ -1255,6 +1255,87 @@ export default function App() {
     });
   }, [currentPattern]);
 
+  /*
+   * THE SET KNOBS — one turn, one idea, on whichever visual is selected:
+   * how big it is, how many there are, and the feedback's tunnel and spiral;
+   * and the sphere's points-to-outline, wherever the sphere is.
+   */
+  const specOf = (pattern: string, path: string) =>
+    RENDERER_PARAMS[pattern as VisualPattern]?.groups.flatMap((g) => g.params).find((p) => p.path === path);
+  const paramNow = (pattern: string, path: string) =>
+    (paramValues[pattern]?.[path] ?? getByPath(RENDERER_PARAMS[pattern as VisualPattern]?.config ?? {}, path) ?? 0) as number;
+  const snapTo = (v: number, step: number) => Math.round(Math.round(v / step) * step * 10000) / 10000;
+  /** Picture zoom on a knob: even steps in or out, as drawn (1) a little under the middle. */
+  const zoomAt = (v: number) => ZOOM_MIN * Math.pow(ZOOM_MAX / ZOOM_MIN, v);
+  const zoomPos = (z: number) => Math.log(z / ZOOM_MIN) / Math.log(ZOOM_MAX / ZOOM_MIN);
+  const TUNNEL = { min: 0.9, max: 1.1 };
+  const SPIRAL = { min: -0.05, max: 0.05 };
+
+  const turnSetKnob = (id: string, v: number) => {
+    const pattern = currentPattern;
+    const name = RENDERER_CATEGORIES[pattern].short;
+    const write = (p: string, next: Record<string, number>) =>
+      setParamValues((prev) => ({ ...prev, [p]: { ...(prev[p] ?? {}), ...next } }));
+    if (id === 'size') {
+      const path = SIZES[pattern];
+      const spec = path ? specOf(pattern, path) : undefined;
+      if (path && spec) {
+        const x = snapTo(spec.min + v * (spec.max - spec.min), spec.step);
+        write(pattern, { [path]: x });
+        flash(`${name} · ${spec.label} ${x}`);
+      } else {
+        const z = zoomAt(v);
+        const snapped = Math.abs(z - 1) < 0.04 ? 1 : Math.round(z * 100) / 100;
+        setZooms((prev) => ({ ...prev, [pattern]: snapped }));
+        flash(`${name} · Zoom ${Math.round(snapped * 100)}%`);
+      }
+    } else if (id === 'count') {
+      const counts = COUNTS[pattern];
+      if (!counts) { flash(`${name} · nothing to count`); return; }
+      const next: Record<string, number> = {};
+      for (const { path } of counts) {
+        const spec = specOf(pattern, path);
+        if (spec) next[path] = snapTo(spec.min + v * (spec.max - spec.min), spec.step);
+      }
+      write(pattern, next);
+      const first = specOf(pattern, counts[0].path);
+      const shown = next[counts[0].path];
+      flash(`${name} · ${first?.label ?? 'Count'} ${Number.isInteger(shown) ? shown : Math.round(v * 100) + '%'}`);
+    } else if (id === 'tunnel' || id === 'spiral') {
+      const range = id === 'tunnel' ? TUNNEL : SPIRAL;
+      const rest = id === 'tunnel' ? 1 : 0;
+      // A notch either side of the middle is none at all.
+      const x = Math.abs(v - 0.5) < 0.03 ? rest : Math.round((range.min + v * (range.max - range.min)) * 10000) / 10000;
+      const path = id === 'tunnel' ? 'feedback.zoom' : 'feedback.rotate';
+      setFxByPattern((prev) => ({ ...prev, [pattern]: { ...(prev[pattern] ?? {}), [path]: x } }));
+      const on = (fxByPattern[pattern]?.['feedback.enabled'] ?? 0) >= 0.5 && (fxByPattern[pattern]?.['feedback.amount'] ?? 0) > 0;
+      const label = id === 'tunnel' ? 'Tunnel' : 'Spiral';
+      flash(on ? `${name} · ${label} ${x === rest ? 'none' : x > rest ? (id === 'tunnel' ? 'out' : 'right') : (id === 'tunnel' ? 'in' : 'left')}` : `${label} — turn Trail up to see it`);
+    } else if (id === 'sphere') {
+      const x = Math.round(v * 200) / 100;
+      write('morphing', { 'shape.style': x });
+      flash(`Sphere · ${x < 0.05 ? 'points' : x > 1.95 ? 'outline' : 'growing lines'}`);
+    }
+  };
+  const readSetKnob = (id: string): number | undefined => {
+    const pattern = currentPattern;
+    if (id === 'size') {
+      const path = SIZES[pattern];
+      const spec = path ? specOf(pattern, path) : undefined;
+      if (path && spec) return (paramNow(pattern, path) - spec.min) / (spec.max - spec.min);
+      return zoomPos(zooms[pattern] ?? 1);
+    }
+    if (id === 'count') {
+      const path = COUNTS[pattern]?.[0]?.path;
+      const spec = path ? specOf(pattern, path) : undefined;
+      return path && spec ? (paramNow(pattern, path) - spec.min) / (spec.max - spec.min) : undefined;
+    }
+    if (id === 'tunnel') return ((fxByPattern[pattern]?.['feedback.zoom'] ?? 1) - TUNNEL.min) / (TUNNEL.max - TUNNEL.min);
+    if (id === 'spiral') return ((fxByPattern[pattern]?.['feedback.rotate'] ?? 0) - SPIRAL.min) / (SPIRAL.max - SPIRAL.min);
+    if (id === 'sphere') return paramNow('morphing', 'shape.style') / 2;
+    return undefined;
+  };
+
   const effectNames = useMemo(
     () => PIPELINE_PARAMS.groups.filter((g) => g.togglePath).map((g) => g.name),
     [],
@@ -1276,6 +1357,11 @@ export default function App() {
     })),
     { id: 'layer.prev', label: 'Select previous layer', group: 'Layers', continuous: false },
     { id: 'layer.next', label: 'Select next layer', group: 'Layers', continuous: false },
+    { id: 'set:size', label: 'Size / zoom', group: 'Set knobs (selected visual)', continuous: true },
+    { id: 'set:count', label: 'How many', group: 'Set knobs (selected visual)', continuous: true },
+    { id: 'set:tunnel', label: 'Feedback tunnel (middle = none)', group: 'Set knobs (selected visual)', continuous: true },
+    { id: 'set:spiral', label: 'Feedback spiral (middle = none)', group: 'Set knobs (selected visual)', continuous: true },
+    { id: 'set:sphere', label: 'Sphere: points → outline', group: 'Set knobs (selected visual)', continuous: true },
     ...KNOB_FX.map((fx) => ({
       id: `knob:${fx.name}`, label: `${fx.name} amount`, group: 'Effect knobs (selected layer)', continuous: true,
     })),
@@ -1387,6 +1473,7 @@ export default function App() {
     else if (target === 'hue') setHue(Math.round(value * 359));
     else if (target === 'saturation') setSaturation(Math.round(value * 100));
     else if (target === 'master') setMaster(Math.round(value * 100) / 100);
+    else if (target.startsWith('set:')) turnSetKnob(target.slice(4), value);
     else if (target.startsWith('knob:')) {
       const fx = KNOB_FX.find((k) => k.name === target.slice(5));
       if (fx) { knobSent.current[target] = value; turnFx(fx, value); }
@@ -1412,6 +1499,7 @@ export default function App() {
     if (target === 'hue') return hue / 359;
     if (target === 'saturation') return saturation / 100;
     if (target === 'master') return master;
+    if (target.startsWith('set:')) return readSetKnob(target.slice(4));
     if (target.startsWith('knob:')) {
       const fx = KNOB_FX.find((k) => k.name === target.slice(5));
       const group = PIPELINE_PARAMS.groups.find((g) => g.name === fx?.name);
