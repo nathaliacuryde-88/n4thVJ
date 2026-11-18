@@ -219,17 +219,18 @@ export function unbind(target: string) {
 /**
  * The Korg nanoKONTROL2 in its factory CC mode, laid out for playing a set.
  *
- *   knob 1   how many — dice, lines, flowers, cells… from none to all
- *   knob 2   feedback trail (all the way down is off)
+ *   knob 1   feedback trail (all the way down is off)
+ *   knob 2   feedback spiral (middle = none)
  *   knob 3   size — the selected visual's things, bigger or smaller (never
  *            the frame shrinking onto black)
- *   knob 4   feedback spiral (middle = none)
- *   knob 5   the sphere, from points to full outline
+ *   knob 4   the sphere, from points to full outline
+ *   knob 5   the fall through the clouds / the dive into the stars
  *   knob 6   colour (hue of the selected visual)
- *   knob 7   how strongly the music drives everything
- *   knob 8   free, to LEARN
+ *   knob 7   Repeat (all the way down is off)
+ *   knob 8   how strongly the music drives everything
  *
- *   faders 1–3   layer 1–3 opacity         faders 4–8  free, to LEARN
+ *   faders 1–3   layer 1–3 opacity         faders 4–6  layer 1–3 hands drive
+ *   fader 7      transition length (FADE)  fader 8     master, down to black
  *   S 1–8        visuals 1–8               M 1–7       visuals 9–15
  *   R 1–4        select layer 1–4          R 5–6       Kaleido, Noise on/off
  *   R 7          auto-pilot                R 8         blackout
@@ -245,9 +246,14 @@ export function unbind(target: string) {
 export function nanoKontrol2Map(): Record<string, string> {
   const cc = (n: number) => `cc:0:${n}`;
   const out: Record<string, string> = {};
-  for (let i = 0; i < 3; i++) out[`layer${i + 1}`] = cc(i);
+  for (let i = 0; i < 3; i++) {
+    out[`layer${i + 1}`] = cc(i);
+    out[`motion${i + 1}`] = cc(3 + i);
+  }
+  out.fadeTime = cc(6);
+  out.master = cc(7);
   for (let i = 0; i < 4; i++) out[`select${i + 1}`] = cc(64 + i);
-  ['set:count', 'knob:Feedback', 'set:size', 'set:spiral', 'set:sphere', 'hue', 'gain']
+  ['knob:Feedback', 'set:spiral', 'set:size', 'set:sphere', 'set:fall', 'hue', 'knob:Repeat', 'gain']
     .forEach((target, i) => { out[target] = cc(16 + i); });
   for (let i = 0; i < 8; i++) out[`slot${i + 1}`] = cc(32 + i);
   for (let i = 0; i < 7; i++) out[`slot${i + 9}`] = cc(48 + i);
@@ -262,7 +268,7 @@ export function nanoKontrol2Map(): Record<string, string> {
 }
 
 /** Which layout of the preset this is, so a map made by an older one can be brought up to date. */
-export const NANO_LAYOUT = 'set knobs 2';
+export const NANO_LAYOUT = 'set knobs 3';
 
 /**
  * A map an older preset made — the hands drive on the knobs, or then the
@@ -270,11 +276,18 @@ export const NANO_LAYOUT = 'set knobs 2';
  * preset again is not something she has to know to do.
  */
 (function upgrade() {
-  if (map['motion1'] === 'cc:0:16' || map['knob:Feedback'] === 'cc:0:16' || map['set:size'] === 'cc:0:16') {
+  // Once per layout: what she LEARNs on top of the preset afterwards is kept.
+  const LAYOUT_KEY = 'vj-midi-layout';
+  let had: string | null = null;
+  try { had = localStorage.getItem(LAYOUT_KEY); } catch { /* blocked */ }
+  if (had === NANO_LAYOUT) return;
+  const fromPreset = ['motion1', 'knob:Feedback', 'set:size', 'set:count'].some((t) => map[t] === 'cc:0:16');
+  if (fromPreset) {
     map = nanoKontrol2Map();
     save();
     snapshot = make();
   }
+  try { localStorage.setItem(LAYOUT_KEY, NANO_LAYOUT); } catch { /* blocked */ }
 })();
 
 export function useMidi() {

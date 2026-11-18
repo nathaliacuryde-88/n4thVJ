@@ -1346,6 +1346,14 @@ export default function App() {
       const on = (fxByPattern[pattern]?.['feedback.enabled'] ?? 0) >= 0.5 && (fxByPattern[pattern]?.['feedback.amount'] ?? 0) > 0;
       const label = id === 'tunnel' ? 'Tunnel' : 'Spiral';
       flash(on ? `${name} · ${label} ${x === rest ? 'none' : x > rest ? (id === 'tunnel' ? 'out' : 'right') : (id === 'tunnel' ? 'in' : 'left')}` : `${label} — turn Trail up to see it`);
+    } else if (id === 'fall') {
+      // The fall through the clouds and the dive into the stars, together:
+      // whichever is up moves.
+      write('arrival-clouds', { 'motion.speed': Math.round(v * 300) / 100 });
+      write('tonight', { 'flight.dive': Math.round(v * 150) / 100 });
+      const up = layers.map((l) => l.pattern);
+      flash(up.includes('tonight') && !up.includes('arrival-clouds') ? `Stars · Dive ${Math.round(v * 150) / 100}`
+        : `Clouds · Fall ${Math.round(v * 300) / 100}`);
     } else if (id === 'sphere') {
       const x = Math.round(v * 200) / 100;
       write('morphing', { 'shape.style': x });
@@ -1368,6 +1376,12 @@ export default function App() {
     if (id === 'tunnel') return ((fxByPattern[pattern]?.['feedback.zoom'] ?? 1) - TUNNEL.min) / (TUNNEL.max - TUNNEL.min);
     if (id === 'spiral') return ((fxByPattern[pattern]?.['feedback.rotate'] ?? 0) - SPIRAL.min) / (SPIRAL.max - SPIRAL.min);
     if (id === 'sphere') return paramNow('morphing', 'shape.style') / 2;
+    if (id === 'fall') {
+      const up = layers.map((l) => l.pattern);
+      return up.includes('tonight') && !up.includes('arrival-clouds')
+        ? paramNow('tonight', 'flight.dive') / 1.5
+        : paramNow('arrival-clouds', 'motion.speed') / 3;
+    }
     return undefined;
   };
 
@@ -1397,6 +1411,8 @@ export default function App() {
     { id: 'set:tunnel', label: 'Feedback tunnel (middle = none)', group: 'Set knobs (selected visual)', continuous: true },
     { id: 'set:spiral', label: 'Feedback spiral (middle = none)', group: 'Set knobs (selected visual)', continuous: true },
     { id: 'set:sphere', label: 'Sphere: points → outline', group: 'Set knobs (selected visual)', continuous: true },
+    { id: 'set:fall', label: 'Clouds fall / Stars dive', group: 'Set knobs (selected visual)', continuous: true },
+    { id: 'fadeTime', label: 'Transition length (FADE)', group: 'Tempo & set', continuous: true },
     ...KNOB_FX.map((fx) => ({
       id: `knob:${fx.name}`, label: `${fx.name} amount`, group: 'Effect knobs (selected layer)', continuous: true,
     })),
@@ -1509,6 +1525,12 @@ export default function App() {
     else if (target === 'saturation') setSaturation(Math.round(value * 100));
     else if (target === 'master') setMaster(Math.round(value * 100) / 100);
     else if (target.startsWith('set:')) turnSetKnob(target.slice(4), value);
+    else if (target === 'fadeTime') {
+      // Finer at the short end, where most of the choosing is.
+      const s = Math.round(value * value * 120) / 10;
+      setFade(s);
+      flash(s <= 0 ? 'Cut' : `Fade ${s}s`);
+    }
     else if (target.startsWith('knob:')) {
       const fx = KNOB_FX.find((k) => k.name === target.slice(5));
       if (fx) { knobSent.current[target] = value; turnFx(fx, value); }
@@ -1535,6 +1557,7 @@ export default function App() {
     if (target === 'saturation') return saturation / 100;
     if (target === 'master') return master;
     if (target.startsWith('set:')) return readSetKnob(target.slice(4));
+    if (target === 'fadeTime') return Math.sqrt(Math.max(0, Math.min(12, fade)) / 12);
     if (target.startsWith('knob:')) {
       const fx = KNOB_FX.find((k) => k.name === target.slice(5));
       const group = PIPELINE_PARAMS.groups.find((g) => g.name === fx?.name);
