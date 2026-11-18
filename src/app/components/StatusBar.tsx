@@ -286,7 +286,7 @@ export function StatusBar({
             }`}
           >
             NANOKONTROL2 PRESET{isNano ? ' — detected, click to map all' : ''}
-            <span className="block text-[9px] opacity-60">knobs: trail · spiral · size · sphere · fall/dive · colour · repeat · music — faders 1–3 layers, 4–6 hands, 7 fade, 8 master · TRACK ◀ ▶ layers</span>
+            <span className="block text-[9px] opacity-60">knobs: trail · spiral · size · sphere · fall/dive · count · colour · repeat — faders 1–3 layers, 4–6 hands, 7 music, 8 master · TRACK ◀ ▶ layers</span>
           </button>
           <div className="mb-2 text-white/35">
             Or press LEARN, then move the fader or hit the pad you want on it.

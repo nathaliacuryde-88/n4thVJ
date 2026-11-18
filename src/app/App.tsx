@@ -1462,8 +1462,13 @@ export default function App() {
       else if (id === 'pilot') setPilotOn((p) => !p);
       else if (id === 'next') cyclePattern('next');
       else if (id === 'prev') cyclePattern('prev');
-      else if (id === 'layer.next') cycleLayer();
-      else if (id === 'layer.prev') setSelectedLayer((s) => (s - 1 + layers.length) % layers.length);
+      else if (id === 'layer.next' || id === 'layer.prev') {
+        // Said on screen, so the step is seen even when the panel is hidden.
+        if (layers.length < 2) { flash('Only one layer on'); return; }
+        const to = (selectedLayer + (id === 'layer.next' ? 1 : -1) + layers.length) % layers.length;
+        setSelectedLayer(to);
+        flash(`Layer ${to + 1} · ${RENDERER_CATEGORIES[layers[to].pattern].short}`);
+      }
       else if (id === 'blackout') setBlackout((b) => !b);
       else if (id === 'count.up') stepCount(1);
       else if (id === 'count.down') stepCount(-1);

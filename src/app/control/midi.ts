@@ -225,12 +225,13 @@ export function unbind(target: string) {
  *            the frame shrinking onto black)
  *   knob 4   the sphere, from points to full outline
  *   knob 5   the fall through the clouds / the dive into the stars
- *   knob 6   colour (hue of the selected visual)
- *   knob 7   Repeat (all the way down is off)
- *   knob 8   how strongly the music drives everything
+ *   knob 6   how many — dice, lines, flowers, cells… from none to all
+ *   knob 7   colour (hue of the selected visual)
+ *   knob 8   Repeat (all the way down is off)
  *
  *   faders 1–3   layer 1–3 opacity         faders 4–6  layer 1–3 hands drive
- *   fader 7      transition length (FADE)  fader 8     master, down to black
+ *   fader 7      how strongly the music drives everything
+ *   fader 8      master, down to black
  *   S 1–8        visuals 1–8               M 1–7       visuals 9–15
  *   R 1–4        select layer 1–4          R 5–6       Kaleido, Noise on/off
  *   R 7          auto-pilot                R 8         blackout
@@ -250,10 +251,10 @@ export function nanoKontrol2Map(): Record<string, string> {
     out[`layer${i + 1}`] = cc(i);
     out[`motion${i + 1}`] = cc(3 + i);
   }
-  out.fadeTime = cc(6);
+  out.gain = cc(6);
   out.master = cc(7);
   for (let i = 0; i < 4; i++) out[`select${i + 1}`] = cc(64 + i);
-  ['knob:Feedback', 'set:spiral', 'set:size', 'set:sphere', 'set:fall', 'hue', 'knob:Repeat', 'gain']
+  ['knob:Feedback', 'set:spiral', 'set:size', 'set:sphere', 'set:fall', 'set:count', 'hue', 'knob:Repeat']
     .forEach((target, i) => { out[target] = cc(16 + i); });
   for (let i = 0; i < 8; i++) out[`slot${i + 1}`] = cc(32 + i);
   for (let i = 0; i < 7; i++) out[`slot${i + 9}`] = cc(48 + i);
@@ -268,7 +269,7 @@ export function nanoKontrol2Map(): Record<string, string> {
 }
 
 /** Which layout of the preset this is, so a map made by an older one can be brought up to date. */
-export const NANO_LAYOUT = 'set knobs 3';
+export const NANO_LAYOUT = 'set knobs 4';
 
 /**
  * A map an older preset made — the hands drive on the knobs, or then the
