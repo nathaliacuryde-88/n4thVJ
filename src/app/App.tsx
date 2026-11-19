@@ -224,7 +224,9 @@ export default function App() {
    * the panels edit the visual that is playing, as always.
    */
   const [preparing, setPreparing] = useState<VisualPattern | null>(null);
-  const editPattern = preparing ?? currentPattern;
+  // Preparing is switched off outside the cue for now: never left on, even from before.
+  useEffect(() => { if (!CUE_TEST && preparing) setPreparing(null); }, [preparing]);
+  const editPattern = (CUE_TEST ? preparing : null) ?? currentPattern;
   useEffect(() => {
     if (preparing && layers.some((l) => l.pattern === preparing)) setPreparing(null);
   }, [preparing, layers]);
@@ -2013,7 +2015,7 @@ export default function App() {
                 <button onClick={goCue} title="Space" className="shrink-0 rounded bg-cyan-300 px-2 py-0.5 text-[9px] font-semibold text-black">GO</button>
               </div>
             )}
-            {preparing && (
+            {CUE_TEST && preparing && (
               <div className="flex items-center gap-2 border-b border-amber-300/30 bg-amber-300/10 px-3 py-2">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
                 <span className="min-w-0 flex-1 text-[10px] leading-tight text-amber-100/90">
@@ -2113,8 +2115,8 @@ export default function App() {
           onOpenLibrary={() => setView('library')}
           setName={setName}
           onSaveSet={saveNamedSet}
-          preparing={preparing}
-          onPrepare={setPreparing}
+          preparing={CUE_TEST ? preparing : null}
+          onPrepare={CUE_TEST ? setPreparing : () => {}}
           {...(CUE_TEST ? { cue, onCue: cueTo, onGo: goCue, onCueClear: clearCue } : {})}
           fade={fade}
           onFadeChange={setFade}
