@@ -245,8 +245,12 @@ export class MachineRenderer {
     let seenHands = 0;
     for (const [name, hand] of hands) {
       // Only hands that are really there: the stand-in figure is never drawn as one.
-      const points = handData.synthetic ? undefined : hand?.landmarks;
-      if (!hand || !points || points.length < 21) continue;
+      const raw = handData.synthetic ? undefined : hand?.landmarks;
+      if (!hand || !raw || raw.length < 21) continue;
+      // Drawn smaller than life about the middle of the palm, where the hand is.
+      const k = Math.max(0.1, cfg.reading.hand);
+      const cx = (raw[0].x + raw[9].x) / 2, cy = (raw[0].y + raw[9].y) / 2;
+      const points = raw.map((p) => ({ ...p, x: cx + (p.x - cx) * k, y: cy + (p.y - cy) * k }));
       seenHands++;
       if (marks <= 0.01) continue;
       let x0 = 1, x1 = 0, y0 = 1, y1 = 0;

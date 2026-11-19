@@ -967,6 +967,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'picture.camera', label: 'Camera', min: 0, max: 1, step: 0.05, hint: '0 = only the reading, no picture' },
           { path: 'picture.dissolve', label: 'Dissolve', min: 0, max: 2, step: 0.05 },
           { path: 'reading.marks', label: 'Marks', min: 0, max: 1, step: 0.05, hint: 'boxes, joints, lines' },
+          { path: 'reading.hand', label: 'Hand size', min: 0.3, max: 1.5, step: 0.05, hint: 'the drawn hand, about its palm · 1 = life size' },
           { path: 'reading.words', label: 'Words', min: 0, max: 1, step: 0.05, hint: 'what it says it sees and hears' },
         ],
       },

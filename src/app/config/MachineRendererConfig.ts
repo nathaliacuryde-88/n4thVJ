@@ -20,6 +20,8 @@ export const MachineConfig = {
     marks: 1,
     /** The written readings: what it thinks it sees and hears. */
     words: 1,
+    /** How big the hand is drawn, about its palm: 1 life size. */
+    hand: 0.7,
   },
 
   hands: {
