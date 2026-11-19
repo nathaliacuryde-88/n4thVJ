@@ -488,14 +488,13 @@ export function Controls({
                       e.preventDefault();
                       e.stopPropagation();
                       cancelHold();
-                      if (onCue) { onCue(pattern); return; }
-                      if (layerIndex !== -1) return;
-                      onPrepare(preparing === pattern ? null : pattern);
+                      // Preparing (the yellow ✎) is switched off for now; only the cue uses this.
+                      if (onCue) onCue(pattern);
                     }}
                     className={`relative flex w-[56px] shrink-0 cursor-grab flex-col items-center gap-0.5 group/set active:cursor-grabbing ${dragging === pattern ? 'opacity-40' : ''}`}
                     title={`${RENDERER_CATEGORIES[pattern].name} (${slotKey(index) || 'no key: click'})${
                       layerIndex !== -1 ? ` — layer ${layerIndex + 1}` : ''
-                    } · hold to stack · drag to reorder${onCue ? ' · right-click to cue' : layerIndex === -1 ? ' · right-click to prepare' : ''}`}
+                    } · hold to stack · drag to reorder${onCue ? ' · right-click to cue' : ''}`}
                   >
                     {/* A still of the visual, so the key is recognised by what it
                         plays, its key in the corner. */}
@@ -551,7 +550,7 @@ export function Controls({
                       </span>
                     )}
                     {/* Prepare it: its settings, off screen. Appears on a rest, like the ×. */}
-                    {(layerIndex === -1 || onCue) && (
+                    {onCue && (
                       <span
                         role="button"
                         aria-label={`Prepare ${RENDERER_CATEGORIES[pattern].name} without playing it`}
