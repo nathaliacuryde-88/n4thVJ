@@ -23,6 +23,8 @@ export const MorphingSphereConfig = {
     flow: 1,
     /** The dust of stars round it. */
     dust: 0.5,
+    /** How many points of dust there are behind it. */
+    points: 1400,
   },
 
   hands: {

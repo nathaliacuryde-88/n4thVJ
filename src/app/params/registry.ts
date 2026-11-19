@@ -1048,6 +1048,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'motion.spin', label: 'Spin', min: 0, max: 3, step: 0.05, hint: 'turning about its centre' },
           { path: 'motion.flow', label: 'Flow', min: 0, max: 3, step: 0.05, hint: 'how fast the shape moves on' },
           { path: 'motion.dust', label: 'Stars', min: 0, max: 1, step: 0.05 },
+          { path: 'motion.points', label: 'Star count', min: 0, max: 6000, step: 100, hint: 'how many points behind the sphere' },
         ],
       },
       {

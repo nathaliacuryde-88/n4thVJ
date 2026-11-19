@@ -74,7 +74,8 @@ export class MorphingSphereRenderer {
     this.wire = new THREE.LineBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.85 });
     this.dots = new THREE.PointsMaterial({ color: 0x66ccff, size: 0.09, transparent: true, opacity: 1, depthWrite: false });
 
-    const count = 1400;
+    // Made at the most there can be; the slider shows the first however-many.
+    const count = 6000;
     const dust = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       const r = 4 + Math.random() * 14;
@@ -235,7 +236,9 @@ export class MorphingSphereRenderer {
     this.wire.opacity = 0.55 + 0.4 * Math.min(1, this.swell + this.pulse);
     const dustMat = this.dust.material as THREE.PointsMaterial;
     dustMat.opacity = Math.max(0, Math.min(1, cfg.motion.dust));
-    this.dust.visible = cfg.motion.dust > 0.01;
+    const shown = Math.max(0, Math.min(6000, Math.round(cfg.motion.points)));
+    this.dust.geometry.setDrawRange(0, shown);
+    this.dust.visible = cfg.motion.dust > 0.01 && shown > 0;
     this.dust.rotation.y = -this.time * 0.03;
 
     if (this.surface.width !== W || this.surface.height !== H) {

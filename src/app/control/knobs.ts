@@ -84,6 +84,7 @@ export const COUNTS: Record<string, { path: string; step: number }[]> = {
   crowd: [{ path: 'crowd.figures', step: 4 }],
   line: [{ path: 'line.count', step: 1 }],
   dust: [{ path: 'field.count', step: 200 }],
+  morphing: [{ path: 'motion.points', step: 400 }],
   'arrival-clouds': [{ path: 'look.cover', step: 0.1 }],
   neurons: [{ path: 'network.cells', step: 2 }],
   cells: [{ path: 'cells.crowd', step: 1 }],
