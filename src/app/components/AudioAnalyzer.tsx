@@ -3,6 +3,7 @@ import { AnalyserState, analyse, createState } from '../audio/analyse';
 import { publishSpectrum } from '../audio/spectrum';
 import { BeatTracker } from '../audio/beatTracker';
 import { hearTempo } from '../motion/tempo';
+import { refreshInputs, reportInput, useAudioInput } from '../audio/input';
 
 /** What the visuals get with the microphone off: nothing, and no opinion on the arc. */
 const SILENT: ReturnType<typeof analyse> = {
@@ -37,6 +38,9 @@ export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: A
   const trackerRef = useRef(new BeatTracker());
   
   const [error, setError] = useState<string | null>(null);
+  // The input chosen in the sound panel: changing it reopens the stream on it.
+  const chosenId = useAudioInput().chosen?.id ?? null;
+  const [retry, setRetry] = useState(0);
 
   // Held in a ref so a new callback identity cannot tear the microphone down.
   const streamOut = useRef(onStream);
@@ -99,15 +103,35 @@ export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: A
          * breakdown and back down on the drop, which flattens exactly the
          * rise and fall the analysis is here to follow.
          */
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-        });
+        const plain = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+        let stream: MediaStream;
+        let why: string | null = null;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: chosenId ? { ...plain, deviceId: { exact: chosenId } } : plain,
+          });
+        } catch (err) {
+          // The chosen input is not there: listen to the default rather than to nothing.
+          if (!chosenId) throw err;
+          stream = await navigator.mediaDevices.getUserMedia({ audio: plain });
+          why = 'The chosen input is not connected — listening to the default.';
+        }
         if (cancelled) {
           stream.getTracks().forEach(track => track.stop());
           return;
         }
         streamRef.current = stream;
         streamOut.current?.(stream);
+        // Labels are only readable once permission is given: list them now.
+        void refreshInputs();
+        const track = stream.getAudioTracks()[0];
+        reportInput(track?.label ?? null, why);
+        // Unplugged mid-set: open again (on the default if it is gone) instead of going silent.
+        track?.addEventListener('ended', () => {
+          if (cancelled) return;
+          reportInput(null, 'The input was disconnected — reconnecting…');
+          setRetry((n) => n + 1);
+        });
 
         const audioContext = new AudioContext();
         audioContextRef.current = audioContext;
@@ -157,7 +181,7 @@ export function AudioAnalyzer({ onAudioData, onStream, enabled, sensitivity }: A
     initAudio();
 
     return teardown;
-  }, [enabled, onAudioData]);
+  }, [enabled, onAudioData, chosenId, retry]);
 
   if (error) {
     return (

@@ -7,6 +7,7 @@ import {
   Volume2, VolumeX, MonitorPlay, Music, Aperture,
 } from 'lucide-react';
 import { SOUND_HINT, SOUND_LABEL, SoundSource } from '../record/audio';
+import { chooseInput, refreshInputs, useAudioInput } from '../audio/input';
 import { useTempo } from '../motion/tempo';
 import { ColorController } from './ColorController';
 import { RENDERER_CATEGORIES } from '../config/RendererCategories';
@@ -228,6 +229,7 @@ export function Controls({
   onFinishCycle,
 }: ControlsProps) {
   const tempo = useTempo();
+  const input = useAudioInput();
   
   // Tap goes to the visual alone, hold stacks — the same split, and the same
   // hold length, as the number keys.
@@ -823,6 +825,28 @@ export function Controls({
                       >
                           {handsDriving ? 'HAND PLAYS' : 'SOUND PLAYS'}
                       </span>
+                  </div>
+
+                  {/* Which input it listens to: the laptop's microphone or the DJ's line in. */}
+                  <div className="space-y-1" title="Which input the visuals listen to. A USB interface from the mixer gives the cleanest beat; the choice is remembered">
+                      <div className="text-[9px] text-white/50 font-medium">INPUT</div>
+                      <select
+                          aria-label="Audio input"
+                          value={input.chosen?.id ?? ''}
+                          onFocus={() => { void refreshInputs(); }}
+                          onChange={(e) => chooseInput(e.target.value || null)}
+                          className="w-full truncate rounded bg-white/10 px-1 py-1 text-[10px] text-white outline-none hover:bg-white/15"
+                      >
+                          <option value="" className="bg-black">System default</option>
+                          {input.devices.map((d) => (
+                              <option key={d.id} value={d.id} className="bg-black">{d.label}</option>
+                          ))}
+                      </select>
+                      {input.problem ? (
+                          <div className="text-[9px] leading-snug text-amber-300">{input.problem}</div>
+                      ) : input.using ? (
+                          <div className="truncate text-[9px] text-white/35" title={input.using}>hearing: {input.using}</div>
+                      ) : null}
                   </div>
 
                   {/*
