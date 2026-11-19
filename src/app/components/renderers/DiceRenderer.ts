@@ -579,19 +579,24 @@ export class DiceRenderer {
 
     // Knocking into each other: pushed apart, and they trade the part of
     // their speed that points at each other.
-    const reach = rest * 2.05;
+    // Far enough that two cubes never sink into each other, even corner to
+    // corner; a few passes, so a pile settles apart instead of fused.
+    const reach = rest * 2.45;
+    for (let pass = 0; pass < 4; pass++)
     for (let a = 0; a < live.length; a++) {
       for (let b = a + 1; b < live.length; b++) {
         const A = live[a];
         const B = live[b];
         const gap = new THREE.Vector3().subVectors(B.p, A.p);
-        const dist = gap.length();
-        if (dist >= reach || dist < 1e-6) continue;
+        let dist = gap.length();
+        if (dist >= reach) continue;
+        // On top of one another exactly: apart in some direction along the floor.
+        if (dist < 1e-4) { const t = Math.random() * Math.PI * 2; gap.set(Math.cos(t), 0, Math.sin(t)); dist = 1; }
         const n = gap.divideScalar(dist);
         const overlap = reach - dist;
         A.p.addScaledVector(n, -overlap / 2);
         B.p.addScaledVector(n, overlap / 2);
-        const closing = new THREE.Vector3().subVectors(A.v, B.v).dot(n);
+        const closing = pass > 0 ? 0 : new THREE.Vector3().subVectors(A.v, B.v).dot(n);
         if (closing > 0) {
           const swap = closing * (1 + 0.4) / 2;
           A.v.addScaledVector(n, -swap);

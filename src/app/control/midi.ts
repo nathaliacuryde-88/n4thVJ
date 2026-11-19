@@ -229,9 +229,7 @@ export function unbind(target: string) {
  *   knob 7   colour (hue of the selected visual)
  *   knob 8   Repeat (all the way down is off)
  *
- *   faders 1–3   layer 1–3 opacity         faders 4–6  layer 1–3 hands drive
- *   fader 7      how strongly the music drives everything
- *   fader 8      master, down to black
+ *   faders 1–3   layer 1–3 opacity         faders 4–8  nothing
  *   S 1–8        visuals 1–8               M 1–7       visuals 9–15
  *   R 1–4        select layer 1–4          R 5–6       Kaleido, Noise on/off
  *   R 7          auto-pilot                R 8         blackout
@@ -248,12 +246,9 @@ export function unbind(target: string) {
 export function nanoKontrol2Map(): Record<string, string> {
   const cc = (n: number) => `cc:0:${n}`;
   const out: Record<string, string> = {};
-  for (let i = 0; i < 3; i++) {
-    out[`layer${i + 1}`] = cc(i);
-    out[`motion${i + 1}`] = cc(3 + i);
-  }
-  out.gain = cc(6);
-  out.master = cc(7);
+  // Only the first three faders: the others are left empty, so a brush
+  // against them mid-set changes nothing.
+  for (let i = 0; i < 3; i++) out[`layer${i + 1}`] = cc(i);
   for (let i = 0; i < 4; i++) out[`select${i + 1}`] = cc(64 + i);
   ['knob:Feedback', 'set:spiral', 'set:size', 'set:sphere', 'set:fall', 'set:count', 'hue', 'knob:Repeat']
     .forEach((target, i) => { out[target] = cc(16 + i); });
@@ -270,7 +265,7 @@ export function nanoKontrol2Map(): Record<string, string> {
 }
 
 /** Which layout of the preset this is, so a map made by an older one can be brought up to date. */
-export const NANO_LAYOUT = 'set knobs 5';
+export const NANO_LAYOUT = 'set knobs 6';
 
 /**
  * A map an older preset made — the hands drive on the knobs, or then the
