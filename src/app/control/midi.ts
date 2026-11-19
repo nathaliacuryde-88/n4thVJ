@@ -240,7 +240,7 @@ export function unbind(target: string) {
  *                                           CYCLE       auto colour
  *   ◀◀ ▶▶        fewer / more objects — or zoom out / in, where nothing counts
  *   MARKER SET   tap tempo                  MARKER ◀ ▶  tempo −/+
- *   STOP         all effects on/off         PLAY        hands ↔ audio
+ *   STOP         all effects on/off         PLAY        nothing (it switched the microphone off mid-set)
  *   REC          record
  */
 export function nanoKontrol2Map(): Record<string, string> {
@@ -259,13 +259,13 @@ export function nanoKontrol2Map(): Record<string, string> {
     prev: cc(58), next: cc(59), autohue: cc(46),
     'count.down': cc(43), 'count.up': cc(44),
     tap: cc(60), 'tempo.down': cc(61), 'tempo.up': cc(62),
-    fx: cc(42), mode: cc(41), record: cc(45),
+    fx: cc(42), record: cc(45),
   });
   return out;
 }
 
 /** Which layout of the preset this is, so a map made by an older one can be brought up to date. */
-export const NANO_LAYOUT = 'set knobs 6';
+export const NANO_LAYOUT = 'set knobs 7';
 
 /**
  * A map an older preset made — the hands drive on the knobs, or then the
