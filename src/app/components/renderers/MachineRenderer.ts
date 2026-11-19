@@ -300,7 +300,7 @@ export class MachineRenderer {
     }
 
     // What it sees and hears, in words, in the corner.
-    if (words > 0.01) {
+    if (false) { // the corner readout: taken out
       const bpm = currentBpm();
       const live = !!audioData?.live;
       const lines = [
