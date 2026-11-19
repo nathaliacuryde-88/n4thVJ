@@ -298,8 +298,24 @@ export default function App() {
    * stack keeps playing as it is while the others leave. Holding still adds
    * and removes layers; the layer list and L still pick which one to edit.
    */
-  const setCurrentPattern = useCallback((pattern: VisualPattern) => {
+  const lastTapRef = useRef<{ pattern: string; at: number } | null>(null);
+  const setCurrentPattern = useCallback((pattern: VisualPattern, solo = false) => {
     if (layers.length === 1 && layers[0].pattern === pattern) return;
+    const at = layers.findIndex((l) => l.pattern === pattern);
+    /*
+     * Already up with others: a tap picks it to edit and leaves the rest
+     * playing; a second tap straight after keeps only it.
+     */
+    if (at !== -1 && !solo) {
+      const now = performance.now();
+      const last = lastTapRef.current;
+      lastTapRef.current = { pattern, at: now };
+      if (!(last && last.pattern === pattern && now - last.at < 450)) {
+        setSelectedLayer(at);
+        return;
+      }
+      lastTapRef.current = null;
+    }
     const existing = layers.find((l) => l.pattern === pattern);
     setLayers([existing ?? withFaders(layers[selectedLayer] ?? layers[0], pattern)]);
     setSelectedLayer(0);
@@ -1094,7 +1110,7 @@ export default function App() {
     const next = at === -1
       ? (direction === 'next' ? 0 : set.length - 1)
       : (at + step + set.length) % set.length;
-    setCurrentPattern(set[next]);
+    setCurrentPattern(set[next], true);
   }, [currentPattern, set, setCurrentPattern]);
 
   /*
