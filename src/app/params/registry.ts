@@ -876,6 +876,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'line.zoom', label: 'Zoom', min: 0.3, max: 2.5, step: 0.05, hint: 'the fan smaller or larger; the lines still cross the frame' },
           { path: 'line.weight', label: 'Weight', min: 0.3, max: 4, step: 0.05 },
           { path: 'line.wave', label: 'Wave', min: 0, max: 3, step: 0.05 },
+          { path: 'line.speed', label: 'Speed', min: 0, max: 4, step: 0.05, hint: 'how fast the waves run along the lines · 0 = still' },
           { path: 'line.birth', label: 'Birth', min: 0, max: 3, step: 0.05, hint: 'how slowly the first line draws itself; 0 = already there' },
         ],
       },
@@ -1501,6 +1502,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         params: [
           { path: 'swarm.count', label: 'Jellyfish', min: 0, max: 8, step: 1, hint: '0 = empty water; on coming up they arrive one by one from below' },
           { path: 'swarm.zoom', label: 'Zoom', min: 0.4, max: 2.5, step: 0.05, hint: '1 = as framed; higher = closer' },
+          { path: 'swarm.height', label: 'Height', min: -1, max: 1, step: 0.05, hint: 'where they sit: below 0 lower, above 0 higher' },
           { path: 'swarm.size', label: 'Size', min: 0.4, max: 2, step: 0.05 },
           { path: 'swarm.drift', label: 'Drift', min: 0, max: 2.5, step: 0.05, hint: '0 holds each in place' },
           { path: 'swarm.pulse', label: 'Pulse', min: 0, max: 1.5, step: 0.05 },

@@ -22,6 +22,8 @@ export const JellyfishConfig = {
     count: 4,
     /** Zoom: 1 as framed, above 1 closer, below 1 further away. */
     zoom: 1,
+    /** Where they sit: below 0 lower in the frame, above 0 higher. */
+    height: 0,
     /** How big they are. */
     size: 1,
     /** How far each wanders round its patch of water. */

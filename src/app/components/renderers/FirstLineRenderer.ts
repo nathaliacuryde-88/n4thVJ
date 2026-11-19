@@ -78,7 +78,8 @@ export class FirstLineRenderer {
     const { dt } = play;
     const step = Math.max(0, play.step);
     this.age += step;
-    this.time += step;
+    // Speed: how fast the waves travel along the lines; the finger count still sets the tempo.
+    this.time += step * Math.max(0, cfg.line.speed);
     this.idle += dt;
     const ease = (rate: number) => 1 - Math.exp(-dt * rate);
 

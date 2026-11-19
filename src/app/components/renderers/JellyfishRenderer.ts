@@ -273,8 +273,10 @@ export class JellyfishRenderer {
       return;
     }
     frameCamera(this.camera, width, height);
-    this.camera.position.set(0, 0.5, 15.5 / Math.max(0.3, cfg.swarm.zoom));
-    this.camera.lookAt(0, 0.1, 0);
+    // Height: the camera tilts down or up, so the swarm sits lower or higher in the frame.
+    const shift = -cfg.swarm.height * 4.5;
+    this.camera.position.set(0, 0.5 + shift, 15.5 / Math.max(0.3, cfg.swarm.zoom));
+    this.camera.lookAt(0, 0.1 + shift, 0);
     this.update(handData, colors, audioData);
     if (this.surface.width !== width || this.surface.height !== height) {
       renderer.setSize(width, height, false);
