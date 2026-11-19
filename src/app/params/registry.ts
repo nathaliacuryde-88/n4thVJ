@@ -48,6 +48,7 @@ import { FirstLineConfig } from '../config/FirstLineRendererConfig';
 import { MyceliumConfig } from '../config/MyceliumRendererConfig';
 import { CellConfig } from '../config/CellRendererConfig';
 import { StandbyConfig } from '../config/StandbyRendererConfig';
+import { DustConfig } from '../config/DustRendererConfig';
 import { NeuronConfig } from '../config/NeuronRendererConfig';
 import { MorphingSphereConfig } from '../config/MorphingSphereRendererConfig';
 import { ArrivalConfig } from '../config/ArrivalRendererConfig';
@@ -1096,6 +1097,43 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.cells', label: 'Cells per kick', min: 1, max: 8, step: 1 },
           { path: 'sound.build', label: 'Build excites', min: 0, max: 2, step: 0.05, hint: 'a build-up makes it more excitable' },
           { path: 'sound.drop', label: 'Drop', min: 0, max: 2, step: 0.05, hint: 'the drop sets much of it off · 0 = quiet' },
+        ],
+      },
+    ],
+  },
+  dust: {
+    config: DustConfig,
+    groups: [
+      {
+        name: 'Field',
+        params: [
+          { path: 'field.count', label: 'Grains', min: 100, max: 5000, step: 50 },
+          { path: 'field.size', label: 'Size', min: 0.3, max: 4, step: 0.05 },
+          { path: 'field.drift', label: 'Drift', min: 0, max: 4, step: 0.05, hint: 'how fast the current carries them' },
+          { path: 'form.circle', label: 'Circle', min: 0, max: 1, step: 0.01, hint: 'gathers it into the circle the universe begins with' },
+        ],
+      },
+      {
+        name: 'Look',
+        params: [
+          { path: 'look.trail', label: 'Trail', min: 0, max: 1, step: 0.05 },
+          { path: 'look.grain', label: 'Grain', min: 0, max: 1, step: 0.05 },
+          { path: 'look.glow', label: 'Resting light', min: 0, max: 3, step: 0.05, hint: 'how much of the field shows between beats' },
+        ],
+      },
+      {
+        name: 'Hands',
+        params: [
+          { path: 'hands.reach', label: 'Hand', min: 0, max: 2, step: 0.05, hint: 'open palm lights and parts it; fist gathers it into the circle' },
+          { path: 'hands.clap', label: 'Clap lights all', min: 0, max: 2, step: 0.05 },
+        ],
+      },
+      {
+        name: 'Sound',
+        params: [
+          { path: 'sound.beat', label: 'Beat lights', min: 0, max: 2, step: 0.05, hint: 'a wave, a scatter or a line — never the same twice' },
+          { path: 'sound.sparks', label: 'Sparks', min: 0, max: 2, step: 0.05, hint: 'snare and hats' },
+          { path: 'sound.bass', label: 'Bass breathes', min: 0, max: 2, step: 0.05 },
         ],
       },
     ],

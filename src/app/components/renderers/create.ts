@@ -53,6 +53,7 @@ import { FirstLineRenderer } from './FirstLineRenderer';
 import { MyceliumRenderer } from './MyceliumRenderer';
 import { CellRenderer } from './CellRenderer';
 import { StandbyRenderer } from './StandbyRenderer';
+import { DustRenderer } from './DustRenderer';
 import { NeuronRenderer } from './NeuronRenderer';
 import { BREATH_AIR, BREATH_LEAF, BREATH_PULSE, BreathRenderer } from './BreathRenderer';
 import { ARRIVAL_CLOUDS, ARRIVAL_FOG, ARRIVAL_PLANET, ArrivalRenderer } from './ArrivalRenderer';
@@ -282,6 +283,9 @@ export function createRenderer(
       break;
     case 'cells':
       renderer = new CellRenderer(canvas, ctx);
+      break;
+    case 'dust':
+      renderer = new DustRenderer(canvas, ctx);
       break;
     case 'standby':
       renderer = new StandbyRenderer(canvas, ctx);

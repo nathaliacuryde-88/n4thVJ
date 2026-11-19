@@ -521,6 +521,14 @@ export const RENDERER_CATEGORIES: Record<VisualPattern, RendererInfo> = {
     key: 'W',
     description: 'A small nervous system: the hand fires the cells, signals run down the axons to the next; a fist holds the charge, opening lets it go'
   },
+  dust: {
+    pattern: 'dust',
+    name: 'Dust',
+    short: 'Dust',
+    category: '2D',
+    key: '',
+    description: 'To open on: fine grains of light in black and white, slow and sparse; every beat lights them differently, and they can gather into the circle of the universe'
+  },
   standby: {
     pattern: 'standby',
     name: 'Standby',
