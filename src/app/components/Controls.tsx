@@ -488,13 +488,14 @@ export function Controls({
                       e.preventDefault();
                       e.stopPropagation();
                       cancelHold();
-                      // Preparing (the yellow ✎) is switched off for now; only the cue uses this.
+                      // Two fingers: this one on or off as an extra layer, as a hold does.
                       if (onCue) onCue(pattern);
+                      else onPatternHold(pattern);
                     }}
                     className={`relative flex w-[56px] shrink-0 cursor-grab flex-col items-center gap-0.5 group/set active:cursor-grabbing ${dragging === pattern ? 'opacity-40' : ''}`}
                     title={`${RENDERER_CATEGORIES[pattern].name} (${slotKey(index) || 'no key: click'})${
                       layerIndex !== -1 ? ` — layer ${layerIndex + 1}` : ''
-                    } · hold to stack · drag to reorder${onCue ? ' · right-click to cue' : ''}`}
+                    } · hold to stack · drag to reorder${onCue ? ' · right-click to cue' : ' · right-click to add or remove as a layer'}`}
                   >
                     {/* A still of the visual, so the key is recognised by what it
                         plays, its key in the corner. */}
