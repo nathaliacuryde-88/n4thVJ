@@ -871,7 +871,7 @@ export function Controls({
                   </div>
 
                   {/* How hard the visuals answer the sound. */}
-                  <div className="space-y-1 group" title="How strongly the visuals react to the sound. It does not make the microphone louder — the room's loudness is adapted to automatically — it sets how far a given sound moves things. 100% is neutral">
+                  <div className="space-y-1 group" title="How strongly the visuals react to the sound. It does not make the microphone louder — the room's loudness is adapted to automatically — it sets how far a given sound moves things. 100% is neutral; below it everything calms down, to stillness at 0% — start low with a line-in from the mixer">
                       <div className="flex justify-between text-[9px] text-white/50 font-medium">
                           <span className="group-hover:text-white/80 transition-colors">REACTION</span>
                           <span className="text-white">{Math.round(audioSensitivity * 200)}%</span>

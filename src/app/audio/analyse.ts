@@ -360,7 +360,15 @@ export function analyse(
    */
   const gain = 0.6 + sensitivity * 1.2;
   const curve = 1.5 - sensitivity;
-  const lift = (v: number) => Math.min(1, gain * Math.pow(Math.max(0, v), curve));
+  /*
+   * Below 100% on the slider (sensitivity 0.5) everything the visuals read
+   * is turned down as well — levels, hits, the arc — down to nothing at 0%.
+   * A line-in from the mixer is far hotter and cleaner than a microphone in
+   * the room, so there has to be a floor that starts very calm.
+   */
+  const damp = sensitivity >= 0.5 ? 1 : Math.pow(sensitivity / 0.5, 1.6);
+  const lift = (v: number) => damp * Math.min(1, gain * Math.pow(Math.max(0, v), curve));
+  const hit = beat && damp > 0.15;
 
   return {
     bass: lift(levels.bass),
@@ -368,15 +376,15 @@ export function analyse(
     mid: lift(levels.mid),
     high: lift(levels.high),
     overall: lift(overall),
-    beat,
-    beatIntensity: beat ? Math.min(1, Math.max(0.3, strength)) : 0,
-    onset: state.onset,
-    kick: state.kick.pulse,
-    snare: state.snare.pulse,
-    hat: state.hat.pulse,
-    energy: state.sections.energy,
-    build: state.sections.build,
-    drop: state.sections.drop,
+    beat: hit,
+    beatIntensity: hit ? damp * Math.min(1, Math.max(0.3, strength)) : 0,
+    onset: damp * state.onset,
+    kick: damp * state.kick.pulse,
+    snare: damp * state.snare.pulse,
+    hat: damp * state.hat.pulse,
+    energy: damp * state.sections.energy,
+    build: damp * state.sections.build,
+    drop: damp * state.sections.drop,
     bright: state.sections.bright,
     input: heard(loudness, bin(12000) - Math.max(1, bin(20))),
   };
