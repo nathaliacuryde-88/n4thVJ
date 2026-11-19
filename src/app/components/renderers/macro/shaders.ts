@@ -111,13 +111,17 @@ vec3 petals(vec2 p, float t) {
   for (int i = 0; i < 5; i++) {
     float fi = float(i);
     float depth = fi / 4.0;                       // 0 far, 1 nearest and softest
-    vec2 c = vec2(sin(t * 0.03 * (1.0 + fi * 0.3) + fi * 2.1) * 0.6, cos(t * 0.025 * (1.0 + fi * 0.2) + fi * 1.3) * 0.35);
-    float a = fi * 1.25 + 0.4 + t * 0.015 + (w.x - 0.5) * 0.5;
+    // Drifting through the frame, each at its own pace, and swaying as they go;
+    // the kick lifts them a little and the bass breathes them wider.
+    vec2 c = vec2(sin(t * 0.11 * (1.0 + fi * 0.3) + fi * 2.1) * 0.62, cos(t * 0.09 * (1.0 + fi * 0.2) + fi * 1.3) * 0.38);
+    c.y += uKick * 0.05 * (0.5 + depth);
+    float a = fi * 1.25 + 0.4 + t * 0.05 + sin(t * 0.45 + fi * 1.7) * 0.22 + (w.x - 0.5) * 0.5;
     vec2 q = mat2(cos(a), -sin(a), sin(a), cos(a)) * (p - c);
     float len = 0.6 + 0.25 * hash(vec2(fi, 3.0));
     float along = q.y / len;                     // -1 base, 1 tip
     float halfw = 0.42 * (0.5 + 0.5 * hash(vec2(fi, 9.0))) * sqrt(max(0.0, 1.0 - along * along)) * (0.45 + 0.55 * (along * 0.5 + 0.5));
-    halfw *= 1.0 + (fbm(q * 2.0 + fi) - 0.5) * 0.35;
+    // The edges flutter, as thin petals do in moving air.
+    halfw *= 1.0 + (fbm(q * 2.0 + fi + vec2(t * 0.12, -t * 0.08)) - 0.5) * 0.45 + uBass * 0.08;
     float sd = abs(q.x) - halfw;
     float soft = mix(0.015, 0.2, depth * depth) * (1.0 + uBass * 0.4);
     float m = smoothstep(soft, -soft, sd) * smoothstep(1.05, 0.85, abs(along)) * smoothstep(0.0, 0.03, halfw) * mix(0.75, 0.92, depth);
