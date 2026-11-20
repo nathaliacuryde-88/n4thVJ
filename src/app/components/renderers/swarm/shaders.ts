@@ -48,6 +48,7 @@ uniform float uStyle;
 uniform float uFold;
 uniform float uGather;   // 0 loose, 1 drawn tight (a pinch, a build-up)
 uniform float uKick;     // this frame's kick, 0..1
+uniform float uReach;    // the galaxy: how far its disc reaches, 1 as first drawn
 uniform float uBurst;    // a clap or a drop, as an impulse on the one frame it lands
 uniform float uSpin;
 uniform vec3 uTargetA;
@@ -114,7 +115,7 @@ void main() {
     float r = length(p.xz) + 1e-3;
     vec3 radial = vec3(p.x, 0.0, p.z) / r;
     vec3 tangent = vec3(-radial.z, 0.0, radial.x);
-    float home = mix(1.0, 0.55, uGather) * (0.1 + 2.4 * pow(fract(seed * 13.7), 1.15));
+    float home = mix(1.0, 0.55, uGather) * (0.1 + 2.4 * uReach * pow(fract(seed * 13.7), 1.15));
     // Turning as one body near the middle and ever more slowly further out,
     // as a real disc does. A speed that kept rising towards the centre asked
     // for an impossible turn there, and the core shook itself apart.
@@ -183,6 +184,7 @@ uniform float uPixels;   // the frame's height in pixels
 uniform float uTime;
 uniform float uSparkle;  // the hats, 0..1
 uniform float uKick;
+uniform float uReach;
 uniform float uBass;
 uniform float uEnergy;
 uniform float uLight;    // overall brightness, already scaled for how many points there are
@@ -258,7 +260,7 @@ void main() {
     float core = exp(-r * 2.2);
     color = mix(vec3(0.5, 0.7, 1.0), vec3(1.0, 0.82, 0.58), clamp(core * 2.2, 0.0, 1.0));
     color = mix(color, vec3(1.0, 0.7, 0.8), 0.3 * step(0.9, hash(seed * 2.7)) * arm);
-    bright = mix(0.2, 7.0, arm) * (0.45 + 0.55 * smoothstep(3.4, 0.5, r)) * (0.2 + 0.8 * smoothstep(0.0, 0.6, r))
+    bright = mix(0.2, 7.0, arm) * (0.45 + 0.55 * smoothstep(3.4 * uReach, 0.5, r)) * (0.2 + 0.8 * smoothstep(0.0, 0.6, r))
       + core * (0.05 + 0.6 * uKick);
   }
 

@@ -120,7 +120,7 @@ export class SwarmRenderer {
 
     this.velocityMaterial = pass(VELOCITY_FRAG, {
       uPos: { value: null }, uVel: { value: null }, uDt: { value: 0 }, uTime: { value: 0 }, uStyle: { value: style },
-      uFold: { value: 1 }, uGather: { value: 0 }, uKick: { value: 0 }, uBurst: { value: 0 }, uSpin: { value: 1 },
+      uFold: { value: 1 }, uGather: { value: 0 }, uReach: { value: 1 }, uKick: { value: 0 }, uBurst: { value: 0 }, uSpin: { value: 1 },
       uTargetA: { value: this.targetA }, uTargetB: { value: this.targetB }, uSplit: { value: 0 },
       uHandA: { value: this.handA }, uHandB: { value: this.handB },
       uHandVelA: { value: this.handVelA }, uHandVelB: { value: this.handVelB },
@@ -144,7 +144,7 @@ export class SwarmRenderer {
       uniforms: {
         uPos: { value: null }, uVel: { value: null }, uStyle: { value: style },
         uSize: { value: 1 }, uBlur: { value: 1 }, uFocus: { value: FAR }, uPixels: { value: 720 },
-        uTime: { value: 0 }, uSparkle: { value: 0 }, uKick: { value: 0 }, uBass: { value: 0 },
+        uTime: { value: 0 }, uSparkle: { value: 0 }, uKick: { value: 0 }, uReach: { value: 1 }, uBass: { value: 0 },
         uEnergy: { value: 0.5 }, uLight: { value: 1 },
         uLook: { value: 0 }, uT: { value: 0 },
         uPalA: this.shared.uPalA, uPalB: this.shared.uPalB, uPalMix: this.shared.uPalMix,
@@ -294,7 +294,12 @@ export class SwarmRenderer {
 
     // ── the hands ────────────────────────────────────────────────────────
     const follow = cfg.hands.follow;
-    this.distance += ((FAR + (NEAR - FAR) * Math.max(0, (play.depth - 0.35) / 0.65)) * STAND[style] - this.distance) * ease(style === 2 ? 1 : 2.5);
+    // Zoom: the camera further off or nearer, everything growing together.
+    // The galaxy is also stood off further as its disc reaches further, so a
+    // wider disc still fits.
+    const zoom = Math.max(0.3, cfg.look.zoom);
+    const fit = style === 2 ? Math.max(1, 0.3 + 0.7 * cfg.look.reach) : 1;
+    this.distance += ((FAR + (NEAR - FAR) * Math.max(0, (play.depth - 0.35) / 0.65)) * STAND[style] * fit / zoom - this.distance) * ease(style === 2 ? 1 : 2.5);
     const left = handData.left;
     const right = handData.right;
     const one = left ?? right;
@@ -332,7 +337,13 @@ export class SwarmRenderer {
     // ── the music ────────────────────────────────────────────────────────
     const kick = Math.max(play.kick, play.bump) * cfg.sound.beat;
     // A fist draws everything in; an open palm lets it spread.
-    this.gather += (Math.max(play.pinch, play.fist, play.build * 0.85) - this.gather) * ease(6);
+    // Drawn in by a real hand's pinch or fist, and by a build-up. The music's
+    // stand-in hand reads as a fist whenever it goes quiet; on the galaxy that
+    // pulled every star into the core and left only the ball. And never all
+    // the way in there: the disc always keeps some of its reach.
+    const realHand = !handData.synthetic && !!(handData.left || handData.right);
+    const pull = Math.max(realHand ? Math.max(play.pinch, play.fist) : 0, play.build * 0.85);
+    this.gather += ((style === 2 ? Math.min(0.6, pull) : pull) - this.gather) * ease(6);
     // A clap, or the drop, lands once: an impulse on the frame it arrives.
     let burst = 0;
     if (play.clapped) burst = Math.min(1.6, play.clapStrength * 1.4 * cfg.hands.clap);
@@ -354,6 +365,7 @@ export class SwarmRenderer {
       v.uTime.value = this.time;
       v.uFold.value = cfg.motion.fold * (0.7 + 0.6 * play.energy);
       v.uGather.value = this.gather;
+      v.uReach.value = Math.max(0.3, cfg.look.reach);
       // The water is drawn in to a fist and pushed away by an open palm.
       v.uPull.value = handed ? play.fist * 1.6 - (1 - play.fist) * 0.5 : 0;
       v.uKick.value = kick;
@@ -417,6 +429,7 @@ export class SwarmRenderer {
     u.uPos.value = sim.pos[sim.at].texture;
     u.uVel.value = sim.vel[sim.at].texture;
     u.uSize.value = cfg.look.size;
+    u.uReach.value = Math.max(0.3, cfg.look.reach);
     u.uPixels.value = height;
     u.uTime.value = this.time + this.wander;
     u.uSparkle.value = play.hat * cfg.sound.sparkle;

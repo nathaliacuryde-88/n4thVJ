@@ -19,6 +19,10 @@ export const SwarmConfig = {
     count: 0,
     /** How large each point is drawn. */
     size: 1,
+    /** Closer or further: everything grows together. */
+    zoom: 1,
+    /** The galaxy: how far its disc reaches — more and wider outer rings. */
+    reach: 1,
     /** How soft what is out of focus becomes. */
     blur: 1,
     /** How long the light lingers behind a moving point. */
