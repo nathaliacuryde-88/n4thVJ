@@ -24,6 +24,8 @@ import { OutputWindow } from './output/OutputWindow';
 import { SavedSet, loadSavedSets, pick, storeSavedSets } from './config/savedSets';
 import { StatusBar, PILOT_BARS } from './components/StatusBar';
 import { SetTimer } from './components/SetTimer';
+import { ScriptPanel } from './components/ScriptPanel';
+import { loadScript, parseScript, saveScript } from './config/script';
 import { beatPosition, clearTempo, currentBpm, hasTapped, nudgeTempo, tap, toggleListening } from './motion/tempo';
 import { MidiTarget, setMidiHandler, setMidiReader } from './control/midi';
 import { setLfo, useLfos } from './control/lfo';
@@ -360,6 +362,83 @@ export default function App() {
     setCue([]);
     setPreparing(null);
   }, [cue, layers, selectedLayer, withFaders]);
+
+  /*
+   * THE ROTEIRO PLAYING ITSELF.
+   *
+   * Each step puts its visuals up together, as GO does: those already up stay
+   * as they are, the others fade away over the set's transition, and each
+   * comes in at the faders it had last time. When the step's time is up the
+   * next one follows. The moment she changes what is on screen herself — a
+   * card, a key, TRACK — it pauses and leaves it to her; ▶ (or PLAY) carries
+   * on from the step it was on, with the time that step had left. Knobs and
+   * faders do not pause it: shaping what is up is part of playing along.
+   */
+  const [scriptText, setScriptText] = useState(() => loadScript(null));
+  const steps = useMemo(() => parseScript(scriptText), [scriptText]);
+  const [run, setRun] = useState<{ state: 'off' | 'running' | 'paused'; step: number; endsAt: number; left: number }>(
+    { state: 'off', step: 0, endsAt: 0, left: 0 },
+  );
+  const appliedRef = useRef<string | null>(null);
+  const [scriptNow, setScriptNow] = useState(() => performance.now());
+  const sig = (patterns: string[]) => [...patterns].sort().join('|');
+  const stepPatterns = useCallback((i: number) => (steps[i]?.slots ?? [])
+    .map((n) => setRef.current[n - 1]).filter((p): p is VisualPattern => !!p), [steps]);
+  const applyStep = useCallback((i: number) => {
+    const patterns = stepPatterns(i);
+    if (!patterns.length) return;
+    const motion = (layers[selectedLayer] ?? layers[0]).motion;
+    const next = inSetOrder(patterns.map((p) => layers.find((l) => l.pattern === p)
+      ?? withFaders({ pattern: p, opacity: -1, motion }, p)), setRef.current);
+    const filled = next.map((l, k) => (l.opacity < 0 ? { ...l, opacity: k === 0 ? 1 : STACKED_OPACITY } : l));
+    appliedRef.current = sig(filled.map((l) => l.pattern));
+    setLayers(filled);
+    setSelectedLayer(Math.max(0, filled.findIndex((l) => l.pattern === patterns[patterns.length - 1])));
+  }, [stepPatterns, layers, selectedLayer, withFaders]);
+  const startOrResume = useCallback(() => {
+    if (!steps.length) return;
+    const now = performance.now();
+    if (run.state === 'running') {
+      setRun({ ...run, state: 'paused', left: Math.max(0, run.endsAt - now) });
+      return;
+    }
+    const step = run.state === 'paused' ? Math.min(run.step, steps.length - 1) : 0;
+    const left = run.state === 'paused' && run.left > 0 ? run.left : steps[step].secs * 1000;
+    applyStep(step);
+    setRun({ state: 'running', step, endsAt: now + left, left });
+  }, [steps, run, applyStep]);
+  const stopScript = useCallback(() => { setRun({ state: 'off', step: 0, endsAt: 0, left: 0 }); appliedRef.current = null; }, []);
+  const moveStep = useCallback((d: 1 | -1) => {
+    if (!steps.length) return;
+    const step = Math.max(0, Math.min(steps.length - 1, (run.state === 'off' ? (d > 0 ? -1 : 1) : run.step) + d));
+    const now = performance.now();
+    const left = steps[step].secs * 1000;
+    applyStep(step);
+    setRun((r) => ({ state: r.state === 'off' ? 'paused' : r.state, step, endsAt: now + left, left }));
+  }, [steps, run, applyStep]);
+  // The clock: the next step when this one's time is up.
+  useEffect(() => {
+    if (run.state !== 'running') return;
+    const id = window.setInterval(() => {
+      const now = performance.now();
+      setScriptNow(now);
+      if (now < run.endsAt) return;
+      const step = run.step + 1;
+      if (step >= steps.length) { setRun({ ...run, state: 'paused', left: 0 }); return; }
+      applyStep(step);
+      setRun({ state: 'running', step, endsAt: now + steps[step].secs * 1000, left: 0 });
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [run, steps, applyStep]);
+  // She changed what is up herself: it is hers now.
+  useEffect(() => {
+    if (run.state !== 'running' || appliedRef.current === null) return;
+    if (sig(layers.map((l) => l.pattern)) === appliedRef.current) return;
+    setRun((r) => ({ ...r, state: 'paused', left: Math.max(0, r.endsAt - performance.now()) }));
+    appliedRef.current = null;
+  }, [layers, run.state]);
+  const scriptRef = useRef(startOrResume);
+  scriptRef.current = startOrResume;
 
   /*
    * The stack is remembered — which visuals are up, their faders and which one
@@ -1044,6 +1123,8 @@ export default function App() {
   /** The saved set she is working in, if any — what a quick save writes to. */
   const [setName, setSetName] = useState<string | null>(() =>
     loadSetting<string | null>('vj-set-name', null, (v) => typeof v === 'string' || v === null));
+  // Each saved set has its own roteiro.
+  useEffect(() => { setScriptText(loadScript(setName)); }, [setName]);
   useEffect(() => { saveSetting('vj-set-name', setName); }, [setName]);
 
   /** Saves the set as it stands — visuals, their sliders, effects, colours, stack — under a name. */
@@ -1455,6 +1536,7 @@ export default function App() {
     { id: 'tempo.up', label: 'Tempo +0.5', group: 'Tempo & set', continuous: false },
     { id: 'pilot', label: 'Auto-pilot on/off', group: 'Tempo & set', continuous: false },
     { id: 'next', label: 'Next visual', group: 'Tempo & set', continuous: false },
+    { id: 'script', label: 'Roteiro: start / pause / carry on', group: 'Tempo & set', continuous: false },
     { id: 'prev', label: 'Previous visual', group: 'Tempo & set', continuous: false },
     ...Array.from({ length: KEYED }, (_, i) => ({
       id: `slot${i + 1}`, label: `Visual ${slotKey(i)}`, group: 'Visuals', continuous: false,
@@ -1479,6 +1561,7 @@ export default function App() {
     if (target.endsWith('#press')) {
       const id = target.slice(0, -6);
       if (id === 'tap') tap();
+      else if (id === 'script') scriptRef.current();
       else if (id === 'tempo.down') nudgeTempo(-0.5);
       else if (id === 'tempo.up') nudgeTempo(0.5);
       else if (id === 'pilot') setPilotOn((p) => !p);
@@ -2074,6 +2157,21 @@ export default function App() {
 
       {/* The set's clock, top right: started when the set starts. */}
       {showUI && <SetTimer underCamera={showCamera} />}
+      {showUI && view === 'vj' && (
+        <ScriptPanel
+          underCamera={showCamera}
+          steps={steps.length}
+          step={run.step}
+          label={stepPatterns(run.step).map((p) => RENDERER_CATEGORIES[p].short).join(' + ')}
+          left={run.state === 'running' ? run.endsAt - scriptNow : run.left}
+          state={run.state}
+          onPlay={startOrResume}
+          onStop={stopScript}
+          onStep={moveStep}
+          text={scriptText}
+          onText={(t) => { setScriptText(t); saveScript(setName, t); }}
+        />
+      )}
 
       {/* Tempo, auto-pilot, health and MIDI: what runs the set over time. */}
       {showUI && (

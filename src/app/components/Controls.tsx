@@ -521,11 +521,13 @@ export function Controls({
                       {thumbs[pattern] && (
                         <img src={thumbs[pattern]} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
                       )}
-                      {slotKey(index) && (
-                        <span className={thumbs[pattern] ? 'absolute bottom-0 left-0 rounded-tr bg-black/75 px-1 text-[9px] leading-[12px] text-white' : 'relative'}>
-                          {slotKey(index)}
-                        </span>
-                      )}
+                      {/* Its number in the set, as the roteiro counts them; the key, if another, faint beside it. */}
+                      <span className={thumbs[pattern] ? 'absolute bottom-0 left-0 rounded-tr bg-black/75 px-1 text-[9px] leading-[12px] text-white' : 'relative'}>
+                        {index + 1}
+                        {slotKey(index) && slotKey(index) !== String(index + 1) && (
+                          <span className="ml-0.5 text-[7px] text-white/45">{slotKey(index)}</span>
+                        )}
+                      </span>
                       {cue?.includes(pattern) && (
                         <span className={`absolute bottom-0 right-0 h-3 min-w-3 rounded-tl px-0.5 text-center text-[7px] font-bold leading-3 text-black ${preparing === pattern ? 'bg-amber-300' : 'bg-cyan-300'}`}>
                           {cue.indexOf(pattern) + 1}

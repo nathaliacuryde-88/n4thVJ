@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { VisualPattern } from '../App';
 import { BLEND_LABEL, BLEND_MODES, BlendMode, Layer } from '../config/LayerConfig';
 import { RENDERER_CATEGORIES } from '../config/RendererCategories';
-import { slotKey } from '../config/setlist';
 
 /**
  * The stack, as something you can actually see and reach.
@@ -107,7 +106,7 @@ export function LayerStrip({
                     isSelected ? 'bg-white text-black' : 'bg-white/15 text-white/60'
                   }`}
                 >
-                  {key === -1 ? '·' : slotKey(key) || '·'}
+                  {key === -1 ? '·' : key + 1}
                 </span>
                 <span
                   className={`truncate text-[9px] ${isSelected ? 'text-white' : 'text-white/55'}`}

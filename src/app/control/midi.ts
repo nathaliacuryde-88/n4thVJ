@@ -240,7 +240,7 @@ export function unbind(target: string) {
  *                                           CYCLE       auto colour
  *   ◀◀ ▶▶        previous / next layer that is on (how many: knob 6)
  *   MARKER SET   tap tempo                  MARKER ◀ ▶  tempo −/+
- *   STOP         all effects on/off         PLAY        nothing (it switched the microphone off mid-set)
+ *   STOP         all effects on/off         PLAY        the roteiro: start / pause / carry on
  *   REC          record
  */
 export function nanoKontrol2Map(): Record<string, string> {
@@ -259,13 +259,13 @@ export function nanoKontrol2Map(): Record<string, string> {
     prev: cc(58), next: cc(59),
     'layer.prev': cc(43), 'layer.next': cc(44),
     tap: cc(60), 'tempo.down': cc(61), 'tempo.up': cc(62),
-    record: cc(45),
+    record: cc(45), script: cc(41),
   });
   return out;
 }
 
 /** Which layout of the preset this is, so a map made by an older one can be brought up to date. */
-export const NANO_LAYOUT = 'set knobs 10';
+export const NANO_LAYOUT = 'set knobs 11';
 
 /**
  * A map an older preset made — the hands drive on the knobs, or then the
