@@ -148,6 +148,8 @@ export class JellyfishRenderer {
   private playing = new Playing(0.6);
 
   private motionTime = 0;
+  /** The clock's pace, eased over seconds. */
+  private pace = 1;
   private colourTime = 0;
   private started = false;
   /** Seconds since the visual came up: the swarm arrives one by one from below. */
@@ -297,10 +299,19 @@ export class JellyfishRenderer {
     const play = this.playing;
     play.read(handData, audioData);
     const { dt } = play;
-    const step = Math.max(0, play.step);
+    /*
+     * In the water, not on the beat. The shared clock speeds up and slows
+     * down with the fingers — and with the music's stand-in hand, which
+     * changes its count all the time — so its pace is eased over seconds here,
+     * and slowed: a change of tempo is a change of tide, never a lurch. The
+     * stand-in hand is not followed at all, nor its spread: only a real hand
+     * moves the swarm. And a kick is a squeeze of the bell, not a leap.
+     */
+    this.pace += (Math.max(0, play.step) - this.pace) * (1 - Math.exp(-dt * 0.6));
+    const step = this.pace * 0.6;
     const burst = play.burst * cfg.hands.clap;
     const bump = play.bump * cfg.sound.beat;
-    const handed = handData.left || handData.right ? 1 : 0;
+    const handed = !handData.synthetic && (handData.left || handData.right) ? 1 : 0;
 
     this.motionTime += step;
     this.colourTime += (step * cfg.colour.speed * (1 + play.mid * cfg.sound.mid * 1.2)
@@ -321,7 +332,7 @@ export class JellyfishRenderer {
       this.swarm.forEach((j) => { j.presence = 0; });
     }
 
-    const scatter = Math.max(0.3, 1 + (play.spread - 0.4) * cfg.hands.spread * 1.6);
+    const scatter = handed ? Math.max(0.3, 1 + (play.spread - 0.4) * cfg.hands.spread * 1.6) : 1;
     const hand = new THREE.Vector3(play.aim.x * 4.6, play.aim.y * 2.1, 0)
       .multiplyScalar(cfg.hands.follow * handed);
     const wander = cfg.swarm.drift * (1 + play.bass * cfg.sound.bass * 0.8);
@@ -329,7 +340,7 @@ export class JellyfishRenderer {
     // easing in and out so a change in the music is a change of tide, not a jolt.
     const live = !!audioData?.live;
     const fullness = live ? 0.35 + 0.65 * play.energy + 0.4 * play.mid : 0.35;
-    this.carry += (cfg.sound.flow * fullness - this.carry) * (1 - Math.exp(-dt * 0.8));
+    this.carry += (cfg.sound.flow * fullness - this.carry) * (1 - Math.exp(-dt * 0.35));
     // On the shared clock, so the finger count sets its pace as everywhere.
     this.current += step * (0.18 + 0.5 * this.carry);
     const spec = 0.16 * (1 + play.high * cfg.sound.high * 2.5);
@@ -355,11 +366,14 @@ export class JellyfishRenderer {
 
       // The pulse: on the clock, quicker for a clap, and each kick a squeeze.
       j.beat += step * TAU * (sw.pulses / LOOP) + dt * burst * TAU * 1.5;
-      const squeezed = Math.min(1.3, Math.max(squeeze(j.beat), bump * 1.1) + burst * 0.4);
+      const own = squeeze(j.beat);
+      const squeezed = Math.min(1.3, Math.max(own, bump * 0.7) + burst * 0.4);
       const pulse = squeezed * cfg.swarm.pulse;
-      // Each squeeze pushes it up its own axis; between, it glides and sinks.
-      j.rise += (pulse * 2.4 - j.rise * 1.6) * dt;
-      j.lift += (j.rise - j.lift * 0.35) * dt;
+      // Its own slow pulses push it gently up its axis; a kick squeezes the
+      // bell but barely moves it. Between, it glides and sinks.
+      const push = Math.min(1.3, own + bump * 0.15 + burst * 0.4) * cfg.swarm.pulse;
+      j.rise += (push * 1.5 - j.rise * 1.2) * dt;
+      j.lift += (j.rise - j.lift * 0.35) * dt * 0.8;
 
       // Its patch of water, opened or gathered by the hands, followed by the
       // hand at its own lag so the swarm trails.
@@ -370,8 +384,8 @@ export class JellyfishRenderer {
       );
       // Carried on the current, each a little behind the one before.
       const tide = this.current - index * 0.35;
-      p.x += Math.sin(tide + sw.ph * 0.5) * 1.3 * this.carry;
-      p.y += Math.sin(tide * 0.63 + sw.ph) * 0.45 * this.carry;
+      p.x += Math.sin(tide + sw.ph * 0.5) * 0.9 * this.carry;
+      p.y += Math.sin(tide * 0.63 + sw.ph) * 0.3 * this.carry;
       p.z += Math.cos(tide * 0.8 + sw.ph * 1.3) * 0.5 * this.carry;
       const lag = 0.8 + 1.6 * (1 - index / SWARM.length);
       j.pull.lerp(hand, 1 - Math.exp(-dt * lag));
