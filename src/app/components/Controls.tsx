@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useThumbs } from '../config/thumbs';
 import { AudioData, Hand, HandData, VisualPattern } from '../App';
 import { HOLD_MS, Layer } from '../config/LayerConfig';
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { SOUND_HINT, SOUND_LABEL, SoundSource } from '../record/audio';
 import { chooseInput, refreshInputs, useAudioInput } from '../audio/input';
+import { CURATED_THUMBS } from '../config/curatedThumbs';
 import { useTempo } from '../motion/tempo';
 import { ColorController } from './ColorController';
 import { RENDERER_CATEGORIES } from '../config/RendererCategories';
@@ -287,7 +288,10 @@ export function Controls({
     if (!hold.fired) onPatternChange(pattern);
   };
 
-  const thumbs = useThumbs();
+  // The made previews first — each visual caught at a moment that reads clearly —
+  // and a still taken from the visual itself for anything without one.
+  const captured = useThumbs();
+  const thumbs = useMemo(() => ({ ...captured, ...CURATED_THUMBS }), [captured]);
   // Quick save: straight to the set she is in, or ask for a name the first time.
   const [naming, setNaming] = useState(false);
   const [draft, setDraft] = useState('');
