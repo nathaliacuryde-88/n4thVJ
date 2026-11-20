@@ -73,6 +73,12 @@ interface FadingDeck extends Deck {
   fadeStart: number;
   duration: number;
   /**
+   * Its fader when it left. The slot's level is the arriving visual's from
+   * then on; read for the outgoing one too, a visual left at 20% jumped to
+   * the newcomer's 100% before it faded.
+   */
+  leftAt?: number;
+  /**
    * The hands and the sound as they were when the switch happened.
    *
    * A deck on its way out keeps drawing — it has to, or the transition would
@@ -637,7 +643,7 @@ export function VJCanvas({
          */
         const ease = eased(fade);
         if (slot.outgoing) {
-          ctx.globalAlpha = opacity * (1 - ease);
+          ctx.globalAlpha = (slot.outgoing.leftAt ?? opacity) * (1 - ease);
           draw(slot.outgoing);
           if (isBase) ctx.globalCompositeOperation = 'lighter';
         }
@@ -997,6 +1003,7 @@ export function VJCanvas({
           ...slot.current,
           fadeStart: performance.now(),
           duration,
+          leftAt: slot.shown?.opacity ?? lastLayersRef.current[index]?.opacity,
           lane: forkClock(index),
           // From its own last frame, not from the props — which by now are
           // the arriving visual's. See Deck.last.
