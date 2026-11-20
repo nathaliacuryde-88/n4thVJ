@@ -1405,6 +1405,62 @@ export default function App() {
   const TUNNEL = { min: 0.9, max: 1.1 };
   const SPIRAL = { min: -0.05, max: 0.05 };
 
+  /*
+   * A knob's value glides to where it is turned rather than jumping there.
+   * A controller only has 128 positions, and each one a visual took at once
+   * read as steps — sizes clicking from one to the next. Each frame the value
+   * moves a share of the way to the knob, so a turn is one smooth change.
+   */
+  const glideRef = useRef(new Map<string, { pattern: string; path: string; value: number; target: number; eps: number }>());
+  const glideRaf = useRef(0);
+  const glideTo = useCallback((pattern: string, path: string, target: number, from: number, range: number) => {
+    const key = `${pattern}|${path}`;
+    const was = glideRef.current.get(key);
+    glideRef.current.set(key, { pattern, path, value: was ? was.value : from, target, eps: Math.max(1e-5, range * 0.0005) });
+    if (glideRaf.current) return;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      const k = 1 - Math.exp(-dt * 9);
+      const writes: Record<string, Record<string, number>> = {};
+      for (const [key, g] of glideRef.current) {
+        g.value += (g.target - g.value) * k;
+        if (Math.abs(g.target - g.value) < g.eps) { g.value = g.target; glideRef.current.delete(key); }
+        (writes[g.pattern] ??= {})[g.path] = Math.round(g.value * 10000) / 10000;
+      }
+      setParamValues((prev) => {
+        const next = { ...prev };
+        for (const [p, vals] of Object.entries(writes)) next[p] = { ...(prev[p] ?? {}), ...vals };
+        return next;
+      });
+      glideRaf.current = glideRef.current.size ? requestAnimationFrame(tick) : 0;
+    };
+    glideRaf.current = requestAnimationFrame(tick);
+  }, []);
+  /** Where a gliding value is headed, so the soft takeover reads the knob's own place. */
+  const glidingTo = (pattern: string, path: string) => glideRef.current.get(`${pattern}|${path}`)?.target;
+  const [zoomGlide, setZoomGlide] = useState<{ pattern: string; target: number } | null>(null);
+  useEffect(() => {
+    if (!zoomGlide) return;
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      let done = false;
+      setZooms((prev) => {
+        const cur = prev[zoomGlide.pattern] ?? 1;
+        const nextZ = cur + (zoomGlide.target - cur) * (1 - Math.exp(-dt * 9));
+        done = Math.abs(zoomGlide.target - nextZ) < 0.001;
+        return { ...prev, [zoomGlide.pattern]: done ? zoomGlide.target : nextZ };
+      });
+      if (!done) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [zoomGlide]);
+
   const turnSetKnob = (id: string, v: number) => {
     const pattern = currentPattern;
     const name = RENDERER_CATEGORIES[pattern].short;
@@ -1414,13 +1470,14 @@ export default function App() {
       const path = SIZES[pattern];
       const spec = path ? specOf(pattern, path) : undefined;
       if (path && spec) {
-        const x = snapTo(spec.min + v * (spec.max - spec.min), spec.step);
-        write(pattern, { [path]: x });
-        flash(`${name} · ${spec.label} ${x}`);
+        // Not snapped to the slider's steps, and glided there.
+        const x = spec.min + v * (spec.max - spec.min);
+        glideTo(pattern, path, x, paramNow(pattern, path), spec.max - spec.min);
+        flash(`${name} · ${spec.label} ${Math.round(x * 100) / 100}`);
       } else {
         const z = zoomAt(v);
-        const snapped = Math.abs(z - 1) < 0.04 ? 1 : Math.round(z * 100) / 100;
-        setZooms((prev) => ({ ...prev, [pattern]: snapped }));
+        const snapped = Math.abs(z - 1) < 0.02 ? 1 : z;
+        setZoomGlide({ pattern, target: snapped });
         flash(`${name} · Zoom ${Math.round(snapped * 100)}%`);
       }
     } else if (id === 'count') {
@@ -1448,17 +1505,17 @@ export default function App() {
     } else if (id === 'fall') {
       // The fall through the clouds and the dive into the stars, together:
       // whichever is up moves.
-      write('arrival-clouds', { 'motion.speed': Math.round(v * 300) / 100 });
-      write('tonight', { 'flight.dive': Math.round(v * 150) / 100 });
-      write('swarm-galaxy', { 'look.dive': Math.round(v * 100) / 100 });
+      glideTo('arrival-clouds', 'motion.speed', v * 3, paramNow('arrival-clouds', 'motion.speed'), 3);
+      glideTo('tonight', 'flight.dive', v * 1.5, paramNow('tonight', 'flight.dive'), 1.5);
+      glideTo('swarm-galaxy', 'look.dive', v, paramNow('swarm-galaxy', 'look.dive'), 1);
       const up = layers.map((l) => l.pattern);
       flash(currentPattern === 'swarm-galaxy' || (up.includes('swarm-galaxy') && !up.includes('arrival-clouds') && !up.includes('tonight'))
         ? `Galaxy · Dive in ${Math.round(v * 100)}%`
         : up.includes('tonight') && !up.includes('arrival-clouds') ? `Stars · Dive ${Math.round(v * 150) / 100}`
         : `Clouds · Fall ${Math.round(v * 300) / 100}`);
     } else if (id === 'sphere') {
-      const x = Math.round(v * 200) / 100;
-      write('morphing', { 'shape.style': x });
+      const x = v * 2;
+      glideTo('morphing', 'shape.style', x, paramNow('morphing', 'shape.style'), 2);
       flash(`Sphere · ${x < 0.05 ? 'points' : x > 1.95 ? 'outline' : 'growing lines'}`);
     }
   };
@@ -1467,8 +1524,8 @@ export default function App() {
     if (id === 'size') {
       const path = SIZES[pattern];
       const spec = path ? specOf(pattern, path) : undefined;
-      if (path && spec) return (paramNow(pattern, path) - spec.min) / (spec.max - spec.min);
-      return zoomPos(zooms[pattern] ?? 1);
+      if (path && spec) return ((glidingTo(pattern, path) ?? paramNow(pattern, path)) - spec.min) / (spec.max - spec.min);
+      return zoomPos(zoomGlide?.pattern === pattern ? zoomGlide.target : zooms[pattern] ?? 1);
     }
     if (id === 'count') {
       const path = COUNTS[pattern]?.[0]?.path;
@@ -1477,13 +1534,13 @@ export default function App() {
     }
     if (id === 'tunnel') return ((fxByPattern[pattern]?.['feedback.zoom'] ?? 1) - TUNNEL.min) / (TUNNEL.max - TUNNEL.min);
     if (id === 'spiral') return ((fxByPattern[pattern]?.['feedback.rotate'] ?? 0) - SPIRAL.min) / (SPIRAL.max - SPIRAL.min);
-    if (id === 'sphere') return paramNow('morphing', 'shape.style') / 2;
+    if (id === 'sphere') return (glidingTo('morphing', 'shape.style') ?? paramNow('morphing', 'shape.style')) / 2;
     if (id === 'fall') {
       const up = layers.map((l) => l.pattern);
-      if (currentPattern === 'swarm-galaxy' || (up.includes('swarm-galaxy') && !up.includes('arrival-clouds') && !up.includes('tonight'))) return paramNow('swarm-galaxy', 'look.dive');
+      if (currentPattern === 'swarm-galaxy' || (up.includes('swarm-galaxy') && !up.includes('arrival-clouds') && !up.includes('tonight'))) return glidingTo('swarm-galaxy', 'look.dive') ?? paramNow('swarm-galaxy', 'look.dive');
       return up.includes('tonight') && !up.includes('arrival-clouds')
-        ? paramNow('tonight', 'flight.dive') / 1.5
-        : paramNow('arrival-clouds', 'motion.speed') / 3;
+        ? (glidingTo('tonight', 'flight.dive') ?? paramNow('tonight', 'flight.dive')) / 1.5
+        : (glidingTo('arrival-clouds', 'motion.speed') ?? paramNow('arrival-clouds', 'motion.speed')) / 3;
     }
     return undefined;
   };
