@@ -330,6 +330,8 @@ export function Controls({
       <div className={`absolute top-4 left-1/2 w-max -translate-x-1/2 z-50 ${compact ? 'ml-[20px]' : ''}`}>
         <div className={`bg-black/70 backdrop-blur-sm ${set.length > 10 ? 'rounded-3xl' : 'rounded-full'} py-2 border border-white/20 font-mono ${compact ? 'px-3' : 'px-6'}`}>
           <div className={`flex items-center ${compact ? 'gap-2' : 'gap-4'}`}>
+            {/* SET, SAVE and FADE stacked, so the bar stays narrow and the set's clock shows beside it. */}
+            <div className="flex shrink-0 flex-col items-start gap-0.5 [&_button]:py-0.5">
             {/* Back to the library */}
             <button
               onClick={onOpenLibrary}
@@ -438,6 +440,7 @@ export function Controls({
               )}
             </div>
 
+            </div>
             {setName && !compact && (
               <span className="max-w-[90px] truncate text-[9px] text-white/35" title="The saved set you are in">{setName}</span>
             )}
@@ -595,6 +598,8 @@ export function Controls({
             {/* How hard the hands drive. Sits with the set because it is a
                 decision about the room, not about one visual. */}
             <div className="w-px h-6 bg-white/20" />
+            {/* The hands' drive and the layer chip stacked, for the same reason. */}
+            <div className="flex shrink-0 flex-col items-start gap-1">
             <div className="flex items-center gap-1.5" title="How hard the hands drive every visual (- and =)">
               {!compact && <span className="text-[8px] tracking-widest text-white/35">HANDS</span>}
               <input
@@ -623,7 +628,6 @@ export function Controls({
                 there is more than one. */}
             {layers.length > 1 && (
               <>
-                <div className="w-px h-6 bg-white/20" />
                 <button
                   onClick={onLayerCycle}
                   title="The layer the sliders and colours act on (L) — fade it with [ and ]"
@@ -636,6 +640,7 @@ export function Controls({
                 </button>
               </>
             )}
+            </div>
           </div>
         </div>
       </div>

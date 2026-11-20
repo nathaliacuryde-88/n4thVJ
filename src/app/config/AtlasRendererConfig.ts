@@ -40,9 +40,11 @@ export const AtlasConfig = {
 
   sound: {
     /** Bass rolls the inks across the levels. */
-    bass: 1,
+    bass: 0.4,
     /** Each kick sends a ring of reshuffling out from the middle. */
-    beat: 1,
+    beat: 0.25,
+    /** Each kick the land glides somewhere new — every fourth a longer way. */
+    move: 1,
     /** Louder music puts more characters on the land. */
     level: 1,
   },
