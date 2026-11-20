@@ -106,6 +106,9 @@ interface Jelly {
   rise: number;
   /** How far the hand has pulled it, eased at its own rate. */
   pull: THREE.Vector3;
+  /** The bell as the hand holds it: 0 open, 1 closed — and where it was last frame. */
+  grip?: number;
+  gripWas?: number;
   /** Its swimming axis, eased. */
   up: THREE.Vector3;
   last: THREE.Vector3 | null;
@@ -150,6 +153,8 @@ export class JellyfishRenderer {
   private motionTime = 0;
   /** The clock's pace, eased over seconds. */
   private pace = 1;
+  /** How much the bells are the hand's rather than their own pulse. */
+  private handHold = 0;
   private colourTime = 0;
   private started = false;
   /** Seconds since the visual came up: the swarm arrives one by one from below. */
@@ -312,6 +317,9 @@ export class JellyfishRenderer {
     const burst = play.burst * cfg.hands.clap;
     const bump = play.bump * cfg.sound.beat;
     const handed = !handData.synthetic && (handData.left || handData.right) ? 1 : 0;
+    // With a real hand in view the bells are hers: a fist closes them, an open
+    // palm opens them. Blended in and out, so a hand arriving takes over softly.
+    this.handHold += (handed - this.handHold) * (1 - Math.exp(-dt * 3));
 
     this.motionTime += step;
     this.colourTime += (step * cfg.colour.speed * (1 + play.mid * cfg.sound.mid * 1.2)
@@ -326,7 +334,8 @@ export class JellyfishRenderer {
     // of the others a little after the one before, until the count is reached.
     // (Real time, so the finger count does not hold the arrival back.)
     this.since += dt;
-    const shown = new Set(SHOWN[count].slice(0, arrived(this.since, count)));
+    // Each a few seconds after the one before, so they come in one by one, unhurried.
+    const shown = new Set(SHOWN[count].slice(0, arrived(this.since * 0.55, count)));
     if (first) {
       this.started = true;
       this.swarm.forEach((j) => { j.presence = 0; });
@@ -356,7 +365,9 @@ export class JellyfishRenderer {
 
     this.swarm.forEach((j, index) => {
       const want = shown.has(index) ? 1 : 0;
-      j.presence += (want - j.presence) * (1 - Math.exp(-dt * 1.4));
+      // At an even pace — about five seconds to rise in, three to sink away —
+      // rather than a rush that slows: eased at both ends below.
+      j.presence = want > j.presence ? Math.min(want, j.presence + dt / 5) : Math.max(want, j.presence - dt / 3);
       if (j.presence < 0.004 && want === 0) j.presence = 0;
       const visible = j.presence > 0.002;
       j.root.visible = visible;
@@ -368,10 +379,18 @@ export class JellyfishRenderer {
       j.beat += step * TAU * (sw.pulses / LOOP) + dt * burst * TAU * 1.5;
       const own = squeeze(j.beat);
       const squeezed = Math.min(1.3, Math.max(own, bump * 0.7) + burst * 0.4);
-      const pulse = squeezed * cfg.swarm.pulse;
+      // The hand's bell: each follows the hand a moment behind the one before,
+      // so the swarm closes and opens as a ripple rather than all at once.
+      const grip = (j.grip ?? 0) + (play.fist - (j.grip ?? 0)) * (1 - Math.exp(-dt * (7 - index * 0.7)));
+      const closing = Math.max(0, (grip - (j.gripWas ?? grip)) / Math.max(dt, 1e-3));
+      j.gripWas = grip;
+      j.grip = grip;
+      const hold = this.handHold;
+      const pulse = (squeezed * (1 - hold) + grip * hold) * cfg.swarm.pulse;
       // Its own slow pulses push it gently up its axis; a kick squeezes the
-      // bell but barely moves it. Between, it glides and sinks.
-      const push = Math.min(1.3, own + bump * 0.15 + burst * 0.4) * cfg.swarm.pulse;
+      // bell but barely moves it. Between, it glides and sinks. Held by the
+      // hand, it is the closing that pushes — as a real one swims.
+      const push = (Math.min(1.3, own + bump * 0.15 + burst * 0.4) * (1 - hold) + Math.min(1.3, closing * 0.35) * hold) * cfg.swarm.pulse;
       j.rise += (push * 1.5 - j.rise * 1.2) * dt;
       j.lift += (j.rise - j.lift * 0.35) * dt * 0.8;
 
@@ -405,7 +424,9 @@ export class JellyfishRenderer {
       j.last = (j.last ?? new THREE.Vector3()).copy(p);
       p.addScaledVector(j.up, j.lift - 0.6);
       // Arriving from below, leaving downward.
-      const grow = 1 - Math.pow(1 - j.presence, 3);
+      // Eased at both ends: it starts rising gently and settles gently.
+      const pr = j.presence;
+      const grow = pr * pr * pr * (pr * (pr * 6 - 15) + 10);
       p.y -= (1 - grow) * 7;
       // They swim a little lower in the frame, with room above them…
       p.y -= 0.9;
