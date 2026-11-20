@@ -23,6 +23,8 @@ export const SwarmConfig = {
     zoom: 1,
     /** The galaxy: how far its disc reaches — more and wider outer rings. */
     reach: 1,
+    /** The galaxy: how far in you fly, 0 looking at it from outside, 1 inside the disc by the core. */
+    dive: 0,
     /** How soft what is out of focus becomes. */
     blur: 1,
     /** How long the light lingers behind a moving point. */

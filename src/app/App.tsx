@@ -1369,8 +1369,11 @@ export default function App() {
       // whichever is up moves.
       write('arrival-clouds', { 'motion.speed': Math.round(v * 300) / 100 });
       write('tonight', { 'flight.dive': Math.round(v * 150) / 100 });
+      write('swarm-galaxy', { 'look.dive': Math.round(v * 100) / 100 });
       const up = layers.map((l) => l.pattern);
-      flash(up.includes('tonight') && !up.includes('arrival-clouds') ? `Stars · Dive ${Math.round(v * 150) / 100}`
+      flash(currentPattern === 'swarm-galaxy' || (up.includes('swarm-galaxy') && !up.includes('arrival-clouds') && !up.includes('tonight'))
+        ? `Galaxy · Dive in ${Math.round(v * 100)}%`
+        : up.includes('tonight') && !up.includes('arrival-clouds') ? `Stars · Dive ${Math.round(v * 150) / 100}`
         : `Clouds · Fall ${Math.round(v * 300) / 100}`);
     } else if (id === 'sphere') {
       const x = Math.round(v * 200) / 100;
@@ -1396,6 +1399,7 @@ export default function App() {
     if (id === 'sphere') return paramNow('morphing', 'shape.style') / 2;
     if (id === 'fall') {
       const up = layers.map((l) => l.pattern);
+      if (currentPattern === 'swarm-galaxy' || (up.includes('swarm-galaxy') && !up.includes('arrival-clouds') && !up.includes('tonight'))) return paramNow('swarm-galaxy', 'look.dive');
       return up.includes('tonight') && !up.includes('arrival-clouds')
         ? paramNow('tonight', 'flight.dive') / 1.5
         : paramNow('arrival-clouds', 'motion.speed') / 3;

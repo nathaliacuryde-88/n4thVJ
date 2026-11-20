@@ -86,6 +86,8 @@ export class SwarmRenderer {
   private time = 0;
   private wander = 0;
   private distance = FAR;
+  /** The galaxy: how far in it has been flown, eased. */
+  private dive = 0;
   private split = 0;
   private gather = 0;
   private targetA = new THREE.Vector3();
@@ -400,11 +402,19 @@ export class SwarmRenderer {
     this.view.y += (play.aim.y * look * follow - this.view.y) * ease(glide);
     this.roll += (play.turn * (style === 2 ? 0.25 : 0.5) - this.roll) * ease(style === 2 ? 1.2 : 4);
     const azimuth = this.view.x + (style === 0 ? Math.sin(this.wander * 0.05) * 0.15 : this.wander * 0.03);
-    const tilt = (style === 2 ? 0.5 : 0.05) + this.view.y * 0.8;
+    /*
+     * Diving in (the galaxy, knob 5): the camera comes down towards the plane
+     * of the disc and flies in to the core, so the arms open out round her
+     * and stream past the edges of the frame.
+     */
+    this.dive += ((style === 2 ? Math.max(0, Math.min(1, cfg.look.dive)) : 0) - this.dive) * ease(1.2);
+    const dive = this.dive;
+    const tilt = ((style === 2 ? 0.5 : 0.05) + this.view.y * 0.8) * (1 - 0.8 * dive);
+    const reach = this.distance * (1 - 0.72 * dive);
     this.camera.position.set(
-      Math.sin(azimuth) * Math.cos(tilt) * this.distance,
-      Math.sin(tilt) * this.distance,
-      Math.cos(azimuth) * Math.cos(tilt) * this.distance,
+      Math.sin(azimuth) * Math.cos(tilt) * reach,
+      Math.sin(tilt) * reach,
+      Math.cos(azimuth) * Math.cos(tilt) * reach,
     );
     this.camera.up.set(Math.sin(this.roll), Math.cos(this.roll), 0);
     this.camera.lookAt(0, 0, 0);
@@ -467,13 +477,14 @@ export class SwarmRenderer {
     // zero, about half a second's worth at full.
     const keep = Math.exp(-frame / (0.012 + cfg.look.trail * 0.5));
     u.uBlur.value = cfg.look.blur;
-    u.uFocus.value = this.distance;
+    u.uFocus.value = this.distance * (1 - 0.72 * this.dive);
     // The same light whatever the count, and whatever the trail: more
     // points are each fainter, and what lingers is added in smaller parts.
     // ...and the same light whatever the Size: smaller points are finer, not
     // fainter, or at the low end the disc fades out and only the dense core is left.
     const sized = Math.pow(Math.max(0.3, cfg.look.size), -1.6);
-    u.uLight.value = 1.6 * Math.pow(65536 / (side * side), 0.85) * (1 - keep) * sized;
+    // Flying in, the stars crowd the view: dimmed so the core does not burn out.
+    u.uLight.value = 1.6 * Math.pow(65536 / (side * side), 0.85) * (1 - keep) * sized * (1 - 0.6 * this.dive);
 
     renderer.setRenderTarget(this.accum);
     this.fadeMaterial.uniforms.uKeep.value = keep;

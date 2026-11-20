@@ -230,6 +230,7 @@ function swarmParams(follow: string, beat: string, styled = true): RendererParam
           { path: 'look.size', label: 'Size', min: 0.3, max: 3, step: 0.05 },
           { path: 'look.zoom', label: 'Zoom', min: 0.4, max: 2.5, step: 0.05, hint: 'closer or further: everything grows together' },
           ...(styled ? [] : [{ path: 'look.reach', label: 'Outer rings', min: 0.5, max: 3, step: 0.05, hint: 'how far the disc reaches: more and wider rings round the core' }]),
+          ...(styled ? [] : [{ path: 'look.dive', label: 'Dive in', min: 0, max: 1, step: 0.01, hint: 'fly into the galaxy, down to the disc and in to the core (knob 5)' }]),
           ...(styled ? [{ path: 'look.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' }] : []),
           { path: 'look.blur', label: 'Depth blur', min: 0, max: 3, step: 0.05, hint: styled ? 'Light style only' : undefined },
           { path: 'look.trail', label: 'Trail', min: 0, max: 1, step: 0.05, hint: styled ? 'Light style only' : undefined },
