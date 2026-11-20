@@ -25,16 +25,18 @@ export function ScriptPanel({
   const btn = 'flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] text-white/70 hover:bg-white/15 hover:text-white';
   return (
     <div className={`absolute right-4 z-50 flex flex-col items-end gap-1 font-mono ${underCamera ? 'top-[160px] right-6' : 'top-[56px]'}`}>
-      <div className={`flex items-center gap-1 rounded-full border bg-black/70 px-2 py-1 backdrop-blur-sm ${
+      {/* Narrow and stacked, so it never runs in under the set bar on a laptop screen. */}
+      <div className={`flex w-[172px] flex-col gap-0.5 rounded-xl border bg-black/70 px-2 py-1.5 backdrop-blur-sm ${
         state === 'running' ? 'border-emerald-400/50' : state === 'paused' ? 'border-amber-300/60' : 'border-white/20'}`}>
-        <span className="pl-1 pr-1 text-[9px] tracking-widest text-white/45">ROTEIRO</span>
-        {state !== 'off' && (
-          <span className="flex items-center gap-1.5 text-[10px] text-white/85">
-            <span className="tabular-nums text-white/50">{step + 1}/{steps}</span>
-            <span className="max-w-[150px] truncate">{label}</span>
-            <span className={`tabular-nums ${state === 'paused' ? 'text-amber-300' : 'text-emerald-300'}`}>{clock(left)}</span>
-          </span>
-        )}
+        <div className="flex items-center justify-between px-1 text-[9px]">
+          <span className="tracking-widest text-white/45">ROTEIRO</span>
+          {state !== 'off' && <span className="tabular-nums text-white/50">{step + 1}/{steps}</span>}
+          {state !== 'off' && (
+            <span className={`text-[11px] tabular-nums ${state === 'paused' ? 'text-amber-300' : 'text-emerald-300'}`}>{clock(left)}</span>
+          )}
+        </div>
+        {state !== 'off' && <div className="truncate px-1 text-[10px] text-white/85" title={label}>{label}</div>}
+        <div className="flex items-center justify-between">
         <button onClick={() => onStep(-1)} title="Previous step" className={btn}>‹</button>
         <button
           onClick={onPlay}
@@ -46,10 +48,11 @@ export function ScriptPanel({
         <button onClick={() => onStep(1)} title="Next step" className={btn}>›</button>
         {state !== 'off' && <button onClick={onStop} title="Stop the roteiro" className={btn}>■</button>}
         <button onClick={() => { setDraft(text); setEditing((e) => !e); }} title="Edit the roteiro" className={btn}>✎</button>
+        </div>
       </div>
       {state === 'paused' && (
-        <div className="rounded-full bg-amber-300/90 px-2 py-0.5 text-[9px] font-semibold tracking-wider text-black">
-          PAUSED — YOU HAVE IT · ▶ TO CARRY ON
+        <div className="w-[172px] rounded-lg bg-amber-300/90 px-2 py-0.5 text-center text-[9px] font-semibold leading-snug tracking-wider text-black">
+          PAUSED — YOU HAVE IT<br />▶ TO CARRY ON
         </div>
       )}
       {editing && (
