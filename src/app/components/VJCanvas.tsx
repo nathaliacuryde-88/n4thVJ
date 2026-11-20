@@ -11,6 +11,7 @@ import { Drive, PostPipeline, fxActive } from '../pipeline/PostPipeline';
 import { PipelineConfig } from '../config/PipelineConfig';
 import { Clips } from '../config/content';
 import { lfosFor, modulate } from '../control/lfo';
+import { captureThumb } from '../config/thumbs';
 import { PIPELINE_PARAMS, RENDERER_PARAMS } from '../params/registry';
 import { Finish, FinishLevel } from '../pipeline/Finish';
 import { governFrame, isMeasuring, noteCompose, noteLayer, noteLayerCount, shouldDraw } from '../pipeline/governor';
@@ -300,6 +301,8 @@ export function VJCanvas({
   const leavingRef = useRef<Leaving[]>([]);
   /** The stack as it was last reconciled, to know how a removed layer was laid. */
   const lastLayersRef = useRef<Layer[]>([]);
+  /** When each visual's set-bar still is next taken from the stage. */
+  const thumbDueRef = useRef<Record<string, number>>({});
   /** Whether the stack has been built once: the very first build appears at once. */
   const builtRef = useRef(false);
   /** Read by the compose step for each layer's fader, without rebuilding anything. */
@@ -649,6 +652,20 @@ export function VJCanvas({
         }
         ctx.globalAlpha = opacity * (slot.outgoing ? ease : 1);
         draw(slot.current);
+        /*
+         * The set bar's still, from the stage itself: with her settings and
+         * colours, a few seconds after it came up and again now and then, so
+         * the card shows the visual as she plays it.
+         */
+        if (!leaving && !slot.outgoing && agrees) {
+          const k = slot.current.pattern;
+          const due = thumbDueRef.current[k];
+          if (due === undefined) thumbDueRef.current[k] = now + 3000;
+          else if (now >= due) {
+            captureThumb(k, slot.current.canvas);
+            thumbDueRef.current[k] = now + 10000;
+          }
+        }
       });
 
       ctx.globalAlpha = 1;
