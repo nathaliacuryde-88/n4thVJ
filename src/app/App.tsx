@@ -2138,6 +2138,7 @@ export default function App() {
       {/* What is being done to it — the selected layer's own chain. */}
       {showUI && (
         <FxPanel
+          soundOpen={audioEnabled}
           entry={PIPELINE_PARAMS}
           values={fxParams}
           onChange={setFxParam}
