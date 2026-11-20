@@ -18,7 +18,40 @@ export interface Step { slots: number[]; secs: number; line: string }
 
 export const DEFAULT_SECS = 120;
 
+/**
+ * 27 steps in an hour: 3:00 to open, 2:30 at the fullest (8+9+10) and for
+ * Machine, 3:00 to close, 2:05 for the rest — 59 minutes, one to spare.
+ */
 export const DEFAULT_SCRIPT = `1 3:00
+1+2 2:05
+2+3 2:05
+3+4 2:05
+5 2:05
+5+6 2:05
+6+7 2:05
+7+8 2:05
+8 2:05
+8+9 2:05
+8+9+10 2:30
+10+11 2:05
+11+12 2:05
+12+13 2:05
+13+14 2:05
+13+15 2:05
+15 2:05
+16 2:05
+16+17 2:05
+17 2:05
+18 2:05
+18+19 2:05
+19+21 2:05
+20+21 2:05
+22 2:30
+22+23 2:05
+23 3:00`;
+
+/** The first roteiro, before 7 stopped standing alone: replaced if never edited. */
+const FIRST_SCRIPT = `1 3:00
 1+2
 2+3
 3+4
@@ -65,7 +98,8 @@ const KEY = 'vj-scripts';
 export function loadScript(setName: string | null): string {
   try {
     const all = JSON.parse(localStorage.getItem(KEY) || '{}') as Record<string, string>;
-    return all[setName ?? '_'] ?? DEFAULT_SCRIPT;
+    const kept = all[setName ?? '_'];
+    return kept === undefined || kept === FIRST_SCRIPT ? DEFAULT_SCRIPT : kept;
   } catch { return DEFAULT_SCRIPT; }
 }
 export function saveScript(setName: string | null, text: string) {

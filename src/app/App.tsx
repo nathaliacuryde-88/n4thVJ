@@ -2156,7 +2156,10 @@ export default function App() {
       )}
 
       {/* The set's clock, top right: started when the set starts. */}
-      {showUI && <SetTimer underCamera={showCamera} />}
+      {showUI && <SetTimer underCamera={showCamera} onRun={(on) => {
+        // The roteiro goes with the clock: started, or carried on, with it; paused with it.
+        if (on ? run.state !== 'running' : run.state === 'running') scriptRef.current();
+      }} />}
       {showUI && view === 'vj' && (
         <ScriptPanel
           underCamera={showCamera}

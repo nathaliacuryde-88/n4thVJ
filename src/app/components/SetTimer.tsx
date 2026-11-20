@@ -55,7 +55,8 @@ function clock(ms: number): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 
-export function SetTimer({ underCamera }: { underCamera: boolean }) {
+/** `onRun`: told when the clock starts (true) or pauses (false), so the roteiro goes with it. */
+export function SetTimer({ underCamera, onRun }: { underCamera: boolean; onRun?: (running: boolean) => void }) {
   const [saved, setSaved] = useState<Saved>(load);
   const [now, setNow] = useState(() => Date.now());
   const running = saved.since !== null;
@@ -76,6 +77,7 @@ export function SetTimer({ underCamera }: { underCamera: boolean }) {
   const toggle = () => {
     const t = Date.now();
     setNow(t);
+    onRun?.(saved.since === null);
     setSaved((s) => (s.since !== null
       ? { ...s, since: null, banked: s.banked + (t - s.since) }
       : { ...s, since: t }));

@@ -3,4 +3,4 @@ document.head.insertAdjacentHTML(
   'beforeend',
   '<link rel="stylesheet" href="./dist/assets/index-LW37MAgE.css">',
 );
-import('./assets/index-CNPYBrc7.js');
+import('./assets/index-xI6EJUNk.js');
