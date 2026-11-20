@@ -93,7 +93,7 @@ export function FxPanel({
    * open one can run off the bottom of a short screen.
    */
   return (
-    <div className={`absolute right-6 top-[236px] ${soundOpen ? 'bottom-[332px]' : 'bottom-32'} z-50 w-[178px] font-mono pointer-events-auto flex flex-col`}>
+    <div className={`absolute right-6 top-[170px] ${soundOpen ? 'bottom-[332px]' : 'bottom-32'} z-50 w-[178px] font-mono pointer-events-auto flex flex-col`}>
       <div className="bg-black/70 backdrop-blur-sm rounded-xl border border-white/20 flex flex-col min-h-0 overflow-y-auto">
         {/* Whose effects these are. With one chain per layer this is not a
             detail — it is the difference between dressing the type and
