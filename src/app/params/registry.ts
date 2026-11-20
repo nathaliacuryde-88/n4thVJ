@@ -1679,7 +1679,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
       {
         name: 'Sound',
         params: [
-          { path: 'sound.move', label: 'Rhythm moves', min: 0, max: 2, step: 0.05, hint: 'each kick the land glides somewhere new, every fourth further' },
+          { path: 'sound.move', label: 'Rhythm moves', min: 0, max: 2, step: 0.05, hint: 'each kick the colours and characters flow to new places, every fourth further' },
           { path: 'sound.bass', label: 'Bass lift', min: 0, max: 2, step: 0.05 },
           { path: 'sound.beat', label: 'Beat ring', min: 0, max: 2, step: 0.05 },
           { path: 'sound.level', label: 'Loud = more type', min: 0, max: 2, step: 0.05 },

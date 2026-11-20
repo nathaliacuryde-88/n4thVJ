@@ -48,7 +48,7 @@ uniform sampler2D uAtlas;
 uniform float uCount, uSequence;
 uniform float uColumns, uScale, uWarp, uTerraces, uContrast, uDensity, uVariety;
 uniform float uTime, uClock, uLift;
-uniform vec2 uShift;   // where the rhythm has moved the land to
+uniform float uMorph;  // how far the rhythm has carried the land's shape on
 uniform vec2 uSeedA, uSeedB;
 uniform float uSeedMix;
 uniform vec3 uInks[8];
@@ -72,9 +72,12 @@ float fbm(vec2 p) {
 
 /** The land: noise folded back through itself by the warp. */
 float land(vec2 p, vec2 seed) {
-  p += seed + uShift;
-  vec2 q = vec2(fbm(p + vec2(0.0, uTime * 0.05)), fbm(p + vec2(5.2, 1.3) - uTime * 0.04));
-  return fbm(p + uWarp * 3.0 * q + uTime * 0.02);
+  p += seed;
+  // The rhythm does not move the land about: it carries its shape on, so the
+  // colours and the characters flow into new places where they stand.
+  float t = uTime + uMorph;
+  vec2 q = vec2(fbm(p + vec2(0.0, t * 0.05)), fbm(p + vec2(5.2, 1.3) - t * 0.04));
+  return fbm(p + uWarp * 3.0 * q + vec2(t * 0.02, -t * 0.013));
 }
 
 void main() {
@@ -163,8 +166,8 @@ export class AtlasRenderer {
   private playing = new Playing(0.6);
   private flowTime = 0;
   /** The rhythm moves the land: where it is, where it is going, and the kicks counted. */
-  private shift = [0, 0];
-  private shiftTo = [0, 0];
+  private morph = 0;
+  private morphTo = 0;
   private kicks = 0;
   private lastKick = 0;
   private clockTime = 0;
@@ -231,7 +234,7 @@ export class AtlasRenderer {
 
     for (const name of [
       'uSize', 'uAtlas', 'uCount', 'uSequence', 'uColumns', 'uScale', 'uWarp', 'uTerraces',
-      'uContrast', 'uDensity', 'uVariety', 'uTime', 'uClock', 'uLift', 'uShift', 'uSeedA', 'uSeedB',
+      'uContrast', 'uDensity', 'uVariety', 'uTime', 'uClock', 'uLift', 'uMorph', 'uSeedA', 'uSeedB',
       'uSeedMix', 'uInks', 'uBurst', 'uPulse', 'uLevel', 'uHand',
     ]) {
       this.uniforms[name] = gl.getUniformLocation(program, name);
@@ -349,22 +352,18 @@ export class AtlasRenderer {
     gl.uniform1f(u.uClock, this.clockTime);
     gl.uniform1f(u.uLift, play.bass * cfg.sound.bass * 0.18);
     /*
-     * On the rhythm the land moves: each kick it glides a step to somewhere
-     * new, every fourth a longer way, so the hills and their characters are
-     * rearranged in time with the music rather than pulsing on the spot.
+     * On the rhythm the land changes shape: each kick carries it a step
+     * further on, every fourth a longer one, and it flows there smoothly —
+     * the colours and characters trade places, nothing jumps sideways.
      */
     const kick = Math.max(play.kick, play.bump);
     if (cfg.sound.move > 0.01 && kick > 0.45 && this.lastKick <= 0.45) {
       this.kicks++;
-      const far = this.kicks % 4 === 0 ? 2.4 : 1;
-      const a = Math.random() * Math.PI * 2;
-      const d = 0.22 * far * cfg.sound.move / Math.max(0.5, cfg.terrain.scale * 0.25);
-      this.shiftTo = [this.shiftTo[0] + Math.cos(a) * d, this.shiftTo[1] + Math.sin(a) * d];
+      this.morphTo += (this.kicks % 4 === 0 ? 3 : 1.2) * cfg.sound.move;
     }
     this.lastKick = kick;
-    const glide = 1 - Math.exp(-dt * 9);
-    this.shift = [this.shift[0] + (this.shiftTo[0] - this.shift[0]) * glide, this.shift[1] + (this.shiftTo[1] - this.shift[1]) * glide];
-    gl.uniform2f(u.uShift, this.shift[0], this.shift[1]);
+    this.morph += (this.morphTo - this.morph) * (1 - Math.exp(-dt * 1.6));
+    gl.uniform1f(u.uMorph, this.morph);
     gl.uniform2f(u.uSeedA, this.seedA[0], this.seedA[1]);
     gl.uniform2f(u.uSeedB, this.seedB[0], this.seedB[1]);
     gl.uniform1f(u.uSeedMix, this.seedMix);
