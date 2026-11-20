@@ -393,8 +393,18 @@ export class JellyfishRenderer {
       // Arriving from below, leaving downward.
       const grow = 1 - Math.pow(1 - j.presence, 3);
       p.y -= (1 - grow) * 7;
-
+      // They swim a little lower in the frame, with room above them…
+      p.y -= 0.9;
       const s = sw.s * size * (0.3 + 0.7 * grow) * (1 + play.bass * cfg.sound.bass * 0.08 + bump * 0.04);
+      // …and never up through the top edge: a soft ceiling a bell's height
+      // under it, so the heads stay whole however high they swim or drift.
+      {
+        const cam = this.camera.position;
+        const half = Math.tan((this.camera.fov * Math.PI) / 360) * Math.max(1, cam.z - p.z);
+        const top = cam.y + half - 1.5 * s;
+        const soft = top - 0.8;
+        if (p.y > soft) p.y = soft + 0.8 * (1 - Math.exp(-(p.y - soft) / 0.8));
+      }
       j.root.position.copy(p);
       q.setFromUnitVectors(Y, j.up);
       j.root.quaternion.copy(q);
