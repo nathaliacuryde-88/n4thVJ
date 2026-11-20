@@ -199,10 +199,11 @@ export class MachineRenderer {
     // B/W on the colour bar hands over white and black: the room then reads
     // in a mid grey rather than in black, so the whole picture stays black and white.
     const mono = (colors[0] ?? '').toUpperCase() === '#FFFFFF' && (colors[1] ?? '') === '#000000';
-    const [sr, sg, sb] = mono ? [185, 185, 185] as [number, number, number] : rgb(colors[1] ?? colors[0] ?? '#9aa0b0');
+    const [sr, sg, sb] = mono ? [255, 255, 255] as [number, number, number] : rgb(colors[1] ?? colors[0] ?? '#9aa0b0');
     const pale = (v: number, k: number) => Math.round(v + (255 - v) * k);
     ctx.fillStyle = `rgb(${pale(sr, 0.25)},${pale(sg, 0.25)},${pale(sb, 0.25)})`;
-    ctx.globalAlpha = 0.45;
+    // In B/W the room is white like the figure, not a dimmed grey.
+    ctx.globalAlpha = mono ? 0.95 : 0.45;
     ctx.fill(ground);
     ctx.fillStyle = `rgb(${pale(cr, 0.12)},${pale(cg, 0.12)},${pale(cb, 0.12)})`;
     ctx.globalAlpha = 0.95;
