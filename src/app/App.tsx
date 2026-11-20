@@ -1483,15 +1483,15 @@ export default function App() {
     } else if (id === 'count') {
       const counts = COUNTS[pattern];
       if (!counts) { flash(`${name} · nothing to count`); return; }
-      const next: Record<string, number> = {};
+      // Glided there like the size, so a field fills or thins smoothly; what
+      // comes in whole numbers (dice, flowers) still arrives one at a time.
       for (const { path } of counts) {
         const spec = specOf(pattern, path);
-        if (spec) next[path] = snapTo(spec.min + v * (spec.max - spec.min), spec.step);
+        if (spec) glideTo(pattern, path, spec.min + v * (spec.max - spec.min), paramNow(pattern, path), spec.max - spec.min);
       }
-      write(pattern, next);
       const first = specOf(pattern, counts[0].path);
-      const shown = next[counts[0].path];
-      flash(`${name} · ${first?.label ?? 'Count'} ${Number.isInteger(shown) ? shown : Math.round(v * 100) + '%'}`);
+      const shown = first ? snapTo(first.min + v * (first.max - first.min), first.step) : 0;
+      flash(`${name} · ${first?.label ?? 'Count'} ${first && first.step >= 1 ? shown : Math.round(v * 100) + '%'}`);
     } else if (id === 'tunnel' || id === 'spiral') {
       const range = id === 'tunnel' ? TUNNEL : SPIRAL;
       const rest = id === 'tunnel' ? 1 : 0;
@@ -1530,7 +1530,7 @@ export default function App() {
     if (id === 'count') {
       const path = COUNTS[pattern]?.[0]?.path;
       const spec = path ? specOf(pattern, path) : undefined;
-      return path && spec ? (paramNow(pattern, path) - spec.min) / (spec.max - spec.min) : undefined;
+      return path && spec ? ((glidingTo(pattern, path) ?? paramNow(pattern, path)) - spec.min) / (spec.max - spec.min) : undefined;
     }
     if (id === 'tunnel') return ((fxByPattern[pattern]?.['feedback.zoom'] ?? 1) - TUNNEL.min) / (TUNNEL.max - TUNNEL.min);
     if (id === 'spiral') return ((fxByPattern[pattern]?.['feedback.rotate'] ?? 0) - SPIRAL.min) / (SPIRAL.max - SPIRAL.min);
