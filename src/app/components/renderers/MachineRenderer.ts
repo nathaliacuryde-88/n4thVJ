@@ -247,6 +247,9 @@ export class MachineRenderer {
       `${hand.fingerCount ?? 0} finger${hand.fingerCount === 1 ? '' : 's'} · ${hand.gesture === 'none' ? 'half open' : hand.gesture} · ${(hand.openness ?? 0).toFixed(2)}`;
     const hands: [string, Hand | null][] = [['left hand', handData.left], ['right hand', handData.right]];
     let seenHands = 0;
+    // In B/W the hand alone is coloured: cobalt blue.
+    const handBright = mono ? '#2f5cff' : bright;
+    const handInk = mono ? '#1f4fe6' : ink;
     for (const [name, hand] of hands) {
       // Only hands that are really there: the stand-in figure is never drawn as one.
       const raw = handData.synthetic ? undefined : hand?.landmarks;
@@ -264,7 +267,7 @@ export class MachineRenderer {
         if (p.y < y0) y0 = p.y;
         if (p.y > y1) y1 = p.y;
       }
-      ctx.strokeStyle = bright;
+      ctx.strokeStyle = handBright;
       ctx.lineWidth = Math.max(1, 1.5 * unit);
       ctx.globalAlpha = 0.8 * marks;
       ctx.beginPath();
@@ -273,7 +276,7 @@ export class MachineRenderer {
         ctx.lineTo(points[b].x * W, points[b].y * H);
       }
       ctx.stroke();
-      ctx.fillStyle = bright;
+      ctx.fillStyle = handBright;
       ctx.beginPath();
       for (const p of points) {
         ctx.moveTo(p.x * W + 3 * unit, p.y * H);
@@ -281,13 +284,13 @@ export class MachineRenderer {
       }
       ctx.fill();
       const pad = 0.02;
-      ctx.strokeStyle = ink;
+      ctx.strokeStyle = handInk;
       ctx.globalAlpha = 0.75 * marks;
       softBox(ctx, (x0 - pad) * W, (y0 - pad) * H, (x1 - x0 + pad * 2) * W, (y1 - y0 + pad * 2) * H, 12 * unit);
       ctx.stroke();
       if (words > 0.01) {
         // The fingertips by their numbers, as the model counts them.
-        ctx.fillStyle = ink;
+        ctx.fillStyle = handInk;
         ctx.globalAlpha = 0.8 * words;
         for (const i of TIPS) ctx.fillText(String(i), points[i].x * W + 6 * unit, points[i].y * H - 7 * unit);
         label(`${name}  ${describe(hand)}`, (x0 - pad) * W, (y1 + pad) * H + 6 * unit);
@@ -297,7 +300,7 @@ export class MachineRenderer {
       const a = handData.left.position;
       const b = handData.right.position;
       ctx.globalAlpha = 0.45 * marks;
-      ctx.strokeStyle = ink;
+      ctx.strokeStyle = handInk;
       ctx.setLineDash([4 * unit, 6 * unit]);
       ctx.beginPath();
       ctx.moveTo(a.x * W, a.y * H);
