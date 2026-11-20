@@ -16,7 +16,7 @@
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-const VERSION = 'dd7a7c8386ab';
+const VERSION = '6ab511a60ffb';
 const CACHE = `n4thvj-${VERSION}`;
 /** The build's files, relative to dist/. */
 const FILES = ["assets/StrichpunktSans-Black-qOOqGWSg.ttf","assets/StrichpunktSans-Bold-BChX3JrT.ttf","assets/dandelion-hJsSsoAd.bin","assets/dice-RHNB3vh8.fbx","assets/index-BxndBFDk.js","assets/index-C2o60Uow.css","boot.js","favicon.svg","hand-worker.js"];
