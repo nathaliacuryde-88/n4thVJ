@@ -1411,21 +1411,21 @@ export default function App() {
    * read as steps — sizes clicking from one to the next. Each frame the value
    * moves a share of the way to the knob, so a turn is one smooth change.
    */
-  const glideRef = useRef(new Map<string, { pattern: string; path: string; value: number; target: number; eps: number }>());
+  const glideRef = useRef(new Map<string, { pattern: string; path: string; value: number; target: number; eps: number; rate: number }>());
   const glideRaf = useRef(0);
-  const glideTo = useCallback((pattern: string, path: string, target: number, from: number, range: number) => {
+  /** `rate`: how quickly it closes in — 9 is a quick follow, lower a slower, rounder glide. */
+  const glideTo = useCallback((pattern: string, path: string, target: number, from: number, range: number, rate = 9) => {
     const key = `${pattern}|${path}`;
     const was = glideRef.current.get(key);
-    glideRef.current.set(key, { pattern, path, value: was ? was.value : from, target, eps: Math.max(1e-5, range * 0.0005) });
+    glideRef.current.set(key, { pattern, path, value: was ? was.value : from, target, eps: Math.max(1e-5, range * 0.0005), rate });
     if (glideRaf.current) return;
     let last = performance.now();
     const tick = (now: number) => {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
-      const k = 1 - Math.exp(-dt * 9);
       const writes: Record<string, Record<string, number>> = {};
       for (const [key, g] of glideRef.current) {
-        g.value += (g.target - g.value) * k;
+        g.value += (g.target - g.value) * (1 - Math.exp(-dt * g.rate));
         if (Math.abs(g.target - g.value) < g.eps) { g.value = g.target; glideRef.current.delete(key); }
         (writes[g.pattern] ??= {})[g.path] = Math.round(g.value * 10000) / 10000;
       }
@@ -1505,9 +1505,9 @@ export default function App() {
     } else if (id === 'fall') {
       // The fall through the clouds and the dive into the stars, together:
       // whichever is up moves.
-      glideTo('arrival-clouds', 'motion.speed', v * 3, paramNow('arrival-clouds', 'motion.speed'), 3);
-      glideTo('tonight', 'flight.dive', v * 1.5, paramNow('tonight', 'flight.dive'), 1.5);
-      glideTo('swarm-galaxy', 'look.dive', v, paramNow('swarm-galaxy', 'look.dive'), 1);
+      glideTo('arrival-clouds', 'motion.speed', v * 3, paramNow('arrival-clouds', 'motion.speed'), 3, 3);
+      glideTo('tonight', 'flight.dive', v * 1.5, paramNow('tonight', 'flight.dive'), 1.5, 3);
+      glideTo('swarm-galaxy', 'look.dive', v, paramNow('swarm-galaxy', 'look.dive'), 1, 3);
       const up = layers.map((l) => l.pattern);
       flash(currentPattern === 'swarm-galaxy' || (up.includes('swarm-galaxy') && !up.includes('arrival-clouds') && !up.includes('tonight'))
         ? `Galaxy · Dive in ${Math.round(v * 100)}%`
@@ -1515,7 +1515,7 @@ export default function App() {
         : `Clouds · Fall ${Math.round(v * 300) / 100}`);
     } else if (id === 'sphere') {
       const x = v * 2;
-      glideTo('morphing', 'shape.style', x, paramNow('morphing', 'shape.style'), 2);
+      glideTo('morphing', 'shape.style', x, paramNow('morphing', 'shape.style'), 2, 3);
       flash(`Sphere · ${x < 0.05 ? 'points' : x > 1.95 ? 'outline' : 'growing lines'}`);
     }
   };
