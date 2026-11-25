@@ -73,6 +73,8 @@ function guideAt(sel: string): React.CSSProperties {
     if (d) return { top: d.top - 16, left: Math.min(window.innerWidth - 150, Math.max(150, t.left + t.width / 2)), transform: 'translate(-50%, -100%)' };
   }
   if (sel === '.fx' && window.innerWidth <= 720) {
+    const open = document.querySelector('.fx.open')?.getBoundingClientRect();
+    if (open) return { top: open.top - 16, left: window.innerWidth / 2, transform: 'translate(-50%, -100%)' };
     const b = document.querySelector('.fxbtn')?.getBoundingClientRect();
     if (b) return { top: b.top - 16, left: Math.min(window.innerWidth - 150, Math.max(150, b.left + b.width / 2)), transform: 'translate(-50%, -100%)' };
   }
