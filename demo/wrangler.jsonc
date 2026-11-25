@@ -1,0 +1,11 @@
+// Cloudflare: the public demo — a small, separate site with only three
+// visuals in it, outside the login. Its own Cloudflare project; the full tool
+// stays private at n4thvj. Serves demo/dist as static files.
+{
+  "name": "the-hand-plays",
+  "compatibility_date": "2026-10-19",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}
