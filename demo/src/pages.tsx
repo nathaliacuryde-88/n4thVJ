@@ -35,7 +35,10 @@ export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => 
               worlds, turns colour palettes live, or lets the system run on its own and evolve with the night.
             </p>
             <h3>Contact</h3>
-            <p className="todo">[ email / instagram — to come ]</p>
+            <p>
+              <a href="mailto:cury.nathalia@gmail.com">cury.nathalia@gmail.com</a><br />
+              <a href="https://instagram.com/nathcury" target="_blank" rel="noreferrer">@nathcury</a>
+            </p>
           </section>
         )}
 
