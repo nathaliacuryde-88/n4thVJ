@@ -69,7 +69,7 @@ export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => 
         {page === 'performances' && (
           <section>
             <h2>Performances</h2>
-            <p className="sub">Stuttgart, November 2026 — live with a DJ set.</p>
+            <p className="sub">Stuttgart, November 2026 — Nische at Kultur Bunker. Live with a DJ set.</p>
             <div className="shows wide">
               {WIDE.map((v) => <video key={v.src} src={v.src} poster={v.poster} autoPlay muted loop playsInline disablePictureInPicture disableRemotePlayback />)}
             </div>
