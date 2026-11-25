@@ -43,7 +43,7 @@ const AMOUNT: Record<Visual, { path: string; min: number; max: number; start: nu
 };
 
 const TRACKS: { name: string; src: string }[] = [
-  { name: 'Test track · 124 bpm', src: './tracks/test-124.mp3' },
+  { name: 'Test track · 124 bpm', src: '/tracks/test-124.mp3' },
 ];
 
 type Renderer = {
@@ -288,7 +288,11 @@ function Demo() {
     if (h.clapping) mark('clap');
   }, [mark]);
 
-  const [page, setPage] = useState<PageName | null>(null);
+  const [page, setPageRaw] = useState<PageName | null>(() => {
+    const p = location.pathname.replace(/^\/+|\/+$/g, '') as PageName;
+    return (['about', 'instrument', 'performances'] as string[]).includes(p) ? p : null;
+  });
+  const setPage = (p: PageName | null) => { setPageRaw(p); try { history.replaceState(null, '', '/' + (p ?? '')); } catch {} };
 
   return (
     <>
