@@ -310,7 +310,7 @@ function Demo() {
         </nav>
       </header>
 
-      {guide && step && !page && (
+      {guide && step && !page && !(fxOpen && window.innerWidth <= 720) && (
         <div className={`guide g${GUIDE_STYLE}`} style={guideAt(step.at)} data-at={step.at}>
           <span className="count">{STEPS.indexOf(step) + 1}/{STEPS.length}</span>
           <span>{step.text}</span>
