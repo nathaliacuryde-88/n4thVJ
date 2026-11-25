@@ -71,7 +71,7 @@ function guideAt(sel: string): React.CSSProperties {
 }
 
 /** Which look the guide has, while one is chosen (?guide=1…5). */
-const GUIDE_STYLE = Math.max(1, Math.min(5, Number(new URLSearchParams(location.search).get('guide')) || 1));
+const GUIDE_STYLE = Math.max(1, Math.min(5, Number(new URLSearchParams(location.search).get('guide')) || 2));
 
 const NONE: HandData = { left: null, right: null };
 const SILENT: AudioData = { bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 };
