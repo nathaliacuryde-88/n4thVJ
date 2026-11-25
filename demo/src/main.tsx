@@ -283,8 +283,10 @@ function Demo() {
     if (m.down && held > 400) mark('fist');
     m.down = 0;
   };
+  const [seen, setSeen] = useState(false);
   const onHands = useCallback((h: HandData) => {
     camHands.current = h;
+    setSeen(!!(h.left || h.right));
     if (h.left || h.right) mark('hand');
     if ((h.left?.gesture === 'fist') || (h.right?.gesture === 'fist')) mark('fist');
     if (h.clapping) mark('clap');
@@ -352,7 +354,7 @@ function Demo() {
         {/* On a phone the effects wait behind this, centred over the bar when opened. */}
         <button className={`fxbtn ${fxOpen ? 'on' : ''}`} onClick={() => { setFxOpen((o) => !o); mark('fx'); }}>FX</button>
         <button className={`camera ${camera === 'on' ? 'on' : ''}`} onClick={camera === 'on' ? undefined : startCamera} title="Play with your hand through the camera">
-          {camera === 'on' ? '● hand' : camera === 'refused' ? 'mouse' : 'camera'}
+          {camera === 'on' ? <><span className={`dot ${seen ? 'seen' : ''}`}>●</span> hand</> : camera === 'refused' ? 'mouse' : 'camera'}
         </button>
       </footer>
 
