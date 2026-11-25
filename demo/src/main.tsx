@@ -70,6 +70,9 @@ function guideAt(sel: string): React.CSSProperties {
   return { top: r.top - 16, left: r.left + r.width / 2, transform: 'translate(-50%, -100%)' };
 }
 
+/** Which look the guide has, while one is chosen (?guide=1…5). */
+const GUIDE_STYLE = Math.max(1, Math.min(5, Number(new URLSearchParams(location.search).get('guide')) || 1));
+
 const NONE: HandData = { left: null, right: null };
 const SILENT: AudioData = { bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 };
 
@@ -222,7 +225,10 @@ function Demo() {
       // Onto the stage: what was there fades by the trail, the new frame over it, turned by the colour.
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1 - 0.94 * fx.trail;
-      ctx.filter = fx.hue ? `hue-rotate(${fx.hue}deg)` : 'none';
+      // Dust is black and white: it is tinted first, so the colour has something to turn.
+      ctx.filter = !fx.hue ? 'none'
+        : current.v === 'dust' ? `sepia(1) saturate(5) hue-rotate(${fx.hue - 40}deg)`
+          : `hue-rotate(${fx.hue}deg)`;
       ctx.drawImage(work, 0, 0);
       ctx.filter = 'none';
       ctx.globalAlpha = 1;
@@ -270,14 +276,14 @@ function Demo() {
       <header className="top">
         <div className="brand">&lt;N4TH&gt;</div>
         <nav>
-          {(['about', 'instrument', 'performances', 'contact'] as PageName[]).map((p) => (
+          {(['about', 'instrument', 'performances'] as PageName[]).map((p) => (
             <button key={p} onClick={() => setPage(p)}>{p}</button>
           ))}
         </nav>
       </header>
 
       {guide && step && !page && (
-        <div className="guide" style={guideAt(step.at)} data-at={step.at}>
+        <div className={`guide g${GUIDE_STYLE}`} style={guideAt(step.at)} data-at={step.at}>
           <span className="count">{STEPS.indexOf(step) + 1}/{STEPS.length}</span>
           <span>{step.text}</span>
           {step.key === 'hand' && camera !== 'on' && (

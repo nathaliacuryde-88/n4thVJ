@@ -1,6 +1,8 @@
-export type PageName = 'about' | 'instrument' | 'performances' | 'contact';
+export type PageName = 'about' | 'instrument' | 'performances';
 
-const SHOWS = ['dust', 'bloom', 'line'].map((n) => ({ src: `./media/show-${n}.mp4`, poster: `./media/show-${n}.jpg` }));
+// Wide ones first, then the upright one; each a different visual.
+const WIDE = ['h-line', 'h-crowd', 'h-dust', 'h-bloom'].map((n) => ({ src: `./media/${n}.mp4`, poster: `./media/${n}.jpg` }));
+const TALL = ['v-sphere'].map((n) => ({ src: `./media/${n}.mp4`, poster: `./media/${n}.jpg` }));
 
 /** The classic pages, over the instrument: it keeps playing behind them. */
 export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => void; onGo: (p: PageName) => void }) {
@@ -8,7 +10,7 @@ export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => 
     <div className={`page ${page === 'performances' ? 'wide' : ''}`} onClick={onClose}>
       <article onClick={(e) => e.stopPropagation()}>
         <nav className="tabs">
-          {(['about', 'instrument', 'performances', 'contact'] as PageName[]).map((p) => (
+          {(['about', 'instrument', 'performances'] as PageName[]).map((p) => (
             <button key={p} className={p === page ? 'on' : ''} onClick={() => onGo(p)}>{p}</button>
           ))}
           <button className="close" onClick={onClose}>close ×</button>
@@ -18,15 +20,22 @@ export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => 
           <section>
             <h2>The machine reads, the hand leads.</h2>
             <p>
-              n4th plays visuals like an instrument. The instrument was built in conversation with AI:
-              a visual tool designed and coded together with it, and played live with the hands.
+              <b>&lt;N4TH&gt;</b> is the visual instrument of Nathalia Cury, a Brazilian art director based in Stuttgart
+              for six years. With a background in typography, editorial design and brand identity, she brings a
+              designer's eye to the club.
             </p>
             <p>
-              A camera reads the hands — speed in the fingers, a fist that gathers, an open palm that releases,
-              a clap that breaks everything open — while the music sets the pulse. The visuals are not clips:
-              they are played.
+              She built &lt;N4TH&gt; together with AI, using it as a design partner from the first sketches in Figma Make
+              to hand tracking with MediaPipe and real-time graphics in Three.js. The result is a tool that sits between
+              graphic design, code and performance.
             </p>
-            <p className="todo">[ bio — to come ]</p>
+            <p>
+              On stage, a camera reads her hands and the music reads the room. Every gesture becomes a move in the
+              visuals: a fist gathers, an open palm releases, a clap breaks everything open. She moves between 2D and 3D
+              worlds, turns colour palettes live, or lets the system run on its own and evolve with the night.
+            </p>
+            <h3>Contact</h3>
+            <p className="todo">[ email / instagram — to come ]</p>
           </section>
         )}
 
@@ -58,18 +67,12 @@ export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => 
           <section>
             <h2>Performances</h2>
             <p className="sub">Stuttgart, November 2026 — live with a DJ set.</p>
-            <div className="shows">
-              {SHOWS.map((s) => (
-                <video key={s.src} src={s.src} poster={s.poster} autoPlay muted loop playsInline controls />
-              ))}
+            <div className="shows wide">
+              {WIDE.map((v) => <video key={v.src} src={v.src} poster={v.poster} autoPlay muted loop playsInline controls />)}
             </div>
-          </section>
-        )}
-
-        {page === 'contact' && (
-          <section>
-            <h2>Contact</h2>
-            <p className="todo">[ email / instagram — to come ]</p>
+            <div className="shows tall">
+              {TALL.map((v) => <video key={v.src} src={v.src} poster={v.poster} autoPlay muted loop playsInline controls />)}
+            </div>
           </section>
         )}
       </article>

@@ -84,3 +84,27 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   .fx { top: auto; bottom: 150px; right: 10px; width: 150px; transform: none; }
   .page.wide .shows { grid-template-columns: 1fr; max-width: 360px; }
 }
+
+.page h3 { font-weight: 400; font-size: 14px; letter-spacing: .14em; text-transform: uppercase; margin: 28px 0 8px; opacity: .7; }
+.page.wide .shows.wide { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 1200px; }
+.page.wide .shows.tall { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1200px; margin-top: 12px; }
+.shows.wide video { aspect-ratio: 16 / 9; }
+.shows.tall video { aspect-ratio: 9 / 16; }
+
+/* The guide's looks, to choose from. */
+:root { --lime: #c6ff00; }
+.guide.g2 { background: rgba(0,0,0,.8); border: 1.5px solid var(--lime); color: var(--lime); }
+.guide.g2::after { background: rgba(0,0,0,.8); border-color: var(--lime); }
+.guide.g2 .count { color: var(--lime); opacity: .6; }
+.guide.g3 { background: var(--lime); border-color: var(--lime); color: #000; font-weight: 600; }
+.guide.g3::after { background: var(--lime); border-color: var(--lime); }
+.guide.g3 .count, .guide.g3 .x { color: #000; opacity: .55; }
+.guide.g3 .cam { background: #000; color: var(--lime); }
+.guide.g4 { background: rgba(0,0,0,.55); border: 0; color: var(--lime); font-size: 14px; letter-spacing: .02em; text-shadow: 0 0 12px rgba(198,255,0,.55); }
+.guide.g4::after { display: none; }
+.guide.g4::before { content: '↓'; position: absolute; left: 50%; bottom: -22px; transform: translateX(-50%); color: var(--lime); font-size: 18px; }
+.guide.g4[data-at=".stage"]::before { display: none; }
+.guide.g5 { background: #fff; color: #000; border-color: #fff; border-radius: 6px; font-weight: 600; box-shadow: 0 0 0 3px var(--lime); }
+.guide.g5::after { background: #fff; border-color: #fff; }
+.guide.g5 .count, .guide.g5 .x { color: #000; opacity: .5; }
+.guide.g5 .cam { background: #000; color: #fff; }
