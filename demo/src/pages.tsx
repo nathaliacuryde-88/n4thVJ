@@ -1,7 +1,7 @@
 export type PageName = 'about' | 'instrument' | 'performances';
 
 // Wide ones first, then the upright one; each a different visual.
-const WIDE = ['w2', 'w1', 'w4', 'w3'].map((n) => ({ src: `./media/${n}.mp4`, poster: `./media/${n}.jpg` }));
+const WIDE = ['w2', 'w1', 'w3'].map((n) => ({ src: `./media/${n}.mp4`, poster: `./media/${n}.jpg` }));
 const TALL = ['t2', 't3', 't4', 't1'].map((n) => ({ src: `./media/${n}.mp4`, poster: `./media/${n}.jpg` }));
 
 /** The classic pages, over the instrument: it keeps playing behind them. */
