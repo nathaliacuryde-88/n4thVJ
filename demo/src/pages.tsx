@@ -1,11 +1,11 @@
 export type PageName = 'about' | 'instrument' | 'performances' | 'contact';
 
-const SHOWS = [1, 2, 3, 4].map((i) => ({ src: `./media/show-${i}.mp4`, poster: `./media/show-${i}.jpg` }));
+const SHOWS = ['dust', 'bloom', 'line'].map((n) => ({ src: `./media/show-${n}.mp4`, poster: `./media/show-${n}.jpg` }));
 
 /** The classic pages, over the instrument: it keeps playing behind them. */
 export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => void; onGo: (p: PageName) => void }) {
   return (
-    <div className="page" onClick={onClose}>
+    <div className={`page ${page === 'performances' ? 'wide' : ''}`} onClick={onClose}>
       <article onClick={(e) => e.stopPropagation()}>
         <nav className="tabs">
           {(['about', 'instrument', 'performances', 'contact'] as PageName[]).map((p) => (
@@ -47,6 +47,10 @@ export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => 
               Every part of it — the visuals, the way they listen, the way they read a gesture — was written in
               conversation with AI. That is the question the performance stays with: who is listening to whom?
             </p>
+            <figure>
+              <img src="./media/instrument.jpg" alt="The instrument: the visuals of the set, layers, effects, the sound and the hands" />
+              <figcaption>The instrument as it is played: the set of visuals, the layers, the effects, what it hears.</figcaption>
+            </figure>
           </section>
         )}
 
@@ -56,7 +60,7 @@ export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => 
             <p className="sub">Stuttgart, November 2026 — live with a DJ set.</p>
             <div className="shows">
               {SHOWS.map((s) => (
-                <video key={s.src} src={s.src} poster={s.poster} controls playsInline preload="none" />
+                <video key={s.src} src={s.src} poster={s.poster} autoPlay muted loop playsInline controls />
               ))}
             </div>
           </section>

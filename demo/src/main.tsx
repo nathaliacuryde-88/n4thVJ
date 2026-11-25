@@ -35,6 +35,13 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
   dandelion: { colors: generateColors(200, 60, 'black'), params: { 'field.count': 3 } },
 };
 
+/** "Amount": how many things each visual shows, from few to many. */
+const AMOUNT: Record<Visual, { path: string; min: number; max: number; start: number }> = {
+  dust: { path: 'field.count', min: 200, max: 5000, start: 0.3 },
+  line: { path: 'line.count', min: 1, max: 40, start: 0.33 },
+  dandelion: { path: 'field.count', min: 1, max: 12, start: 0.2 },
+};
+
 const TRACKS: { name: string; src: string }[] = [
   { name: 'Test track · 124 bpm', src: './tracks/test-124.mp3' },
 ];
@@ -45,11 +52,22 @@ type Renderer = {
   destroy?: () => void;
 };
 function build(v: Visual, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): Renderer {
-  const r: Renderer = v === 'dust' ? new DustRenderer(canvas, ctx)
+  return v === 'dust' ? new DustRenderer(canvas, ctx)
     : v === 'line' ? new FirstLineRenderer(canvas, ctx)
       : new DandelionRenderer(canvas, ctx);
-  r.setParams?.(LOOKS[v].params);
-  return r;
+}
+const paramsFor = (v: Visual, amount: number) => {
+  const a = AMOUNT[v];
+  return { ...LOOKS[v].params, [a.path]: Math.round(a.min + amount * (a.max - a.min)) };
+};
+
+/** Where the guide sits: next to the thing to act on, with its arrow towards it. */
+function guideAt(sel: string): React.CSSProperties {
+  const el = document.querySelector(sel);
+  if (!el || sel === '.stage') return { top: '42%', left: '50%', transform: 'translate(-50%, -50%)' };
+  const r = el.getBoundingClientRect();
+  if (sel === '.fx') return { top: r.top + r.height / 2, left: r.left - 14, transform: 'translate(-100%, -50%)' };
+  return { top: r.top - 16, left: r.left + r.width / 2, transform: 'translate(-50%, -100%)' };
 }
 
 const NONE: HandData = { left: null, right: null };
@@ -66,12 +84,14 @@ function mouseHand(x: number, y: number, closed: number): Hand {
   };
 }
 
+/** Each step points at where to act. */
 const STEPS = [
-  { key: 'play', text: 'Press ▶ to play a track — the visual moves with the music.' },
-  { key: 'hand', text: 'Now play it yourself: allow the camera and raise your hand — or just move the mouse.' },
-  { key: 'fist', text: 'Close your hand (or hold the mouse button) — and open it again.' },
-  { key: 'clap', text: 'Clap (or click quickly).' },
-  { key: 'switch', text: 'Try another visual below.' },
+  { key: 'play', at: '.track', text: 'Play a track — the visual moves with the music.' },
+  { key: 'hand', at: '.stage', text: 'Raise your hand to the camera — or move the mouse.' },
+  { key: 'fist', at: '.stage', text: 'Close your hand (or hold the mouse button) — then open it.' },
+  { key: 'clap', at: '.stage', text: 'Clap (or click quickly).' },
+  { key: 'fx', at: '.fx', text: 'Shape it: trail, colour, amount.' },
+  { key: 'switch', at: '.cards', text: 'Try another visual.' },
 ] as const;
 type StepKey = (typeof STEPS)[number]['key'];
 
@@ -80,6 +100,12 @@ function Demo() {
   const [visual, setVisual] = useState<Visual>('dust');
   const visualRef = useRef(visual);
   visualRef.current = visual;
+  // The effects: a trail, the colour turned round, and how many things.
+  const [trail, setTrail] = useState(0);
+  const [hue, setHue] = useState(0);
+  const [amounts, setAmounts] = useState<Record<Visual, number>>({ dust: AMOUNT.dust.start, line: AMOUNT.line.start, dandelion: AMOUNT.dandelion.start });
+  const fxRef = useRef({ trail, hue, amounts });
+  fxRef.current = { trail, hue, amounts };
 
   // ── the hand: the camera's, or the mouse ─────────────────────────────────
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
@@ -99,6 +125,9 @@ function Demo() {
       setCamera('refused');
     }
   }, []);
+
+  // The camera is asked for at once: playing by hand is the point.
+  useEffect(() => { void startCamera(); }, [startCamera]);
 
   // ── the music ─────────────────────────────────────────────────────────────
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -138,7 +167,10 @@ function Demo() {
   useEffect(() => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d')!;
-    let current: { v: Visual; r: Renderer } | null = null;
+    // The visual draws here; the stage takes it with the trail and the colour.
+    const work = document.createElement('canvas');
+    const wctx = work.getContext('2d')!;
+    let current: { v: Visual; r: Renderer; amount: number } | null = null;
     let fade = 1;
     let last = performance.now();
     let raf = 0;
@@ -147,6 +179,7 @@ function Demo() {
       const k = Math.min(window.devicePixelRatio || 1, 1920 / Math.max(1, window.innerWidth));
       const w = Math.round(window.innerWidth * k), h = Math.round(window.innerHeight * k);
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+      if (work.width !== w || work.height !== h) { work.width = w; work.height = h; }
     };
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
@@ -159,7 +192,7 @@ function Demo() {
         fade -= dt * 3;
         if (fade <= 0 || !current) {
           current?.r.destroy?.();
-          current = { v: want, r: build(want, canvas, ctx) };
+          current = { v: want, r: build(want, work, wctx), amount: -1 };
           fade = 0;
         }
       } else fade = Math.min(1, fade + dt * 1.2);
@@ -182,7 +215,17 @@ function Demo() {
 
       advanceClock(dt, [gestureRate(hands, gesture, dt)]);
       useLayerClock(0);
+      const fx = fxRef.current;
+      const amount = fx.amounts[current.v];
+      if (Math.abs(amount - current.amount) > 0.001) { current.r.setParams?.(paramsFor(current.v, amount)); current.amount = amount; }
       current.r.render(hands, LOOKS[current.v].colors, sound);
+      // Onto the stage: what was there fades by the trail, the new frame over it, turned by the colour.
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1 - 0.94 * fx.trail;
+      ctx.filter = fx.hue ? `hue-rotate(${fx.hue}deg)` : 'none';
+      ctx.drawImage(work, 0, 0);
+      ctx.filter = 'none';
+      ctx.globalAlpha = 1;
       if (fade < 1) {
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1 - fade;
@@ -225,7 +268,7 @@ function Demo() {
       {video && <HandTracker videoElement={video} onHandData={onHands} />}
 
       <header className="top">
-        <div className="brand">[N] <span>THE HAND PLAYS</span></div>
+        <div className="brand">&lt;N4TH&gt;</div>
         <nav>
           {(['about', 'instrument', 'performances', 'contact'] as PageName[]).map((p) => (
             <button key={p} onClick={() => setPage(p)}>{p}</button>
@@ -234,7 +277,7 @@ function Demo() {
       </header>
 
       {guide && step && !page && (
-        <div className="guide">
+        <div className="guide" style={guideAt(step.at)} data-at={step.at}>
           <span className="count">{STEPS.indexOf(step) + 1}/{STEPS.length}</span>
           <span>{step.text}</span>
           {step.key === 'hand' && camera !== 'on' && (
@@ -245,6 +288,13 @@ function Demo() {
           <button className="x" onClick={() => setGuide(false)} title="Hide the guide">×</button>
         </div>
       )}
+
+      <aside className="fx" onPointerDown={() => mark('fx')}>
+        <div className="fxt">EFFECTS</div>
+        <label>Trail<input type="range" min={0} max={1} step={0.01} value={trail} onChange={(e) => setTrail(+e.target.value)} /></label>
+        <label>Colour<input type="range" min={0} max={360} step={1} value={hue} onChange={(e) => setHue(+e.target.value)} /></label>
+        <label>Amount<input type="range" min={0} max={1} step={0.01} value={amounts[visual]} onChange={(e) => setAmounts((a) => ({ ...a, [visual]: +e.target.value }))} /></label>
+      </aside>
 
       <footer className="desk">
         <div className="cards">

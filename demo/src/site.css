@@ -57,3 +57,30 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   .guide { top: 54px; font-size: 11px; border-radius: 14px; }
   .top nav button { padding: 6px 4px; font-size: 10px; }
 }
+
+/* The guide points at where to act. */
+.guide { position: fixed; z-index: 5; }
+.guide::after { content: ''; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px; background: rgba(0,0,0,.72); border-right: 1px solid rgba(255,255,255,.22); border-bottom: 1px solid rgba(255,255,255,.22); transform: translateX(-50%) rotate(45deg); }
+.guide[data-at=".stage"]::after { display: none; }
+.guide[data-at=".fx"]::after { left: auto; right: -7px; bottom: 50%; transform: translateY(50%) rotate(-45deg); }
+
+/* Effects. */
+.fx { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; width: 170px;
+  background: rgba(0,0,0,.72); border: 1px solid rgba(255,255,255,.2); border-radius: 16px; padding: 12px 14px; backdrop-filter: blur(6px); }
+.fxt { font-size: 10px; letter-spacing: .16em; opacity: .5; }
+.fx label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; opacity: .85; }
+.fx input { width: 100%; accent-color: #fff; }
+
+/* The pages slide in; Performances takes the whole screen. */
+.page article { animation: slidein .35s ease-out; transition: width .35s ease-out; }
+@keyframes slidein { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.page.wide article { width: 100vw; border-left: 0; }
+.page.wide .shows { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1100px; margin: 0 auto; }
+.shows video { aspect-ratio: 9 / 16; object-fit: cover; }
+.page figure { margin: 18px 0 0; }
+.page figure img { width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); }
+.page figcaption { font-size: 11px; opacity: .5; margin-top: 6px; }
+@media (max-width: 720px) {
+  .fx { top: auto; bottom: 150px; right: 10px; width: 150px; transform: none; }
+  .page.wide .shows { grid-template-columns: 1fr; max-width: 360px; }
+}
