@@ -6,3 +6,5 @@ mouse), a few tracks, and the project's About / Performances pages.
 Built separately from the full tool so only these visuals' code is public.
 Deployed by its own Cloudflare project (`the-hand-plays`), root directory
 `demo/`, serving `demo/dist/`.
+
+Production branch: `claude/vj-program-tool-rebuild-r44if6`.
