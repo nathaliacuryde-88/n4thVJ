@@ -235,13 +235,24 @@ function Demo() {
       current.r.render(hands, LOOKS[current.v].colors, sound);
       // Onto the stage: what was there fades by the trail, the new frame over it, turned by the colour.
       ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = 1 - 0.94 * fx.trail;
+      // The trail as how long what was there takes to fade: half of it gone
+      // after up to a second and a half, growing evenly along the slider.
+      const halfLife = fx.trail * fx.trail * 1.5;
+      const keep = halfLife < 0.005 ? 0 : Math.exp((-dt * Math.LN2) / halfLife);
+      // What was there fades towards black; the new frame goes over it at full
+      // strength, keeping whichever is brighter — so the trail never dims the visual.
+      ctx.globalAlpha = 1 - keep;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = keep > 0 ? 'lighten' : 'source-over';
       // Dust is black and white: it is tinted first, so the colour has something to turn.
       ctx.filter = !fx.hue ? 'none'
         : current.v === 'dust' ? `sepia(1) saturate(5) hue-rotate(${fx.hue - 40}deg)`
           : `hue-rotate(${fx.hue}deg)`;
       ctx.drawImage(work, 0, 0);
       ctx.filter = 'none';
+      ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
       if (fade < 1) {
         ctx.globalCompositeOperation = 'source-over';
