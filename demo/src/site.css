@@ -115,3 +115,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .guide.g5 .cam { background: #000; color: #fff; }
 .page a { color: var(--lime); text-decoration: none; border-bottom: 1px solid rgba(198,255,0,.35); }
 .page a:hover { border-bottom-color: var(--lime); }
+
+/* Mobile: roomier desk, a plain X to close, videos play without controls. */
+.shows video { pointer-events: none; }
+@media (max-width: 720px) {
+  .desk { gap: 16px 18px; padding: 12px 16px; bottom: 14px; }
+  .desk button, .desk .track button { min-width: 40px; min-height: 40px; }
+  .tabs .close { font-size: 26px; line-height: 1; opacity: .8; padding: 6px 12px; }
+  .tabs .close .cl { display: none; }
+}

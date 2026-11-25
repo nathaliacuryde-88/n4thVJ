@@ -13,7 +13,7 @@ export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => 
           {(['about', 'instrument', 'performances'] as PageName[]).map((p) => (
             <button key={p} className={p === page ? 'on' : ''} onClick={() => onGo(p)}>{p}</button>
           ))}
-          <button className="close" onClick={onClose}>close ×</button>
+          <button className="close" onClick={onClose} aria-label="close"><span className="cl">close </span>×</button>
         </nav>
 
         {page === 'about' && (
@@ -71,10 +71,10 @@ export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => 
             <h2>Performances</h2>
             <p className="sub">Stuttgart, November 2026 — live with a DJ set.</p>
             <div className="shows wide">
-              {WIDE.map((v) => <video key={v.src} src={v.src} poster={v.poster} autoPlay muted loop playsInline controls />)}
+              {WIDE.map((v) => <video key={v.src} src={v.src} poster={v.poster} autoPlay muted loop playsInline disablePictureInPicture disableRemotePlayback />)}
             </div>
             <div className="shows tall">
-              {TALL.map((v) => <video key={v.src} src={v.src} poster={v.poster} autoPlay muted loop playsInline controls />)}
+              {TALL.map((v) => <video key={v.src} src={v.src} poster={v.poster} autoPlay muted loop playsInline disablePictureInPicture disableRemotePlayback />)}
             </div>
           </section>
         )}
