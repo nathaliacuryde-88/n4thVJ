@@ -66,6 +66,16 @@ function guideAt(sel: string): React.CSSProperties {
   const el = document.querySelector(sel);
   if (!el || sel === '.stage') return { top: '42%', left: '50%', transform: 'translate(-50%, -50%)' };
   const r = el.getBoundingClientRect();
+  // On a phone the bar is small: the guide sits above all of it, pointing down.
+  if (window.innerWidth <= 720 && (sel === '.track' || sel === '.cards')) {
+    const d = document.querySelector('.desk')?.getBoundingClientRect();
+    const t = el.getBoundingClientRect();
+    if (d) return { top: d.top - 16, left: Math.min(window.innerWidth - 150, Math.max(150, t.left + t.width / 2)), transform: 'translate(-50%, -100%)' };
+  }
+  if (sel === '.fx' && window.innerWidth <= 720) {
+    const b = document.querySelector('.fxbtn')?.getBoundingClientRect();
+    if (b) return { top: b.top - 16, left: Math.min(window.innerWidth - 150, Math.max(150, b.left + b.width / 2)), transform: 'translate(-50%, -100%)' };
+  }
   if (sel === '.fx') return { top: r.top + r.height / 2, left: r.left - 14, transform: 'translate(-100%, -50%)' };
   return { top: r.top - 16, left: r.left + r.width / 2, transform: 'translate(-50%, -100%)' };
 }
@@ -107,6 +117,7 @@ function Demo() {
   const [trail, setTrail] = useState(0);
   const [hue, setHue] = useState(0);
   const [amounts, setAmounts] = useState<Record<Visual, number>>({ dust: AMOUNT.dust.start, line: AMOUNT.line.start, dandelion: AMOUNT.dandelion.start });
+  const [fxOpen, setFxOpen] = useState(false);
   const fxRef = useRef({ trail, hue, amounts });
   fxRef.current = { trail, hue, amounts };
 
@@ -295,7 +306,7 @@ function Demo() {
         </div>
       )}
 
-      <aside className="fx" onPointerDown={() => mark('fx')}>
+      <aside className={`fx ${fxOpen ? 'open' : ''}`} onPointerDown={() => mark('fx')}>
         <div className="fxt">EFFECTS</div>
         <label>Trail<input type="range" min={0} max={1} step={0.01} value={trail} onChange={(e) => setTrail(+e.target.value)} /></label>
         <label>Colour<input type="range" min={0} max={360} step={1} value={hue} onChange={(e) => setHue(+e.target.value)} /></label>
@@ -321,6 +332,8 @@ function Demo() {
           ))}
         </div>
         <div className="sep" />
+        {/* On a phone the effects wait behind this, centred over the bar when opened. */}
+        <button className={`fxbtn ${fxOpen ? 'on' : ''}`} onClick={() => { setFxOpen((o) => !o); mark('fx'); }}>FX</button>
         <button className={`camera ${camera === 'on' ? 'on' : ''}`} onClick={camera === 'on' ? undefined : startCamera} title="Play with your hand through the camera">
           {camera === 'on' ? '● hand' : camera === 'refused' ? 'mouse' : 'camera'}
         </button>

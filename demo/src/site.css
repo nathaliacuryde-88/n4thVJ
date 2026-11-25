@@ -80,8 +80,13 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .page figure { margin: 18px 0 0; }
 .page figure img { width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); }
 .page figcaption { font-size: 11px; opacity: .5; margin-top: 6px; }
+.fxbtn { display: none; font-size: 11px; letter-spacing: .1em; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.3); }
+.fxbtn.on { background: var(--lime); color: #000; border-color: var(--lime); }
 @media (max-width: 720px) {
-  .fx { top: auto; bottom: 150px; right: 10px; width: 150px; transform: none; }
+  .fxbtn { display: inline-block; }
+  .fx { display: none; top: auto; right: auto; left: 50%; bottom: 150px; width: min(300px, calc(100vw - 32px)); transform: translateX(-50%); }
+  .fx.open { display: flex; }
+  .guide[data-at=".fx"]::after { left: 50%; right: auto; bottom: -7px; transform: translateX(-50%) rotate(45deg); }
   .page.wide .shows { grid-template-columns: 1fr; max-width: 360px; }
 }
 
