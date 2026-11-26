@@ -158,3 +158,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 @media (max-width: 1280px) { .words { display: none; } }
 @media (max-width: 1000px) { .desk { flex-wrap: wrap; justify-content: center; } }
 @media (max-width: 1000px) and (min-width: 721px) { .cards { width: 100%; justify-content: center; } .card img { width: 64px; height: 40px; } .card .num { top: 24px; } }
+/* The timeline: a thin line and a small dot, nothing more. */
+.timeline input { -webkit-appearance: none; appearance: none; height: 12px; background: transparent; cursor: pointer; }
+.timeline input::-webkit-slider-runnable-track { height: 1px; background: rgba(255,255,255,.35); }
+.timeline input::-moz-range-track { height: 1px; background: rgba(255,255,255,.35); }
+.timeline input::-webkit-slider-thumb { -webkit-appearance: none; width: 7px; height: 7px; border-radius: 50%; background: #fff; border: 0; margin-top: -3px; }
+.timeline input::-moz-range-thumb { width: 7px; height: 7px; border-radius: 50%; background: #fff; border: 0; }
+.timeline span { opacity: .6; }
