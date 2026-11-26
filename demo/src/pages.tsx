@@ -57,11 +57,15 @@ export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => 
             </ul>
             <p>
               Every part of it — the visuals, the way they listen, the way they read a gesture — was written in
-              conversation with AI. That is the question the performance stays with: who is listening to whom?
+              conversation with AI. The machine can play on its own, so the performance stays with the question: who leads and who follows?
             </p>
             <figure>
               <img src="/media/instrument.jpg" alt="The instrument: the visuals of the set, layers, effects, the sound and the hands" />
               <figcaption>The instrument as it is played: the set of visuals, the layers, the effects, what it hears.</figcaption>
+            </figure>
+            <figure>
+              <img src="/media/library.jpg" alt="The library of visuals, and the set chosen from it" />
+              <figcaption>The library: every visual of the instrument, and below, the set chosen for the night.</figcaption>
             </figure>
           </section>
         )}
