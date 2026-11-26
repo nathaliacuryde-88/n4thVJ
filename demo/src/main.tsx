@@ -82,6 +82,10 @@ const AMOUNT: Record<Visual, { path: string; min: number; max: number; start: nu
   sphere: { path: 'shape.detail', min: 2, max: 6, start: 0 },
 };
 
+/** The track's length, shown before it has loaded. */
+const TRACK_SECONDS = 362;
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
 const TRACKS: { name: string; src: string }[] = [
   { name: 'Johannex · m4n4th', src: '/tracks/m4n4th.mp3' },
 ];
@@ -177,6 +181,8 @@ function guideAt(sel: string): React.CSSProperties {
 const GUIDE_STYLE = Math.max(1, Math.min(5, Number(new URLSearchParams(location.search).get('guide')) || 2));
 
 const NONE: HandData = { left: null, right: null };
+/** How hard a heavy bass hit lands on each visual, as a share of a clap. */
+const IMPACT: Record<Visual, number> = { dust: 0.35, sphere: 0.7, line: 0.8, jellyfish: 0.7, dandelion: 0.6, standby: 0.8 };
 /** How long each visual stays on Auto. */
 const AUTO_SECONDS = 45;
 const GESTURE_WORDS = ['5 fingers', '2 fingers', 'fist', 'pinch', 'clap'];
@@ -262,6 +268,10 @@ function Demo() {
   // ── the music ─────────────────────────────────────────────────────────────
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState<number | null>(null);
+  const [pos, setPos] = useState(0);
+  const [dur, setDur] = useState(TRACK_SECONDS);
+  const posRef = useRef(0);
+  posRef.current = pos;
   const analysis = useRef<{ ctx: AudioContext; analyser: AnalyserNode; data: Uint8Array; state: AnalyserState } | null>(null);
   const play = useCallback((i: number) => {
     let a = audioRef.current;
@@ -269,6 +279,11 @@ function Demo() {
       a = new Audio();
       a.crossOrigin = 'anonymous';
       a.loop = true;
+      a.addEventListener('timeupdate', () => setPos(a!.currentTime));
+      a.addEventListener('loadedmetadata', () => {
+        setDur(a!.duration || 0);
+        if (Math.abs(a!.currentTime - posRef.current) > 1) a!.currentTime = posRef.current;
+      });
       audioRef.current = a;
       const ctx = new AudioContext();
       const source = ctx.createMediaElementSource(a);
@@ -281,7 +296,8 @@ function Demo() {
     }
     void analysis.current?.ctx.resume();
     if (playing === i) { a.pause(); setPlaying(null); return; }
-    a.src = TRACKS[i].src;
+    // Resumed where it was paused, or from where the timeline was set.
+    if (!a.src.endsWith(TRACKS[i].src)) { a.src = TRACKS[i].src; a.currentTime = posRef.current; }
     void a.play();
     setPlaying(i);
   }, [playing]);
@@ -313,6 +329,7 @@ function Demo() {
     let raf = 0;
     const gesture = createGestureState();
     let clapSeen = 0, lastSeen = '', calm = 0.3;
+    let subBase = -1, subWas = 0, impactAt = -1e9, impact = 0;
     const fit = (c: HTMLCanvasElement, w: number, h: number) => { if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } };
     const size = () => {
       const k = Math.min(window.devicePixelRatio || 1, 1920 / Math.max(1, window.innerWidth));
@@ -363,6 +380,23 @@ function Demo() {
       const an = analysis.current;
       if (an && audioRef.current && !audioRef.current.paused) {
         an.analyser.getByteFrequencyData(an.data);
+        /*
+         * The heavy, distorted bass hits (every four bars or so in Johannex's
+         * track): the sub-bass leaping far above where it has been sitting.
+         * The usual readings are already near the top through the whole
+         * passage, so on their own the hits do not stand out; caught here,
+         * each one reaches the visuals as a soft burst of their own kind.
+         */
+        let sub = 0;
+        for (let b = 1; b <= 6; b++) sub += an.data[b];
+        sub /= 6;
+        if (subBase < 0) subBase = sub;
+        if (sub - subBase > 40 && sub - subWas > 12 && now - impactAt > 1000) {
+          impactAt = now;
+          impact = Math.min(1, 0.7 + (sub - subBase - 40) / 30);
+        }
+        subBase += (sub - subBase) * (1 - Math.exp(-dt * 0.6));
+        subWas = sub;
         // Turned up: the quiet passages still move things, the loud ones only reach the top sooner.
         sound = { ...analyse(an.data, an.ctx.sampleRate, an.state, 0.8, Date.now()), live: true };
       }
@@ -402,7 +436,11 @@ function Demo() {
             l.amount = amount; l.circle = calm;
           }
         } else if (Math.abs(amount - l.amount) > 0.001) { l.r.setParams?.(paramsFor(l.v, amount)); l.amount = amount; }
-        l.r.render(hands, LOOKS[l.v].colors, sound);
+        // A bass hit arrives like a soft clap, as strong as each visual takes it.
+        const hit = now - impactAt < 140 && !hands.clapping
+          ? { ...hands, clapping: true, clapIntensity: impact * IMPACT[l.v] }
+          : hands;
+        l.r.render(hit, LOOKS[l.v].colors, sound);
         // Eased, so the melt starts and ends softly.
         const a = l.alpha * l.alpha * (3 - 2 * l.alpha);
         // Dust and Standby are black and white: it is tinted first, so the colour has something to turn.
@@ -520,6 +558,12 @@ function Demo() {
               <span>{playing === i ? '❚❚' : '▶'}</span> {t.name}
             </button>
           ))}
+          {/* Where in the track: drag to any moment of it. */}
+          <div className="timeline">
+            <input type="range" min={0} max={Math.max(1, dur)} step={0.1} value={pos}
+              onChange={(e) => { const a = audioRef.current; const v = +e.target.value; setPos(v); if (a) a.currentTime = v; }} />
+            <span>{clock(pos)} / {clock(dur)}</span>
+          </div>
         </div>
         <div className="sep" />
         {/* On a phone the effects wait behind this, centred over the bar when opened. */}

@@ -149,3 +149,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 /* Auto: the visuals move on by themselves every half minute. */
 .autobtn { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.3); opacity: .6; }
 .autobtn.on { opacity: 1; border-color: var(--lime); color: var(--lime); }
+/* The track's timeline, under its name. */
+.tracks { display: flex; flex-direction: column; gap: 4px; min-width: 190px; }
+.timeline { display: flex; align-items: center; gap: 8px; font-size: 10px; opacity: .7; }
+.timeline input { flex: 1; accent-color: #fff; min-width: 110px; }
+.timeline span { white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Between phone and wide screen the bar can run out of room: the gesture words go first. */
+@media (max-width: 1280px) { .words { display: none; } }
+@media (max-width: 1000px) { .desk { flex-wrap: wrap; justify-content: center; } }
+@media (max-width: 1000px) and (min-width: 721px) { .cards { width: 100%; justify-content: center; } .card img { width: 64px; height: 40px; } .card .num { top: 24px; } }
