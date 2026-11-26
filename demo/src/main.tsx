@@ -184,7 +184,7 @@ const NONE: HandData = { left: null, right: null };
 /** How hard a heavy bass hit lands on each visual, as a share of a clap. */
 const IMPACT: Record<Visual, number> = { dust: 0.35, sphere: 0, line: 0.8, jellyfish: 0.7, dandelion: 0.35, standby: 0.8 };
 /** How long each visual stays on Auto. */
-const AUTO_SECONDS = 90;
+const AUTO_SECONDS = 60;
 const GESTURE_WORDS = ['5 fingers', '2 fingers', 'fist', 'pinch', 'clap'];
 const SILENT: AudioData = { bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 };
 
@@ -310,10 +310,10 @@ function Demo() {
         const at = el.currentTime, wasPlaying = !el.paused;
         el.src = URL.createObjectURL(b);
         el.currentTime = at;
-        if (wasPlaying) void el.play();
+        if (wasPlaying) el.play().catch(() => { /* paused meanwhile */ });
       }).catch(() => { /* it still plays from the start */ });
     }
-    void a.play();
+    a.play().catch(() => { /* a newer load took over */ });
     setPlaying(i);
   }, [playing]);
 
@@ -609,7 +609,7 @@ function Demo() {
         </div>
         <div className="sep" />
         {/* On a phone the effects wait behind this, centred over the bar when opened. */}
-        <button className={`autobtn ${auto ? 'on' : ''}`} onClick={() => setAuto((a) => !a)} title="Auto: the next visual every 90 seconds">auto</button>
+        <button className={`autobtn ${auto ? 'on' : ''}`} onClick={() => setAuto((a) => !a)} title="Auto: the next visual every minute">auto</button>
         <button className={`fxbtn ${fxOpen ? 'on' : ''}`} onClick={() => { setFxOpen((o) => !o); mark('fx'); }}>FX</button>
         <button className={`camera ${camera === 'on' ? 'on' : ''}`} onClick={camera === 'on' ? undefined : startCamera} title="Play with your hand through the camera">
           {camera === 'on' ? <><span className={`dot ${seen ? 'seen' : ''}`}>●</span> hand</> : camera === 'refused' ? 'mouse' : 'camera'}
