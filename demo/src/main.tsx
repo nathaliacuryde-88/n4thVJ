@@ -43,7 +43,7 @@ const AMOUNT: Record<Visual, { path: string; min: number; max: number; start: nu
 };
 
 const TRACKS: { name: string; src: string }[] = [
-  { name: 'Test track · 124 bpm', src: '/tracks/test-124.mp3' },
+  { name: 'Johannex · m4n4th', src: '/tracks/m4n4th.mp3' },
 ];
 
 type Renderer = {
