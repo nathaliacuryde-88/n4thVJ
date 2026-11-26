@@ -32,6 +32,8 @@ export const DandelionConfig = {
     drift: 0.2,
     /** The grey studio behind them. 0 is black, which stacks cleanly. */
     backdrop: 1,
+    /** How quickly loose seeds come home: 1 as before, 2 twice as soon. */
+    return: 1,
   },
 
   hands: {

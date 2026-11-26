@@ -568,6 +568,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'motion.speed', label: 'Speed', min: 0, max: 3, step: 0.05 },
           { path: 'field.orbit', label: 'Orbit', min: 0, max: 1, step: 0.05, hint: 'slow camera swing' },
           { path: 'field.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
+          { path: 'field.return', label: 'Seeds return', min: 0.25, max: 4, step: 0.05, hint: 'how quickly loose seeds come home' },
         ],
       },
       {
@@ -1068,6 +1069,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.bass', label: 'Bass swells', min: 0, max: 2, step: 0.05 },
           { path: 'sound.beat', label: 'Kick pulse', min: 0, max: 2, step: 0.05 },
           { path: 'sound.spin', label: 'Music spins', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.drop', label: 'Drop burst', min: 0, max: 2, step: 0.05, hint: 'the drop of a build blows it out once' },
         ],
       },
     ],

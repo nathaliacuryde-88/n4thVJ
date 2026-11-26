@@ -43,5 +43,7 @@ export const MorphingSphereConfig = {
     beat: 1,
     /** Melody and fullness spin it faster. */
     spin: 1,
+    /** The drop of a build blows it out once. 0: it never jumps. */
+    drop: 1,
   },
 };

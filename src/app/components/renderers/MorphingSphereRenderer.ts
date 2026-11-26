@@ -173,7 +173,7 @@ export class MorphingSphereRenderer {
     const kick = Math.max(play.kick, play.bump) * cfg.sound.beat;
     this.pulse = Math.max(this.pulse * Math.exp(-dt * 6), Math.min(1, kick));
     if (play.clapped && cfg.hands.clap > 0) this.burst = Math.max(this.burst, play.clapStrength * cfg.hands.clap);
-    if (play.drop > 0.5 && this.lastDrop <= 0.5) this.burst = Math.max(this.burst, 0.9);
+    if (play.drop > 0.5 && this.lastDrop <= 0.5) this.burst = Math.max(this.burst, 0.9 * cfg.sound.drop);
     this.lastDrop = play.drop;
     this.burst *= Math.exp(-dt * 2.2);
     const amount = cfg.shape.morph + 0.35 * this.swell + 0.5 * this.pull + 0.25 * play.build;

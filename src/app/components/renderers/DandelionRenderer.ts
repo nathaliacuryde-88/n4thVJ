@@ -622,6 +622,8 @@ export class DandelionRenderer {
     const crowd = Math.sqrt(Math.min(1, 3 / Math.max(1, Math.round(cfg.field.count))));
     const loose = Math.min(0.72, crowd * (amount * (0.25 + level * 0.45) + hold * 0.3 * this.present * master));
     const clapTake = clapShare * Math.min(1, cfg.hands.clap) * master * crowd;
+    /** How quickly loose seeds come home: their time away shortened, their glide back quickened. */
+    const back = Math.max(0.25, cfg.field.return ?? 1);
     const jitter = Math.min(1, loose * 5);
     const gathering = handed && play.openness < 0.15 && cfg.hands.release > 0;
 
@@ -734,9 +736,9 @@ export class DandelionRenderer {
         const j = i * seeds + k;
         const o = j * 3;
         if (clapped && hash1(j * 1.37 + t * 7.3) < clapTake) {
-          this.hold[j] = CLAP_HOLD[0] + hash1(j + t) * (CLAP_HOLD[1] - CLAP_HOLD[0]);
+          this.hold[j] = (CLAP_HOLD[0] + hash1(j + t) * (CLAP_HOLD[1] - CLAP_HOLD[0])) / back;
         } else if (kicked && hash1(j * 0.71 + t * 13.1) < 0.008 * cfg.sound.gust * amount * crowd) {
-          this.hold[j] = KICK_HOLD[0] + hash1(j + t * 3.1) * (KICK_HOLD[1] - KICK_HOLD[0]);
+          this.hold[j] = (KICK_HOLD[0] + hash1(j + t * 3.1) * (KICK_HOLD[1] - KICK_HOLD[0])) / back;
         }
         this.hold[j] = Math.max(0, this.hold[j] - dt);
         const wander = 0.06 * jitter * Math.sin(t * 0.37 + this.phase[j]);
@@ -757,7 +759,7 @@ export class DandelionRenderer {
         if (free && !this.away[j]) {
           // Lifting off: a little pop outward along the way it points, a
           // flight of its own length, and somewhere in the frame to drift to.
-          this.flight[j] = 6 + Math.random() * 6;
+          this.flight[j] = (6 + Math.random() * 6) / back;
           this.pickDestination(j, tanHalf, aspect);
           const pop = 0.4 + (clapped && this.hold[j] > 0 ? 3.2 * cfg.hands.clap * clapShare : 0);
           this.vel[o] += awx * pop;
@@ -830,7 +832,7 @@ export class DandelionRenderer {
           } else {
             // Home: a gentle glide back, still caught by the breeze on the way.
             const dist = Math.hypot(ox, oy, oz);
-            const speed = Math.min(1.8, dist * 0.9) / Math.max(dist, 1e-4);
+            const speed = Math.min(1.8 * back, dist * 0.9 * back) / Math.max(dist, 1e-4);
             const tx = -ox * speed + fx * Math.min(1, dist) * 0.6;
             const ty = -oy * speed + fy * Math.min(1, dist) * 0.6;
             const tz = -oz * speed + fz * Math.min(1, dist) * 0.6;

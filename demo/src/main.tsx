@@ -50,14 +50,14 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
   dandelion: {
     colors: generateColors(200, 60, 'black'),
     // Flowing, not hopping: the kick barely bounces them, the music's wind carries them.
-    params: { 'sound.gust': 0.3, 'sound.wind': 1.4, 'field.sway': 1.9, 'field.bounce': 0.15, 'field.drift': 0.44, 'field.backdrop': 0, 'colour.speed': 2.5, 'colour.offset': 0, 'colour.palette': 0, 'colour.depth': 0.32 },
+    params: { 'sound.gust': 0, 'sound.wind': 1.4, 'field.return': 2.5, 'field.sway': 1.9, 'field.bounce': 0, 'field.drift': 0.44, 'field.backdrop': 0, 'colour.speed': 2.5, 'colour.offset': 0, 'colour.palette': 0, 'colour.depth': 0.32 },
   },
   // All in blues (the Ink palette), carried further by the music, swelling apart on a heavy bass hit.
   jellyfish: { colors: generateColors(245, 100, 'contrast'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'swarm.arrival': 11, 'colour.palette': 3, 'sound.flow': 1.7, 'swarm.drift': 1.3, 'sound.swell': 1.2, 'sound.beat': 0.6 } },
   standby: { colors: generateColors(0, 0, 'grayscale'), params: { 'sound.quiet': 0.4, 'grid.words': 0 } },
   sphere: {
     colors: generateColors(0, 0, 'grayscale'),
-    params: { 'shape.style': 2, 'shape.size': 1.2, 'shape.morph': 0.32, 'shape.lobes': 1.05, 'shape.detail': 2, 'motion.spin': 0.4, 'motion.flow': 1, 'motion.dust': 1, 'motion.points': 3600, 'sound.beat': 0 },
+    params: { 'shape.style': 2, 'shape.size': 1.2, 'shape.morph': 0.32, 'shape.lobes': 1.05, 'shape.detail': 2, 'motion.spin': 0.4, 'motion.flow': 1, 'motion.dust': 1, 'motion.points': 3600, 'sound.beat': 0, 'sound.drop': 0, 'sound.bass': 0.3 },
   },
 };
 
@@ -182,7 +182,7 @@ const GUIDE_STYLE = Math.max(1, Math.min(5, Number(new URLSearchParams(location.
 
 const NONE: HandData = { left: null, right: null };
 /** How hard a heavy bass hit lands on each visual, as a share of a clap. */
-const IMPACT: Record<Visual, number> = { dust: 0.35, sphere: 0.7, line: 0.8, jellyfish: 0.7, dandelion: 0.6, standby: 0.8 };
+const IMPACT: Record<Visual, number> = { dust: 0.35, sphere: 0, line: 0.8, jellyfish: 0.7, dandelion: 0.35, standby: 0.8 };
 /** How long each visual stays on Auto. */
 const AUTO_SECONDS = 90;
 const GESTURE_WORDS = ['5 fingers', '2 fingers', 'fist', 'pinch', 'clap'];
@@ -329,7 +329,7 @@ function Demo() {
     let raf = 0;
     const gesture = createGestureState();
     let clapSeen = 0, lastSeen = '', calm = 0.3;
-    let subBase = -1, subWas = 0, impactAt = -1e9, impact = 0;
+    let subBase = -1, subWas = 0, impactAt = -1e9, impact = 0, shapeHit = 0;
     const fit = (c: HTMLCanvasElement, w: number, h: number) => { if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } };
     const size = () => {
       const k = Math.min(window.devicePixelRatio || 1, 1920 / Math.max(1, window.innerWidth));
@@ -434,6 +434,21 @@ function Demo() {
           if (Math.abs(calm - l.circle) > 0.01 || Math.abs(amount - l.amount) > 0.001) {
             l.r.setParams?.({ ...paramsFor(l.v, amount), 'form.circle': calm });
             l.amount = amount; l.circle = calm;
+          }
+        } else if (l.v === 'sphere') {
+          // A heavy bass hit plays the planet's shape to the full — Morph at
+          // its top — and it eases back to its own over a couple of seconds.
+          // It does not grow or jump.
+          const since = (now - impactAt) / 1000;
+          const to = since < 0.25 ? 1 : Math.exp(-(since - 0.25) * 1.1);
+          shapeHit += (to - shapeHit) * (1 - Math.exp(-dt * (to > shapeHit ? 10 : 3)));
+          const morph = 0.32 + (0.8 - 0.32) * shapeHit;
+          if (Math.abs(morph - l.circle) > 0.005 || Math.abs(amount - l.amount) > 0.001) {
+            // Its lobes reach further as the morph rises; the size comes down to
+            // match, so its outline stays about as big as at rest.
+            const size = 1.2 * (1 + 1.3 * 0.32) / (1 + 1.3 * morph);
+            l.r.setParams?.({ ...paramsFor(l.v, amount), 'shape.morph': morph, 'shape.size': size });
+            l.amount = amount; l.circle = morph;
           }
         } else if (Math.abs(amount - l.amount) > 0.001) { l.r.setParams?.(paramsFor(l.v, amount)); l.amount = amount; }
         // A bass hit arrives like a soft clap, as strong as each visual takes it.
