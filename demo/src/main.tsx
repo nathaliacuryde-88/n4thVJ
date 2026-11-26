@@ -6,6 +6,7 @@ import { FirstLineRenderer } from '@/components/renderers/FirstLineRenderer';
 import { DandelionRenderer } from '@/components/renderers/DandelionRenderer';
 import { JellyfishRenderer } from '@/components/renderers/JellyfishRenderer';
 import { StandbyRenderer } from '@/components/renderers/StandbyRenderer';
+import { MorphingSphereRenderer } from '@/components/renderers/MorphingSphereRenderer';
 import { HandTracker } from '@/components/HandTracker';
 import { analyse, createState, AnalyserState } from '@/audio/analyse';
 import { generateColors } from '@/config/palette';
@@ -24,13 +25,14 @@ import { Pages, PageName } from './pages';
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-type Visual = 'dust' | 'line' | 'dandelion' | 'jellyfish' | 'standby';
+type Visual = 'dust' | 'line' | 'dandelion' | 'jellyfish' | 'standby' | 'sphere';
 const VISUALS: { id: Visual; name: string; note: string }[] = [
   { id: 'dust', name: 'Dust', note: 'a fist gathers it into a circle' },
   { id: 'line', name: 'Line', note: 'an open hand unfolds it' },
   { id: 'dandelion', name: 'Dandelion', note: 'the hand moves the wind' },
   { id: 'jellyfish', name: 'Jellyfish', note: 'a fist closes the bells' },
   { id: 'standby', name: 'Standby', note: 'a fist closes the picture to a point' },
+  { id: 'sphere', name: 'Sphere', note: 'a fist pulls it out of shape' },
 ];
 /** Each visual's look for the demo: its colours and a few settings. */
 const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }> = {
@@ -41,6 +43,10 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
   // All in blues (the Ink palette), carried further by the music, swelling apart on a heavy bass hit.
   jellyfish: { colors: generateColors(215, 70, 'black'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'colour.palette': 3, 'sound.flow': 1.7, 'swarm.drift': 1.3, 'sound.swell': 1.2, 'sound.beat': 0.6 } },
   standby: { colors: generateColors(0, 0, 'grayscale'), params: { 'sound.quiet': 0.4 } },
+  sphere: {
+    colors: generateColors(0, 0, 'grayscale'),
+    params: { 'shape.style': 2, 'shape.size': 1.2, 'shape.morph': 0.32, 'shape.lobes': 1.05, 'shape.detail': 2, 'motion.spin': 0.4, 'motion.flow': 1, 'motion.dust': 1 },
+  },
 };
 
 /** "Amount": how many things each visual shows, from few to many. */
@@ -50,6 +56,7 @@ const AMOUNT: Record<Visual, { path: string; min: number; max: number; start: nu
   dandelion: { path: 'field.count', min: 1, max: 12, start: 0.2 },
   jellyfish: { path: 'swarm.count', min: 1, max: 8, start: 0.43 },
   standby: { path: 'grid.detail', min: 0.2, max: 1, start: 0.38 },
+  sphere: { path: 'motion.points', min: 0, max: 6000, start: 0.6 },
 };
 
 const TRACKS: { name: string; src: string }[] = [
@@ -67,6 +74,7 @@ function build(v: Visual, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext
     : v === 'line' ? new FirstLineRenderer(canvas, ctx)
       : v === 'jellyfish' ? new JellyfishRenderer(canvas, ctx)
         : v === 'standby' ? new StandbyRenderer(canvas, ctx)
+          : v === 'sphere' ? new MorphingSphereRenderer(canvas, ctx)
           : new DandelionRenderer(canvas, ctx);
 }
 const paramsFor = (v: Visual, amount: number) => {
