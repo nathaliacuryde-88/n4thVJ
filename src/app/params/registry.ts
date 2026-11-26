@@ -1054,6 +1054,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'motion.flow', label: 'Flow', min: 0, max: 3, step: 0.05, hint: 'how fast the shape moves on' },
           { path: 'motion.dust', label: 'Stars', min: 0, max: 1, step: 0.05 },
           { path: 'motion.points', label: 'Star count', min: 0, max: 6000, step: 100, hint: 'how many points behind the sphere' },
+          { path: 'motion.glide', label: 'Glide', min: 0, max: 4, step: 0.1, hint: 'changes of pace eased over seconds, never a lurch' },
         ],
       },
       {

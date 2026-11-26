@@ -62,6 +62,11 @@ export class MorphingSphereRenderer {
   /** The kick's dent: how deep, and from which side (a unit vector, turned with the shape). */
   private dent = 0;
   private dentDir = new THREE.Vector3(1, 0, 0);
+  private dentAim = new THREE.Vector3(1, 0, 0);
+  private dentTo = 0;
+  /** The shared clock's pace, eased (see Glide). */
+  private pace = 0;
+  private turn = 0;
   private lastSquash = 0;
   private at = new THREE.Vector2();
 
@@ -161,8 +166,16 @@ export class MorphingSphereRenderer {
     const play = this.playing;
     play.read(handData, audioData);
     const { dt } = play;
-    const step = Math.max(0, play.step);
     const ease = (rate: number) => 1 - Math.exp(-dt * rate);
+    /*
+     * Glide: the shared clock's pace — which the music's stand-in hand keeps
+     * changing — eased over seconds, so a change of tempo is a change of tide
+     * and never a lurch; the bass's swell eased the same way.
+     */
+    const glide = Math.max(0, cfg.motion.glide);
+    const raw = Math.max(0, play.step);
+    this.pace += (raw - this.pace) * (glide > 0 ? ease(0.7 / glide) : 1);
+    const step = this.pace;
     this.time += step;
 
     const detail = Math.max(2, Math.min(6, Math.round(cfg.shape.detail)));
@@ -173,7 +186,7 @@ export class MorphingSphereRenderer {
     const real = !handData.synthetic && hands.some(Boolean);
     const squeeze = real ? Math.max(play.fist, play.pinch) : 0;
     this.pull += (squeeze * cfg.hands.shape - this.pull) * ease(4);
-    this.swell += (play.bass * cfg.sound.bass - this.swell) * ease(5);
+    this.swell += (play.bass * cfg.sound.bass - this.swell) * ease(glide > 0 ? 1.2 / glide : 5);
     const kick = Math.max(play.kick, play.bump) * cfg.sound.beat;
     this.pulse = Math.max(this.pulse * Math.exp(-dt * 6), Math.min(1, kick));
     if (play.clapped && cfg.hands.clap > 0) this.burst = Math.max(this.burst, play.clapStrength * cfg.hands.clap);
@@ -182,11 +195,16 @@ export class MorphingSphereRenderer {
     // quickly, released softly — each time from somewhere else.
     const hit = Math.max(play.kick, play.bump);
     if (cfg.sound.squash > 0 && hit > 0.45 && this.lastSquash <= 0.45) {
-      this.dent = Math.max(this.dent, Math.min(1, hit) * cfg.sound.squash);
-      this.dentDir.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+      this.dentTo = Math.max(this.dentTo, Math.min(1, hit) * cfg.sound.squash);
+      this.dentAim.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
     }
     this.lastSquash = hit;
-    this.dent *= Math.exp(-dt * 2.6);
+    // Pressed in over a moment (gliding) or at once, let go softly; the side
+    // it presses from turns round to the new one rather than jumping there.
+    this.dent += (this.dentTo - this.dent) * (glide > 0 ? ease(9 / glide) : 1);
+    this.dentTo *= Math.exp(-dt * 2.6);
+    if (glide > 0) this.dentDir.lerp(this.dentAim, ease(6 / glide)).normalize();
+    else this.dentDir.copy(this.dentAim);
     this.lastDrop = play.drop;
     this.burst *= Math.exp(-dt * 2.2);
     const amount = cfg.shape.morph + 0.35 * this.swell + 0.5 * this.pull + 0.25 * play.build;
@@ -239,7 +257,10 @@ export class MorphingSphereRenderer {
     this.lines!.visible = reach > 0.004;
 
     // ── turning about its centre, leaning a little to the hand ───────────
-    this.spin += step * 0.35 * cfg.motion.spin * (1 + cfg.sound.spin * (0.8 * play.mid + 0.6 * play.energy));
+    // The melody's push on the turn, eased like the pace when gliding.
+    const turn = 0.8 * play.mid + 0.6 * play.energy;
+    this.turn += (turn - this.turn) * (glide > 0 ? ease(0.8 / glide) : 1);
+    this.spin += step * 0.35 * cfg.motion.spin * (1 + cfg.sound.spin * this.turn);
     this.group.rotation.set(0.35 + Math.sin(this.time * 0.13) * 0.25, this.spin, Math.sin(this.time * 0.09) * 0.2);
     const follow = real ? cfg.hands.follow : cfg.hands.follow * 0.3;
     this.at.x += (play.aim.x * 2.2 * follow - this.at.x) * ease(2);

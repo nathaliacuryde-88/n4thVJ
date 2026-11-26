@@ -27,6 +27,8 @@ export const MorphingSphereConfig = {
     dust: 0.5,
     /** How many points of dust there are behind it. */
     points: 1400,
+    /** Seconds over which a change of pace or of the bass is eased in, so it never lurches. 0: at once. */
+    glide: 0,
   },
 
   hands: {
