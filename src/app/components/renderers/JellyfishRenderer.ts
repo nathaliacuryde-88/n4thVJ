@@ -162,6 +162,9 @@ export class JellyfishRenderer {
   /** How far the music's current has carried the swarm, and how strongly it carries it now. */
   private current = 0;
   private carry = 0;
+  /** How far a heavy bass hit has swelled the swarm apart, and the bass it is measured against. */
+  private swell = 0;
+  private bassAvg = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, host: MotifHost | null = null) {
     this.canvas = canvas;
@@ -341,7 +344,16 @@ export class JellyfishRenderer {
       this.swarm.forEach((j) => { j.presence = 0; });
     }
 
-    const scatter = handed ? Math.max(0.3, 1 + (play.spread - 0.4) * cfg.hands.spread * 1.6) : 1;
+    /*
+     * A heavy bass hit, against the bass of the last few seconds, swells the
+     * swarm apart — quickly, but eased — and it drifts back over seconds.
+     */
+    const bassNow = audioData?.live ? audioData.bass : 0;
+    const hitBy = Math.max(0, bassNow - this.bassAvg - 0.12);
+    this.bassAvg += (bassNow - this.bassAvg) * (1 - Math.exp(-dt * 0.5));
+    const swellTo = Math.min(1, hitBy * 2.2) * cfg.sound.swell;
+    this.swell += (swellTo - this.swell) * (1 - Math.exp(-dt * (swellTo > this.swell ? 2.5 : 0.45)));
+    const scatter = (handed ? Math.max(0.3, 1 + (play.spread - 0.4) * cfg.hands.spread * 1.6) : 1) * (1 + this.swell * 0.9);
     const hand = new THREE.Vector3(play.aim.x * 4.6, play.aim.y * 2.1, 0)
       .multiplyScalar(cfg.hands.follow * handed);
     const wander = cfg.swarm.drift * (1 + play.bass * cfg.sound.bass * 0.8);
@@ -390,7 +402,7 @@ export class JellyfishRenderer {
       // Its own slow pulses push it gently up its axis; a kick squeezes the
       // bell but barely moves it. Between, it glides and sinks. Held by the
       // hand, it is the closing that pushes — as a real one swims.
-      const push = (Math.min(1.3, own + bump * 0.15 + burst * 0.4) * (1 - hold) + Math.min(1.3, closing * 0.35) * hold) * cfg.swarm.pulse;
+      const push = (Math.min(1.3, own + bump * 0.15 + burst * 0.4 + this.swell * 0.5) * (1 - hold) + Math.min(1.3, closing * 0.35) * hold) * cfg.swarm.pulse;
       j.rise += (push * 1.5 - j.rise * 1.2) * dt;
       j.lift += (j.rise - j.lift * 0.35) * dt * 0.8;
 

@@ -142,3 +142,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   .card .name { font-size: 9px; }
   .card .num { top: 20px; }
 }
+/* The hand button: the dot and the word side by side. */
+.camera { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+@media (max-width: 720px) { .words { display: none; } }

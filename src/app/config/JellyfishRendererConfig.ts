@@ -56,5 +56,7 @@ export const JellyfishConfig = {
     high: 1,
     /** The music carries the swarm on a current, swaying it side to side, wider and faster as it fills. */
     flow: 1,
+    /** A heavy bass hit swells the swarm apart, and it drifts slowly back together. 0: off. */
+    swell: 0,
   },
 };

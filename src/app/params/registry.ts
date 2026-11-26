@@ -1544,6 +1544,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hat ripple', min: 0, max: 2, step: 0.05 },
           { path: 'sound.flow', label: 'Music current', min: 0, max: 2.5, step: 0.05, hint: 'the music sways the swarm side to side, wider as it fills' },
+          { path: 'sound.swell', label: 'Bass swell', min: 0, max: 2, step: 0.05, hint: 'a heavy bass hit swells the swarm apart; it drifts back together' },
         ],
       },
     ],

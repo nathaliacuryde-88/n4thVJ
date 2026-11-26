@@ -5,7 +5,7 @@ import { DustRenderer } from '@/components/renderers/DustRenderer';
 import { FirstLineRenderer } from '@/components/renderers/FirstLineRenderer';
 import { DandelionRenderer } from '@/components/renderers/DandelionRenderer';
 import { JellyfishRenderer } from '@/components/renderers/JellyfishRenderer';
-import { MachineRenderer } from '@/components/renderers/MachineRenderer';
+import { StandbyRenderer } from '@/components/renderers/StandbyRenderer';
 import { HandTracker } from '@/components/HandTracker';
 import { analyse, createState, AnalyserState } from '@/audio/analyse';
 import { generateColors } from '@/config/palette';
@@ -24,21 +24,23 @@ import { Pages, PageName } from './pages';
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-type Visual = 'dust' | 'line' | 'dandelion' | 'jellyfish' | 'machine';
+type Visual = 'dust' | 'line' | 'dandelion' | 'jellyfish' | 'standby';
 const VISUALS: { id: Visual; name: string; note: string }[] = [
   { id: 'dust', name: 'Dust', note: 'a fist gathers it into a circle' },
   { id: 'line', name: 'Line', note: 'an open hand unfolds it' },
   { id: 'dandelion', name: 'Dandelion', note: 'the hand moves the wind' },
   { id: 'jellyfish', name: 'Jellyfish', note: 'a fist closes the bells' },
-  { id: 'machine', name: 'Machine', note: 'what the machine sees of you' },
+  { id: 'standby', name: 'Standby', note: 'a fist closes the picture to a point' },
 ];
 /** Each visual's look for the demo: its colours and a few settings. */
 const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }> = {
-  dust: { colors: generateColors(0, 0, 'grayscale'), params: { 'look.glow': 1.6, 'field.size': 1.3 } },
+  // Softer on the kick: the music moves it without big jolts.
+  dust: { colors: generateColors(0, 0, 'grayscale'), params: { 'look.glow': 1.6, 'field.size': 1.3, 'sound.beat': 0.35 } },
   line: { colors: generateColors(268, 70, 'black'), params: { 'line.weight': 1.4 } },
   dandelion: { colors: generateColors(200, 60, 'black'), params: { 'field.count': 3 } },
-  jellyfish: { colors: generateColors(200, 70, 'black'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3 } },
-  machine: { colors: generateColors(225, 80, 'black'), params: {} },
+  // All in blues (the Ink palette), carried further by the music, swelling apart on a heavy bass hit.
+  jellyfish: { colors: generateColors(215, 70, 'black'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'colour.palette': 3, 'sound.flow': 1.7, 'swarm.drift': 1.3, 'sound.swell': 1.2, 'sound.beat': 0.6 } },
+  standby: { colors: generateColors(0, 0, 'grayscale'), params: { 'sound.quiet': 0.4 } },
 };
 
 /** "Amount": how many things each visual shows, from few to many. */
@@ -47,7 +49,7 @@ const AMOUNT: Record<Visual, { path: string; min: number; max: number; start: nu
   line: { path: 'line.count', min: 1, max: 40, start: 0.33 },
   dandelion: { path: 'field.count', min: 1, max: 12, start: 0.2 },
   jellyfish: { path: 'swarm.count', min: 1, max: 8, start: 0.43 },
-  machine: { path: 'picture.detail', min: 0.25, max: 1, start: 0.47 },
+  standby: { path: 'grid.detail', min: 0.2, max: 1, start: 0.38 },
 };
 
 const TRACKS: { name: string; src: string }[] = [
@@ -64,7 +66,7 @@ function build(v: Visual, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext
   return v === 'dust' ? new DustRenderer(canvas, ctx)
     : v === 'line' ? new FirstLineRenderer(canvas, ctx)
       : v === 'jellyfish' ? new JellyfishRenderer(canvas, ctx)
-        : v === 'machine' ? new MachineRenderer(canvas, ctx)
+        : v === 'standby' ? new StandbyRenderer(canvas, ctx)
           : new DandelionRenderer(canvas, ctx);
 }
 const paramsFor = (v: Visual, amount: number) => {
@@ -201,20 +203,32 @@ function Demo() {
   useEffect(() => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d')!;
-    // The visual draws here; the stage takes it with the trail and the colour.
-    const work = document.createElement('canvas');
-    const wctx = work.getContext('2d')!;
-    let current: { v: Visual; r: Renderer; amount: number; video?: HTMLVideoElement } | null = null;
-    let fade = 1;
+    // The two visuals of a crossfade are mixed here; the stage takes the mix
+    // with the trail. Each visual draws on a canvas of its own.
+    const mix = document.createElement('canvas');
+    const mctx = mix.getContext('2d')!;
+    type Layer = { v: Visual; r: Renderer; amount: number; video?: HTMLVideoElement; work: HTMLCanvasElement; alpha: number };
+    let current: Layer | null = null;
+    let leaving: Layer | null = null;
+    /** Seconds one visual takes to melt into the next. */
+    const CROSSFADE = 2.5;
     let last = performance.now();
     let raf = 0;
     const gesture = createGestureState();
-    let pulse = 0, clapSeen = 0, lastSeen = '';
+    let clapSeen = 0, lastSeen = '';
+    const fit = (c: HTMLCanvasElement, w: number, h: number) => { if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } };
     const size = () => {
       const k = Math.min(window.devicePixelRatio || 1, 1920 / Math.max(1, window.innerWidth));
       const w = Math.round(window.innerWidth * k), h = Math.round(window.innerHeight * k);
-      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-      if (work.width !== w || work.height !== h) { work.width = w; work.height = h; }
+      fit(canvas, w, h); fit(mix, w, h);
+      if (current) fit(current.work, w, h);
+      if (leaving) fit(leaving.work, w, h);
+    };
+    const layer = (v: Visual): Layer => {
+      const work = document.createElement('canvas');
+      work.width = canvas.width; work.height = canvas.height;
+      const r = build(v, work, work.getContext('2d')!);
+      return { v, r, amount: -1, work, alpha: 0 };
     };
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
@@ -222,19 +236,21 @@ function Demo() {
       last = now;
       size();
       const want = visualRef.current;
-      if (!current || current.v !== want) {
-        // Down to black, then the next one comes up.
-        fade -= dt * 3;
-        if (fade <= 0 || !current) {
-          current?.r.destroy?.();
-          current = { v: want, r: build(want, work, wctx), amount: -1 };
-          if (videoRef.current) current.r.setVideoElement?.(videoRef.current);
-          fade = 0;
-        }
-      } else {
-        fade = Math.min(1, fade + dt * 1.2);
-        // The camera may arrive after the visual did.
-        if (videoRef.current && current.video !== videoRef.current) { current.r.setVideoElement?.(videoRef.current); current.video = videoRef.current; }
+      if (!current) { current = layer(want); current.alpha = 1; }
+      else if (current.v !== want) {
+        // The one on stage starts to leave; the new one comes up through it.
+        leaving?.r.destroy?.();
+        leaving = current;
+        current = layer(want);
+      }
+      current.alpha = Math.min(1, current.alpha + dt / CROSSFADE);
+      if (leaving) {
+        leaving.alpha = Math.max(0, leaving.alpha - dt / CROSSFADE);
+        if (leaving.alpha <= 0) { leaving.r.destroy?.(); leaving = null; }
+      }
+      // The camera may arrive after the visual did.
+      for (const l of [current, leaving]) {
+        if (l && videoRef.current && l.video !== videoRef.current) { l.r.setVideoElement?.(videoRef.current); l.video = videoRef.current; }
       }
 
       // The hands: the camera's if it sees one, else the mouse while it moves.
@@ -254,10 +270,6 @@ function Demo() {
         sound = { ...analyse(an.data, an.ctx.sampleRate, an.state, 0.8, Date.now()), live: true };
       }
 
-      // Each kick gives the whole stage a small push, whatever the visual does with it.
-      if (sound.beat) pulse = Math.max(pulse, 0.6 + 0.4 * (sound.beatIntensity || 0));
-      pulse *= Math.exp(-dt * 7);
-
       // Which gestures are seen now, for the words in the bar.
       const seenNow = new Set<string>();
       for (const h of [hands.left, hands.right]) {
@@ -275,10 +287,32 @@ function Demo() {
       advanceClock(dt, [gestureRate(hands, gesture, dt)]);
       useLayerClock(0);
       const fx = fxRef.current;
-      const amount = fx.amounts[current.v];
-      if (Math.abs(amount - current.amount) > 0.001) { current.r.setParams?.(paramsFor(current.v, amount)); current.amount = amount; }
-      current.r.render(hands, LOOKS[current.v].colors, sound);
-      // Onto the stage: what was there fades by the trail, the new frame over it, turned by the colour.
+
+      // Each visual draws, and goes into the mix at its share of the crossfade.
+      mctx.globalCompositeOperation = 'source-over';
+      mctx.globalAlpha = 1;
+      mctx.fillStyle = '#000';
+      mctx.fillRect(0, 0, mix.width, mix.height);
+      for (const l of [leaving, current]) {
+        if (!l) continue;
+        const amount = fx.amounts[l.v];
+        if (Math.abs(amount - l.amount) > 0.001) { l.r.setParams?.(paramsFor(l.v, amount)); l.amount = amount; }
+        l.r.render(hands, LOOKS[l.v].colors, sound);
+        // Eased, so the melt starts and ends softly.
+        const a = l.alpha * l.alpha * (3 - 2 * l.alpha);
+        // Dust is black and white: it is tinted first, so the colour has something to turn.
+        mctx.filter = !fx.hue ? 'none'
+          : l.v === 'dust' ? `sepia(1) saturate(5) hue-rotate(${fx.hue - 40}deg)`
+            : `hue-rotate(${fx.hue}deg)`;
+        mctx.globalAlpha = a;
+        mctx.globalCompositeOperation = 'lighter';
+        mctx.drawImage(l.work, 0, 0);
+      }
+      mctx.filter = 'none';
+      mctx.globalCompositeOperation = 'source-over';
+      mctx.globalAlpha = 1;
+
+      // Onto the stage: what was there fades by the trail, the new frame over it.
       ctx.globalCompositeOperation = 'source-over';
       // The trail as how long what was there takes to fade: half of it gone
       // after up to a second and a half, growing evenly along the slider.
@@ -291,28 +325,11 @@ function Demo() {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = keep > 0 ? 'lighten' : 'source-over';
-      // Dust is black and white: it is tinted first, so the colour has something to turn.
-      ctx.filter = !fx.hue ? 'none'
-        : current.v === 'dust' ? `sepia(1) saturate(5) hue-rotate(${fx.hue - 40}deg)`
-          : `hue-rotate(${fx.hue}deg)`;
-      if (pulse > 0.01) {
-        const k = 1 + 0.035 * pulse;
-        ctx.filter = (ctx.filter === 'none' ? '' : ctx.filter + ' ') + `brightness(${1 + 0.45 * pulse})`;
-        ctx.drawImage(work, (canvas.width * (1 - k)) / 2, (canvas.height * (1 - k)) / 2, canvas.width * k, canvas.height * k);
-      } else ctx.drawImage(work, 0, 0);
-      ctx.filter = 'none';
+      ctx.drawImage(mix, 0, 0);
       ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = 1;
-      if (fade < 1) {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1 - fade;
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.globalAlpha = 1;
-      }
     };
     raf = requestAnimationFrame(frame);
-    return () => { cancelAnimationFrame(raf); current?.r.destroy?.(); };
+    return () => { cancelAnimationFrame(raf); current?.r.destroy?.(); leaving?.r.destroy?.(); };
   }, []);
 
   // ── the mouse ─────────────────────────────────────────────────────────────
