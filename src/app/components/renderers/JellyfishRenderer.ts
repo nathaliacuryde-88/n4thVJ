@@ -338,7 +338,7 @@ export class JellyfishRenderer {
     // (Real time, so the finger count does not hold the arrival back.)
     this.since += dt;
     // Each a few seconds after the one before, so they come in one by one, unhurried.
-    const shown = new Set(SHOWN[count].slice(0, arrived(this.since * 0.55, count)));
+    const shown = new Set(SHOWN[count].slice(0, arrived(this.since * 0.55 * (5 / Math.max(1, cfg.swarm.arrival)), count)));
     if (first) {
       this.started = true;
       this.swarm.forEach((j) => { j.presence = 0; });
@@ -379,7 +379,7 @@ export class JellyfishRenderer {
       const want = shown.has(index) ? 1 : 0;
       // At an even pace — about five seconds to rise in, three to sink away —
       // rather than a rush that slows: eased at both ends below.
-      j.presence = want > j.presence ? Math.min(want, j.presence + dt / 5) : Math.max(want, j.presence - dt / 3);
+      j.presence = want > j.presence ? Math.min(want, j.presence + dt / Math.max(1, cfg.swarm.arrival)) : Math.max(want, j.presence - dt / 3);
       if (j.presence < 0.004 && want === 0) j.presence = 0;
       const visible = j.presence > 0.002;
       j.root.visible = visible;
@@ -403,7 +403,9 @@ export class JellyfishRenderer {
       // bell but barely moves it. Between, it glides and sinks. Held by the
       // hand, it is the closing that pushes — as a real one swims.
       const push = (Math.min(1.3, own + bump * 0.15 + burst * 0.4 + this.swell * 0.5) * (1 - hold) + Math.min(1.3, closing * 0.35) * hold) * cfg.swarm.pulse;
-      j.rise += (push * 1.5 - j.rise * 1.2) * dt;
+      // Still arriving, it glides in: its own pulses only take hold as it settles.
+      const settled = j.presence * j.presence;
+      j.rise += (push * 1.5 * settled - j.rise * 1.2) * dt;
       j.lift += (j.rise - j.lift * 0.35) * dt * 0.8;
 
       // Its patch of water, opened or gathered by the hands, followed by the

@@ -39,9 +39,9 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
   // Softer on the kick: the music moves it without big jolts.
   dust: { colors: generateColors(0, 0, 'grayscale'), params: { 'look.glow': 1.6, 'field.size': 1.3, 'sound.beat': 0.35 } },
   line: { colors: generateColors(268, 70, 'black'), params: { 'line.weight': 1.4 } },
-  dandelion: { colors: generateColors(200, 60, 'black'), params: { 'field.count': 3 } },
+  dandelion: { colors: generateColors(200, 60, 'black'), params: { 'field.count': 3, 'field.backdrop': 0 } },
   // All in blues (the Ink palette), carried further by the music, swelling apart on a heavy bass hit.
-  jellyfish: { colors: generateColors(215, 70, 'black'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'colour.palette': 3, 'sound.flow': 1.7, 'swarm.drift': 1.3, 'sound.swell': 1.2, 'sound.beat': 0.6 } },
+  jellyfish: { colors: generateColors(215, 70, 'black'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'swarm.arrival': 11, 'colour.palette': 3, 'sound.flow': 1.7, 'swarm.drift': 1.3, 'sound.swell': 1.2, 'sound.beat': 0.6 } },
   standby: { colors: generateColors(0, 0, 'grayscale'), params: { 'sound.quiet': 0.4 } },
   sphere: {
     colors: generateColors(0, 0, 'grayscale'),

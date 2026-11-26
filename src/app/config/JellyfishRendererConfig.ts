@@ -34,6 +34,8 @@ export const JellyfishConfig = {
     tentacles: 1,
     /** The grey studio behind them. 0 is black, which stacks cleanly. */
     backdrop: 1,
+    /** Seconds each takes to rise into view; the gap between arrivals grows with it. */
+    arrival: 5,
   },
 
   hands: {
