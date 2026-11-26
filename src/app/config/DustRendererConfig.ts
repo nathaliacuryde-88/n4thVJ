@@ -37,5 +37,7 @@ export const DustConfig = {
     sparks: 1,
     /** Bass breathes the whole field out and in. */
     bass: 1,
+    /** While the music is quiet, the field makes its own soft rings here and there, as it does in silence. 0: only in silence. */
+    quiet: 0,
   },
 };

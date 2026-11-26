@@ -43,7 +43,7 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
   line: {
     colors: generateColors(0, 0, 'grayscale'),
     params: {
-      'line.zoom': 0.9, 'line.weight': 1.4, 'line.wave': 2.65, 'line.speed': 0.65, 'line.birth': 2.85,
+      'line.zoom': 0.9, 'line.weight': 1.4, 'line.wave': 2.65, 'line.speed': 0.65, 'line.birth': 0.6,
       'hands.open': 1, 'hands.pull': 1, 'hands.clap': 1, 'sound.beat': 0.7, 'sound.bass': 2, 'sound.grow': 0.75,
     },
   },
@@ -271,6 +271,7 @@ function Demo() {
   const [pos, setPos] = useState(0);
   const [dur, setDur] = useState(TRACK_SECONDS);
   const posRef = useRef(0);
+  const srcOf = useRef('');
   posRef.current = pos;
   const analysis = useRef<{ ctx: AudioContext; analyser: AnalyserNode; data: Uint8Array; state: AnalyserState } | null>(null);
   const play = useCallback((i: number) => {
@@ -297,7 +298,21 @@ function Demo() {
     void analysis.current?.ctx.resume();
     if (playing === i) { a.pause(); setPlaying(null); return; }
     // Resumed where it was paused, or from where the timeline was set.
-    if (!a.src.endsWith(TRACKS[i].src)) { a.src = TRACKS[i].src; a.currentTime = posRef.current; }
+    if (srcOf.current !== TRACKS[i].src) {
+      srcOf.current = TRACKS[i].src;
+      a.src = TRACKS[i].src;
+      a.currentTime = posRef.current;
+      // The site's host does not serve a file in pieces, so the browser
+      // cannot jump around in it: the whole track is fetched once and played
+      // from memory, where any moment can be reached.
+      const el = a;
+      void fetch(TRACKS[i].src).then((r) => r.blob()).then((b) => {
+        const at = el.currentTime, wasPlaying = !el.paused;
+        el.src = URL.createObjectURL(b);
+        el.currentTime = at;
+        if (wasPlaying) void el.play();
+      }).catch(() => { /* it still plays from the start */ });
+    }
     void a.play();
     setPlaying(i);
   }, [playing]);
@@ -320,7 +335,7 @@ function Demo() {
     // with the trail. Each visual draws on a canvas of its own.
     const mix = document.createElement('canvas');
     const mctx = mix.getContext('2d')!;
-    type Layer = { v: Visual; r: Renderer; amount: number; video?: HTMLVideoElement; work: HTMLCanvasElement; alpha: number; circle: number };
+    type Layer = { v: Visual; r: Renderer; amount: number; video?: HTMLVideoElement; work: HTMLCanvasElement; alpha: number; circle: number; go: number };
     let current: Layer | null = null;
     let leaving: Layer | null = null;
     /** Seconds one visual takes to melt into the next. */
@@ -329,7 +344,8 @@ function Demo() {
     let raf = 0;
     const gesture = createGestureState();
     let clapSeen = 0, lastSeen = '', calm = 0.3;
-    let subBase = -1, subWas = 0, impactAt = -1e9, impact = 0, shapeHit = 0;
+    let subBase = -1, subWas = 0, impactAt = -1e9, impact = 0, shapeHit = 0, busy = 450;
+    const spec = new Uint8Array(300);
     const fit = (c: HTMLCanvasElement, w: number, h: number) => { if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } };
     const size = () => {
       const k = Math.min(window.devicePixelRatio || 1, 1920 / Math.max(1, window.innerWidth));
@@ -342,7 +358,7 @@ function Demo() {
       const work = document.createElement('canvas');
       work.width = canvas.width; work.height = canvas.height;
       const r = build(v, work, work.getContext('2d')!);
-      return { v, r, amount: -1, work, alpha: 0, circle: -1 };
+      return { v, r, amount: -1, work, alpha: 0, circle: -1, go: -1 };
     };
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
@@ -387,6 +403,12 @@ function Demo() {
          * passage, so on their own the hits do not stand out; caught here,
          * each one reaches the visuals as a soft burst of their own kind.
          */
+        // How busy the music is, measured plainly (not against its own past):
+        // the onsets across the spectrum, over a few seconds. Quiet at the
+        // start of the track, rising as it gets going around 1:00–1:20.
+        let flux = 0;
+        for (let b = 1; b < 300; b++) { const d = an.data[b] - (spec[b] ?? 0); if (d > 0) flux += d; spec[b] = an.data[b]; }
+        busy += (flux - busy) * (1 - Math.exp(-dt * 0.25));
         let sub = 0;
         for (let b = 1; b <= 6; b++) sub += an.data[b];
         sub /= 6;
@@ -428,12 +450,17 @@ function Demo() {
         if (!l) continue;
         const amount = fx.amounts[l.v];
         if (l.v === 'dust') {
-          // As in the silence, whatever the music does: a soft ring, only nudged by the sound.
-          const full = sound.live ? Math.min(1, (sound.energy ?? sound.overall) * 1.4) : 0;
-          calm += ((1 - full * 0.25) * 0.3 - calm) * (1 - Math.exp(-dt * 0.3));
-          if (Math.abs(calm - l.circle) > 0.01 || Math.abs(amount - l.amount) > 0.001) {
-            l.r.setParams?.({ ...paramsFor(l.v, amount), 'form.circle': calm });
-            l.amount = amount; l.circle = calm;
+          // As the silence has it at the start — the soft ring, rings of light
+          // opening here and there — and livelier as the music gets going.
+          const go = sound.live ? Math.max(0, Math.min(1, (busy - 520) / 260)) : 0;
+          calm += ((1 - go * 0.6) * 0.3 - calm) * (1 - Math.exp(-dt * 0.3));
+          if (Math.abs(calm - l.circle) > 0.01 || Math.abs(go - l.go) > 0.04 || Math.abs(amount - l.amount) > 0.001) {
+            l.r.setParams?.({
+              ...paramsFor(l.v, amount), 'form.circle': calm,
+              'sound.quiet': 1.6 * (1 - go) + 0.4, 'sound.beat': 0.12 + 0.8 * go, 'sound.sparks': 0.5 + 1.3 * go,
+              'sound.bass': 0.4 + 0.8 * go, 'field.drift': 1.8 + 0.8 * go,
+            });
+            l.amount = amount; l.circle = calm; l.go = go;
           }
         } else if (l.v === 'sphere') {
           // A heavy bass hit plays the planet's shape to the full — Morph at
@@ -442,7 +469,7 @@ function Demo() {
           const since = (now - impactAt) / 1000;
           const to = since < 0.25 ? 1 : Math.exp(-(since - 0.25) * 1.1);
           shapeHit += (to - shapeHit) * (1 - Math.exp(-dt * (to > shapeHit ? 10 : 3)));
-          const morph = 0.32 + (0.8 - 0.32) * shapeHit;
+          const morph = 0.32 + (1.4 - 0.32) * shapeHit;
           if (Math.abs(morph - l.circle) > 0.005 || Math.abs(amount - l.amount) > 0.001) {
             // Its lobes reach further as the morph rises; the size comes down to
             // match, so its outline stays about as big as at rest.

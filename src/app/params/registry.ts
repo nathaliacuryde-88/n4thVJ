@@ -1141,6 +1141,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
         params: [
           { path: 'sound.beat', label: 'Beat lights', min: 0, max: 2, step: 0.05, hint: 'a wave, a scatter or a line — never the same twice' },
           { path: 'sound.sparks', label: 'Sparks', min: 0, max: 2, step: 0.05, hint: 'snare and hats' },
+          { path: 'sound.quiet', label: 'Quiet rings', min: 0, max: 3, step: 0.05, hint: 'soft rings here and there while the music plays, as in silence' },
           { path: 'sound.bass', label: 'Bass breathes', min: 0, max: 2, step: 0.05 },
         ],
       },

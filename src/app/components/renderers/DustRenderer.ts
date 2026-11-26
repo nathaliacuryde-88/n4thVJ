@@ -132,7 +132,8 @@ export class DustRenderer {
     if (hat > 0.5 && this.lastHat <= 0.5) sparks(Math.round(this.n * 0.004), 0.7);
     this.lastHat = hat;
     // With nothing playing, now and then a quiet wave of its own.
-    if (!live && Math.random() < dt * 0.35) {
+    // With the music on, as much as it is asked to (Quiet rings).
+    if (Math.random() < dt * 0.35 * (live ? cfg.sound.quiet : 1)) {
       this.events.push({ kind: 0, x: Math.random() * aspect, y: Math.random(), age: 0, strength: 0.45, angle: 0, reach: 0.4 });
     }
     if (play.clapped && cfg.hands.clap > 0) {
