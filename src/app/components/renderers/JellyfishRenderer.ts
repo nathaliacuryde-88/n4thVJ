@@ -429,6 +429,15 @@ export class JellyfishRenderer {
         if (v.lengthSq() < 0.01) v.set(index % 2 ? 1 : -1, 0.4, 0);
         p.addScaledVector(v.normalize(), burst * 2.6);
       }
+      // Still arriving, it rises straight and calm: the drift, the current and
+      // the hand only take hold of it as it settles in.
+      {
+        const pr0 = j.presence;
+        const calm = 0.15 + 0.85 * pr0 * pr0 * pr0;
+        const cx = sw.c[0] * scatter, cz = sw.c[2];
+        p.x = cx + (p.x - cx) * calm;
+        p.z = cz + (p.z - cz) * calm;
+      }
       // Swimming up its own axis, which leans the way it drifts.
       if (j.last) {
         v.subVectors(p, j.last).divideScalar(Math.max(dt, 1e-3));
@@ -457,7 +466,7 @@ export class JellyfishRenderer {
       j.root.position.copy(p);
       q.setFromUnitVectors(Y, j.up);
       j.root.quaternion.copy(q);
-      j.root.rotateY(Math.sin(w + sw.ph) * 0.4);
+      j.root.rotateY(Math.sin(w + sw.ph) * 0.4 * j.presence);
       j.root.scale.setScalar(s);
 
       // The bell: open and wide at rest, squeezed tall and narrow.

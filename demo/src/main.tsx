@@ -7,6 +7,7 @@ import { DandelionRenderer } from '@/components/renderers/DandelionRenderer';
 import { JellyfishRenderer } from '@/components/renderers/JellyfishRenderer';
 import { StandbyRenderer } from '@/components/renderers/StandbyRenderer';
 import { MorphingSphereRenderer } from '@/components/renderers/MorphingSphereRenderer';
+import { MacroRenderer } from '@/components/renderers/MacroRenderer';
 import { HandTracker } from '@/components/HandTracker';
 import { analyse, createState, AnalyserState } from '@/audio/analyse';
 import { generateColors } from '@/config/palette';
@@ -28,11 +29,11 @@ import { Pages, PageName } from './pages';
 type Visual = 'dust' | 'line' | 'dandelion' | 'jellyfish' | 'standby' | 'sphere';
 const VISUALS: { id: Visual; name: string; note: string }[] = [
   { id: 'dust', name: 'Dust', note: 'a fist gathers it into a circle' },
+  { id: 'sphere', name: 'Planet', note: 'a fist pulls it out of shape' },
   { id: 'line', name: 'Line', note: 'an open hand unfolds it' },
+  { id: 'jellyfish', name: 'Jelly', note: 'a fist closes the bells' },
   { id: 'dandelion', name: 'Dandelion', note: 'the hand moves the wind' },
-  { id: 'jellyfish', name: 'Jellyfish', note: 'a fist closes the bells' },
   { id: 'standby', name: 'Standby', note: 'a fist closes the picture to a point' },
-  { id: 'sphere', name: 'Sphere', note: 'a fist pulls it out of shape' },
 ];
 /** Each visual's look for the demo: its colours and a few settings. */
 const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }> = {
@@ -48,6 +49,14 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
     params: { 'shape.style': 2, 'shape.size': 1.2, 'shape.morph': 0.32, 'shape.lobes': 1.05, 'shape.detail': 2, 'motion.spin': 0.4, 'motion.flow': 1, 'motion.dust': 1, 'sound.beat': 0 },
   },
 };
+
+/** Her Colour effect for a visual, as on her stage: hue (radians), saturation, contrast. */
+const GRADE: Partial<Record<Visual, string>> = {
+  dandelion: 'hue-rotate(2.59rad) saturate(0.95) contrast(1.28)',
+};
+
+/** The Ink Wing under the jellyfish, turned towards deep blue. */
+const INK_COLORS = generateColors(110, 70, 'contrast');
 
 /** "Amount": how many things each visual shows, from few to many. */
 const AMOUNT: Record<Visual, { path: string; min: number; max: number; start: number }> = {
@@ -69,10 +78,49 @@ type Renderer = {
   setVideoElement?: (v: HTMLVideoElement) => void;
   destroy?: () => void;
 };
+/**
+ * Jelly, as on her stage: the jellyfish (black and white, hard contrast) in
+ * Screen over a dim Ink Wing turned towards blue. Each draws on a canvas of
+ * its own; the amount and the jellyfish's settings go to the jellyfish.
+ */
+class JellyStack implements Renderer {
+  private parts: { r: Renderer; c: HTMLCanvasElement; filter: string; alpha: number; blend: GlobalCompositeOperation; colors: string[] }[];
+  constructor(private canvas: HTMLCanvasElement, private ctx: CanvasRenderingContext2D) {
+    const make = () => { const c = document.createElement('canvas'); c.width = canvas.width; c.height = canvas.height; return c; };
+    const ink = make(), jelly = make();
+    const inkR = new MacroRenderer(ink, ink.getContext('2d')!, 0);
+    inkR.setParams({ 'look.flow': 2.65, 'look.zoom': 2.85, 'look.detail': 2, 'look.veins': 1.35, 'look.grain': 0.3 });
+    this.parts = [
+      { r: inkR, c: ink, filter: 'hue-rotate(-0.2rad) contrast(1.3)', alpha: 0.45, blend: 'source-over', colors: INK_COLORS },
+      { r: new JellyfishRenderer(jelly, jelly.getContext('2d')!), c: jelly, filter: 'hue-rotate(3.14rad) saturate(0) contrast(2.25)', alpha: 0.94, blend: 'screen', colors: LOOKS.jellyfish.colors },
+    ];
+  }
+  setParams(v: Record<string, number>) { this.parts[1].r.setParams?.(v); }
+  render(h: HandData, _c: string[], a?: AudioData) {
+    const { canvas, ctx } = this;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (const p of this.parts) {
+      if (p.c.width !== canvas.width || p.c.height !== canvas.height) { p.c.width = canvas.width; p.c.height = canvas.height; }
+      p.r.render(h, p.colors, a);
+      ctx.filter = p.filter;
+      ctx.globalAlpha = p.alpha;
+      ctx.globalCompositeOperation = p.blend;
+      ctx.drawImage(p.c, 0, 0);
+    }
+    ctx.filter = 'none';
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  destroy() { for (const p of this.parts) p.r.destroy?.(); }
+}
+
 function build(v: Visual, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): Renderer {
   return v === 'dust' ? new DustRenderer(canvas, ctx)
     : v === 'line' ? new FirstLineRenderer(canvas, ctx)
-      : v === 'jellyfish' ? new JellyfishRenderer(canvas, ctx)
+      : v === 'jellyfish' ? new JellyStack(canvas, ctx)
         : v === 'standby' ? new StandbyRenderer(canvas, ctx)
           : v === 'sphere' ? new MorphingSphereRenderer(canvas, ctx)
           : new DandelionRenderer(canvas, ctx);
@@ -108,6 +156,8 @@ function guideAt(sel: string): React.CSSProperties {
 const GUIDE_STYLE = Math.max(1, Math.min(5, Number(new URLSearchParams(location.search).get('guide')) || 2));
 
 const NONE: HandData = { left: null, right: null };
+/** How long each visual stays on Auto. */
+const AUTO_SECONDS = 30;
 const GESTURE_WORDS = ['5 fingers', '2 fingers', 'fist', 'pinch', 'clap'];
 const SILENT: AudioData = { bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 };
 
@@ -135,7 +185,19 @@ type StepKey = (typeof STEPS)[number]['key'];
 
 function Demo() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [visual, setVisual] = useState<Visual>('dust');
+  const [visual, setVisualRaw] = useState<Visual>('dust');
+  // Auto: every half minute the next visual melts in. Choosing one by hand
+  // starts the half minute again from there.
+  const [auto, setAuto] = useState(true);
+  const [autoFrom, setAutoFrom] = useState(0);
+  const setVisual = (v: Visual) => { setVisualRaw(v); setAutoFrom((n) => n + 1); };
+  useEffect(() => {
+    if (!auto) return;
+    const t = window.setInterval(() => {
+      setVisualRaw((v) => VISUALS[(VISUALS.findIndex((x) => x.id === v) + 1) % VISUALS.length].id);
+    }, AUTO_SECONDS * 1000);
+    return () => window.clearInterval(t);
+  }, [auto, autoFrom]);
   const visualRef = useRef(visual);
   visualRef.current = visual;
   // The effects: a trail, the colour turned round, and how many things.
@@ -309,9 +371,10 @@ function Demo() {
         // Eased, so the melt starts and ends softly.
         const a = l.alpha * l.alpha * (3 - 2 * l.alpha);
         // Dust is black and white: it is tinted first, so the colour has something to turn.
-        mctx.filter = !fx.hue ? 'none'
+        const turn = !fx.hue ? ''
           : l.v === 'dust' ? `sepia(1) saturate(5) hue-rotate(${fx.hue - 40}deg)`
             : `hue-rotate(${fx.hue}deg)`;
+        mctx.filter = [GRADE[l.v], turn].filter(Boolean).join(' ') || 'none';
         mctx.globalAlpha = a;
         mctx.globalCompositeOperation = 'lighter';
         mctx.drawImage(l.work, 0, 0);
@@ -425,6 +488,7 @@ function Demo() {
         </div>
         <div className="sep" />
         {/* On a phone the effects wait behind this, centred over the bar when opened. */}
+        <button className={`autobtn ${auto ? 'on' : ''}`} onClick={() => setAuto((a) => !a)} title="Auto: the next visual every 30 seconds">auto</button>
         <button className={`fxbtn ${fxOpen ? 'on' : ''}`} onClick={() => { setFxOpen((o) => !o); mark('fx'); }}>FX</button>
         <button className={`camera ${camera === 'on' ? 'on' : ''}`} onClick={camera === 'on' ? undefined : startCamera} title="Play with your hand through the camera">
           {camera === 'on' ? <><span className={`dot ${seen ? 'seen' : ''}`}>●</span> hand</> : camera === 'refused' ? 'mouse' : 'camera'}

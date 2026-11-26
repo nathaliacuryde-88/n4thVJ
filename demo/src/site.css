@@ -146,3 +146,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .camera { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 @media (max-width: 720px) { .words { display: none; } }
 @media (max-width: 720px) { .card .name { font-size: 8px; letter-spacing: 0; } }
+/* Auto: the visuals move on by themselves every half minute. */
+.autobtn { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.3); opacity: .6; }
+.autobtn.on { opacity: 1; border-color: var(--lime); color: var(--lime); }
