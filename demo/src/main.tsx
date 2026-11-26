@@ -52,7 +52,7 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
     params: { 'field.sway': 1.9, 'field.bounce': 0.8, 'field.drift': 0.44, 'field.backdrop': 0, 'colour.speed': 2.5, 'colour.offset': 0, 'colour.palette': 0, 'colour.depth': 0.32 },
   },
   // All in blues (the Ink palette), carried further by the music, swelling apart on a heavy bass hit.
-  jellyfish: { colors: generateColors(215, 70, 'black'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'swarm.arrival': 11, 'colour.palette': 3, 'sound.flow': 1.7, 'swarm.drift': 1.3, 'sound.swell': 1.2, 'sound.beat': 0.6 } },
+  jellyfish: { colors: generateColors(245, 100, 'contrast'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'swarm.arrival': 11, 'colour.palette': 3, 'sound.flow': 1.7, 'swarm.drift': 1.3, 'sound.swell': 1.2, 'sound.beat': 0.6 } },
   standby: { colors: generateColors(0, 0, 'grayscale'), params: { 'sound.quiet': 0.4, 'grid.words': 0 } },
   sphere: {
     colors: generateColors(0, 0, 'grayscale'),
@@ -70,7 +70,7 @@ const INK_COLORS = generateColors(110, 70, 'contrast');
 
 /** "Amount": how many things each visual shows, from few to many. */
 const AMOUNT: Record<Visual, { path: string; min: number; max: number; start: number }> = {
-  dust: { path: 'field.count', min: 200, max: 5000, start: 0.6 },
+  dust: { path: 'field.count', min: 200, max: 5000, start: 0.8 },
   line: { path: 'line.count', min: 1, max: 40, start: 11 / 39 },
   dandelion: { path: 'field.count', min: 1, max: 12, start: 0.2 },
   jellyfish: { path: 'swarm.count', min: 1, max: 8, start: 0.43 },
@@ -102,7 +102,7 @@ class JellyStack implements Renderer {
     inkR.setParams({ 'look.flow': 2.65, 'look.zoom': 2.85, 'look.detail': 2, 'look.veins': 1.35, 'look.grain': 0.3 });
     this.parts = [
       { r: inkR, c: ink, filter: 'hue-rotate(-0.2rad) contrast(1.3)', alpha: 0.45, blend: 'source-over', colors: INK_COLORS },
-      { r: new JellyfishRenderer(jelly, jelly.getContext('2d')!), c: jelly, filter: 'hue-rotate(3.14rad) saturate(0) contrast(2.25)', alpha: 0.94, blend: 'screen', colors: LOOKS.jellyfish.colors },
+      { r: new JellyfishRenderer(jelly, jelly.getContext('2d')!), c: jelly, filter: 'saturate(1.88) contrast(1.3)', alpha: 0.94, blend: 'screen', colors: LOOKS.jellyfish.colors },
     ];
   }
   setParams(v: Record<string, number>) { this.parts[1].r.setParams?.(v); }
@@ -294,7 +294,7 @@ function Demo() {
     // with the trail. Each visual draws on a canvas of its own.
     const mix = document.createElement('canvas');
     const mctx = mix.getContext('2d')!;
-    type Layer = { v: Visual; r: Renderer; amount: number; video?: HTMLVideoElement; work: HTMLCanvasElement; alpha: number };
+    type Layer = { v: Visual; r: Renderer; amount: number; video?: HTMLVideoElement; work: HTMLCanvasElement; alpha: number; circle: number };
     let current: Layer | null = null;
     let leaving: Layer | null = null;
     /** Seconds one visual takes to melt into the next. */
@@ -302,7 +302,7 @@ function Demo() {
     let last = performance.now();
     let raf = 0;
     const gesture = createGestureState();
-    let clapSeen = 0, lastSeen = '';
+    let clapSeen = 0, lastSeen = '', calm = 0.3;
     const fit = (c: HTMLCanvasElement, w: number, h: number) => { if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } };
     const size = () => {
       const k = Math.min(window.devicePixelRatio || 1, 1920 / Math.max(1, window.innerWidth));
@@ -315,7 +315,7 @@ function Demo() {
       const work = document.createElement('canvas');
       work.width = canvas.width; work.height = canvas.height;
       const r = build(v, work, work.getContext('2d')!);
-      return { v, r, amount: -1, work, alpha: 0 };
+      return { v, r, amount: -1, work, alpha: 0, circle: -1 };
     };
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
@@ -383,7 +383,16 @@ function Demo() {
       for (const l of [leaving, current]) {
         if (!l) continue;
         const amount = fx.amounts[l.v];
-        if (Math.abs(amount - l.amount) > 0.001) { l.r.setParams?.(paramsFor(l.v, amount)); l.amount = amount; }
+        if (l.v === 'dust') {
+          // While the music is still calm the dust slowly gathers into a ring;
+          // as it fills, the ring lets go. Eased over seconds, so it is never a jump.
+          const full = sound.live ? Math.min(1, (sound.energy ?? sound.overall) * 1.4) : 0;
+          calm += ((1 - full) * 0.3 - calm) * (1 - Math.exp(-dt * 0.4));
+          if (Math.abs(calm - l.circle) > 0.01 || Math.abs(amount - l.amount) > 0.001) {
+            l.r.setParams?.({ ...paramsFor(l.v, amount), 'form.circle': calm });
+            l.amount = amount; l.circle = calm;
+          }
+        } else if (Math.abs(amount - l.amount) > 0.001) { l.r.setParams?.(paramsFor(l.v, amount)); l.amount = amount; }
         l.r.render(hands, LOOKS[l.v].colors, sound);
         // Eased, so the melt starts and ends softly.
         const a = l.alpha * l.alpha * (3 - 2 * l.alpha);
