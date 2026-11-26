@@ -38,12 +38,22 @@ const VISUALS: { id: Visual; name: string; note: string }[] = [
 /** Each visual's look for the demo: its colours and a few settings. */
 const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }> = {
   // Softer on the kick: the music moves it without big jolts.
-  dust: { colors: generateColors(0, 0, 'grayscale'), params: { 'look.glow': 1.6, 'field.size': 1.3, 'sound.beat': 0.35 } },
-  line: { colors: generateColors(268, 70, 'black'), params: { 'line.weight': 1.4 } },
-  dandelion: { colors: generateColors(200, 60, 'black'), params: { 'field.count': 3, 'field.backdrop': 0 } },
+  // Alive before the music is: more drift, more resting light, a longer trail, so the slow opening is never empty.
+  dust: { colors: generateColors(0, 0, 'grayscale'), params: { 'look.glow': 2.2, 'field.size': 1.3, 'field.drift': 1.8, 'look.trail': 0.55, 'sound.beat': 0.35, 'sound.sparks': 1.5 } },
+  line: {
+    colors: generateColors(0, 0, 'grayscale'),
+    params: {
+      'line.zoom': 0.9, 'line.weight': 1.4, 'line.wave': 2.65, 'line.speed': 0.65, 'line.birth': 2.85,
+      'hands.open': 1, 'hands.pull': 1, 'hands.clap': 1, 'sound.beat': 0.7, 'sound.bass': 2, 'sound.grow': 0.75,
+    },
+  },
+  dandelion: {
+    colors: generateColors(200, 60, 'black'),
+    params: { 'field.sway': 1.9, 'field.bounce': 0.8, 'field.drift': 0.44, 'field.backdrop': 0, 'colour.speed': 2.5, 'colour.offset': 0, 'colour.palette': 0, 'colour.depth': 0.32 },
+  },
   // All in blues (the Ink palette), carried further by the music, swelling apart on a heavy bass hit.
   jellyfish: { colors: generateColors(215, 70, 'black'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'swarm.arrival': 11, 'colour.palette': 3, 'sound.flow': 1.7, 'swarm.drift': 1.3, 'sound.swell': 1.2, 'sound.beat': 0.6 } },
-  standby: { colors: generateColors(0, 0, 'grayscale'), params: { 'sound.quiet': 0.4 } },
+  standby: { colors: generateColors(0, 0, 'grayscale'), params: { 'sound.quiet': 0.4, 'grid.words': 0 } },
   sphere: {
     colors: generateColors(0, 0, 'grayscale'),
     params: { 'shape.style': 2, 'shape.size': 1.2, 'shape.morph': 0.32, 'shape.lobes': 1.05, 'shape.detail': 2, 'motion.spin': 0.4, 'motion.flow': 1, 'motion.dust': 1, 'sound.beat': 0 },
@@ -61,7 +71,7 @@ const INK_COLORS = generateColors(110, 70, 'contrast');
 /** "Amount": how many things each visual shows, from few to many. */
 const AMOUNT: Record<Visual, { path: string; min: number; max: number; start: number }> = {
   dust: { path: 'field.count', min: 200, max: 5000, start: 0.6 },
-  line: { path: 'line.count', min: 1, max: 40, start: 0.33 },
+  line: { path: 'line.count', min: 1, max: 40, start: 11 / 39 },
   dandelion: { path: 'field.count', min: 1, max: 12, start: 0.2 },
   jellyfish: { path: 'swarm.count', min: 1, max: 8, start: 0.43 },
   standby: { path: 'grid.detail', min: 0.2, max: 1, start: 0.38 },
@@ -105,9 +115,16 @@ class JellyStack implements Renderer {
     for (const p of this.parts) {
       if (p.c.width !== canvas.width || p.c.height !== canvas.height) { p.c.width = canvas.width; p.c.height = canvas.height; }
       p.r.render(h, p.colors, a);
-      ctx.filter = p.filter;
       ctx.globalAlpha = p.alpha;
-      ctx.globalCompositeOperation = p.blend;
+      if (p.blend === 'screen') {
+        // In front: the ink is first taken out where a jellyfish is (by its
+        // brightness), then the jellyfish goes in — so the ink never shows through.
+        ctx.filter = `${p.filter} invert(1)`;
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.drawImage(p.c, 0, 0);
+        ctx.globalCompositeOperation = 'lighter';
+      } else ctx.globalCompositeOperation = p.blend;
+      ctx.filter = p.filter;
       ctx.drawImage(p.c, 0, 0);
     }
     ctx.filter = 'none';
