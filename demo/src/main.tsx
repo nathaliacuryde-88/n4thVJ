@@ -56,7 +56,7 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
   standby: { colors: generateColors(0, 0, 'grayscale'), params: { 'sound.quiet': 0.4, 'grid.words': 0 } },
   sphere: {
     colors: generateColors(0, 0, 'grayscale'),
-    params: { 'shape.style': 2, 'shape.size': 1.2, 'shape.morph': 0.32, 'shape.lobes': 1.05, 'shape.detail': 2, 'motion.spin': 0.4, 'motion.flow': 1, 'motion.dust': 1, 'sound.beat': 0 },
+    params: { 'shape.style': 2, 'shape.size': 1.2, 'shape.morph': 0.32, 'shape.lobes': 1.05, 'shape.detail': 2, 'motion.spin': 0.4, 'motion.flow': 1, 'motion.dust': 1, 'motion.points': 3600, 'sound.beat': 0 },
   },
 };
 
@@ -74,8 +74,9 @@ const AMOUNT: Record<Visual, { path: string; min: number; max: number; start: nu
   line: { path: 'line.count', min: 1, max: 40, start: 11 / 39 },
   dandelion: { path: 'field.count', min: 1, max: 12, start: 0.2 },
   jellyfish: { path: 'swarm.count', min: 1, max: 8, start: 0.43 },
-  standby: { path: 'grid.detail', min: 0.2, max: 1, start: 0.38 },
-  sphere: { path: 'motion.points', min: 0, max: 6000, start: 0.6 },
+  standby: { path: 'grid.detail', min: 0.2, max: 1, start: 1 },
+  // How many modules make the planet: its mesh, from coarse to fine.
+  sphere: { path: 'shape.detail', min: 2, max: 6, start: 0 },
 };
 
 const TRACKS: { name: string; src: string }[] = [
@@ -222,6 +223,12 @@ function Demo() {
   const [hue, setHue] = useState(0);
   const [amounts, setAmounts] = useState<Record<Visual, number>>(() => Object.fromEntries(VISUALS.map((v) => [v.id, AMOUNT[v.id].start])) as Record<Visual, number>);
   const [fxOpen, setFxOpen] = useState(false);
+  // Every visual arrives as it is meant to be: the effects back to their start.
+  useEffect(() => {
+    setTrail(0);
+    setHue(0);
+    setAmounts((a) => ({ ...a, [visual]: AMOUNT[visual].start }));
+  }, [visual]);
   const fxRef = useRef({ trail, hue, amounts });
   fxRef.current = { trail, hue, amounts };
 
@@ -395,9 +402,9 @@ function Demo() {
         l.r.render(hands, LOOKS[l.v].colors, sound);
         // Eased, so the melt starts and ends softly.
         const a = l.alpha * l.alpha * (3 - 2 * l.alpha);
-        // Dust is black and white: it is tinted first, so the colour has something to turn.
+        // Dust and Standby are black and white: it is tinted first, so the colour has something to turn.
         const turn = !fx.hue ? ''
-          : l.v === 'dust' ? `sepia(1) saturate(5) hue-rotate(${fx.hue - 40}deg)`
+          : l.v === 'dust' || l.v === 'standby' ? `sepia(1) saturate(5) hue-rotate(${fx.hue - 40}deg)`
             : `hue-rotate(${fx.hue}deg)`;
         mctx.filter = [GRADE[l.v], turn].filter(Boolean).join(' ') || 'none';
         mctx.globalAlpha = a;
