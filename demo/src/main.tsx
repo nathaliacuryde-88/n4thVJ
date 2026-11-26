@@ -45,7 +45,7 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
   standby: { colors: generateColors(0, 0, 'grayscale'), params: { 'sound.quiet': 0.4 } },
   sphere: {
     colors: generateColors(0, 0, 'grayscale'),
-    params: { 'shape.style': 2, 'shape.size': 1.2, 'shape.morph': 0.32, 'shape.lobes': 1.05, 'shape.detail': 2, 'motion.spin': 0.4, 'motion.flow': 1, 'motion.dust': 1 },
+    params: { 'shape.style': 2, 'shape.size': 1.2, 'shape.morph': 0.32, 'shape.lobes': 1.05, 'shape.detail': 2, 'motion.spin': 0.4, 'motion.flow': 1, 'motion.dust': 1, 'sound.beat': 0 },
   },
 };
 
