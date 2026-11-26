@@ -57,7 +57,7 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
   standby: { colors: generateColors(0, 0, 'grayscale'), params: { 'sound.quiet': 0.4, 'grid.words': 0 } },
   sphere: {
     colors: generateColors(0, 0, 'grayscale'),
-    params: { 'shape.style': 2, 'shape.size': 1.2, 'shape.morph': 0.32, 'shape.lobes': 1.05, 'shape.detail': 2, 'motion.spin': 0.4, 'motion.flow': 1, 'motion.dust': 1, 'motion.points': 3600, 'sound.beat': 0, 'sound.drop': 0, 'sound.bass': 0.3 },
+    params: { 'shape.style': 2, 'shape.size': 1.2, 'shape.morph': 0.32, 'shape.lobes': 1.05, 'shape.detail': 2, 'motion.spin': 0.4, 'motion.flow': 1, 'motion.dust': 1, 'motion.points': 3600, 'sound.beat': 0, 'sound.drop': 0, 'sound.bass': 0.3, 'sound.squash': 1, 'sound.spin': 1.4, 'shape.steady': 1 },
   },
 };
 
@@ -469,13 +469,14 @@ function Demo() {
           const since = (now - impactAt) / 1000;
           const to = since < 0.25 ? 1 : Math.exp(-(since - 0.25) * 1.1);
           shapeHit += (to - shapeHit) * (1 - Math.exp(-dt * (to > shapeHit ? 10 : 3)));
-          const morph = 0.32 + (1.4 - 0.32) * shapeHit;
-          if (Math.abs(morph - l.circle) > 0.005 || Math.abs(amount - l.amount) > 0.001) {
-            // Its lobes reach further as the morph rises; the size comes down to
-            // match, so its outline stays about as big as at rest.
-            const size = 1.2 * (1 + 1.3 * 0.32) / (1 + 1.3 * morph);
-            l.r.setParams?.({ ...paramsFor(l.v, amount), 'shape.morph': morph, 'shape.size': size });
-            l.amount = amount; l.circle = morph;
+          // And with the music, before the kicks come in: it flows faster and
+          // swells a little as the track gets busy, so it is always moving with it.
+          const go = sound.live ? Math.max(0, Math.min(1, (busy - 520) / 260)) : 0;
+          const rest = 0.32 + 0.22 * go;
+          const morph = rest + (0.85 - rest) * shapeHit;
+          if (Math.abs(morph - l.circle) > 0.005 || Math.abs(go - l.go) > 0.03 || Math.abs(amount - l.amount) > 0.001) {
+            l.r.setParams?.({ ...paramsFor(l.v, amount), 'shape.morph': morph, 'motion.flow': 1 + 1.6 * go, 'motion.spin': 0.4 + 0.5 * go });
+            l.amount = amount; l.circle = morph; l.go = go;
           }
         } else if (Math.abs(amount - l.amount) > 0.001) { l.r.setParams?.(paramsFor(l.v, amount)); l.amount = amount; }
         // A bass hit arrives like a soft clap, as strong as each visual takes it.

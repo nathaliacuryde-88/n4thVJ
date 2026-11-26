@@ -1044,6 +1044,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'shape.morph', label: 'Morph', min: 0, max: 0.8, step: 0.01, hint: '0 = round at rest; the music adds more' },
           { path: 'shape.lobes', label: 'Lobes', min: 0.3, max: 3, step: 0.05, hint: 'low = a few big soft lobes' },
           { path: 'shape.detail', label: 'Detail', min: 2, max: 6, step: 1 },
+          { path: 'shape.steady', label: 'Steady size', min: 0, max: 1, step: 0.05, hint: 'holds its size whatever the morph does' },
         ],
       },
       {
@@ -1070,6 +1071,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.beat', label: 'Kick pulse', min: 0, max: 2, step: 0.05 },
           { path: 'sound.spin', label: 'Music spins', min: 0, max: 2, step: 0.05 },
           { path: 'sound.drop', label: 'Drop burst', min: 0, max: 2, step: 0.05, hint: 'the drop of a build blows it out once' },
+          { path: 'sound.squash', label: 'Kick squash', min: 0, max: 2, step: 0.05, hint: 'each kick presses one side in towards the middle' },
         ],
       },
     ],

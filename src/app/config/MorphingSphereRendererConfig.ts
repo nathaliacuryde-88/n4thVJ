@@ -14,6 +14,8 @@ export const MorphingSphereConfig = {
     detail: 4,
     /** From points to outline: 0 only the points, lines growing out of each towards its neighbours, 2 the full outline. Never filled faces. */
     style: 2,
+    /** Holds its mean size whatever the morph does: 1 fully, 0 not at all. */
+    steady: 0,
   },
 
   motion: {
@@ -45,5 +47,7 @@ export const MorphingSphereConfig = {
     spin: 1,
     /** The drop of a build blows it out once. 0: it never jumps. */
     drop: 1,
+    /** Each kick dents it: one side pulled in towards the middle, then let go. Never outward. 0: off. */
+    squash: 0,
   },
 };

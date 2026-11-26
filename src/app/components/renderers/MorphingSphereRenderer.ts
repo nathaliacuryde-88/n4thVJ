@@ -59,6 +59,10 @@ export class MorphingSphereRenderer {
   private pulse = 0;
   private burst = 0;
   private lastDrop = 0;
+  /** The kick's dent: how deep, and from which side (a unit vector, turned with the shape). */
+  private dent = 0;
+  private dentDir = new THREE.Vector3(1, 0, 0);
+  private lastSquash = 0;
   private at = new THREE.Vector2();
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
@@ -174,6 +178,15 @@ export class MorphingSphereRenderer {
     this.pulse = Math.max(this.pulse * Math.exp(-dt * 6), Math.min(1, kick));
     if (play.clapped && cfg.hands.clap > 0) this.burst = Math.max(this.burst, play.clapStrength * cfg.hands.clap);
     if (play.drop > 0.5 && this.lastDrop <= 0.5) this.burst = Math.max(this.burst, 0.9 * cfg.sound.drop);
+    // A kick squashes it: one side pressed in towards the middle — pressed
+    // quickly, released softly — each time from somewhere else.
+    const hit = Math.max(play.kick, play.bump);
+    if (cfg.sound.squash > 0 && hit > 0.45 && this.lastSquash <= 0.45) {
+      this.dent = Math.max(this.dent, Math.min(1, hit) * cfg.sound.squash);
+      this.dentDir.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+    }
+    this.lastSquash = hit;
+    this.dent *= Math.exp(-dt * 2.6);
     this.lastDrop = play.drop;
     this.burst *= Math.exp(-dt * 2.2);
     const amount = cfg.shape.morph + 0.35 * this.swell + 0.5 * this.pull + 0.25 * play.build;
@@ -184,14 +197,25 @@ export class MorphingSphereRenderer {
     const t = this.flow;
     const o = this.corners;
     const arr = this.shaped;
+    let meanR = 0;
     for (let i = 0; i < o.length; i += 3) {
       const x = o[i], y = o[i + 1], z = o[i + 2];
       const n = Math.sin(x * f * 1.7 + t) * 0.5
         + Math.sin(y * f * 2.1 - t * 0.8 + 1.3) * 0.35
         + Math.sin((x + z) * f * 1.4 + t * 1.3 + 2.1) * 0.3
         + Math.sin((y - z) * f * 2.6 - t * 0.6) * 0.15 * (0.5 + this.pull);
-      const r = 1 + n * amount + this.pulse * 0.08 * (0.6 + 0.4 * Math.sin(y * 3 + t)) + this.burst * 0.6 * (0.7 + 0.3 * n);
+      const facing = Math.max(0, x * this.dentDir.x + y * this.dentDir.y + z * this.dentDir.z);
+      const r = 1 + n * amount + this.pulse * 0.08 * (0.6 + 0.4 * Math.sin(y * 3 + t)) + this.burst * 0.6 * (0.7 + 0.3 * n)
+        - this.dent * 0.35 * facing * facing;
       arr[i] = x * r; arr[i + 1] = y * r; arr[i + 2] = z * r;
+      meanR += Math.max(0, r);
+    }
+    // Steady: however far it is drawn out of the round, its mean size held,
+    // so the morph reads as a change of shape and never as growing or shrinking.
+    if (cfg.shape.steady > 0) {
+      const mean = meanR / Math.max(1, o.length / 3);
+      const k = 1 + ((1 / Math.max(0.3, mean)) - 1) * Math.min(1, cfg.shape.steady);
+      for (let i = 0; i < arr.length; i++) arr[i] *= k;
     }
     (this.points!.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
 
