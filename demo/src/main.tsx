@@ -39,7 +39,7 @@ const VISUALS: { id: Visual; name: string; note: string }[] = [
 const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }> = {
   // Softer on the kick: the music moves it without big jolts.
   // Alive before the music is: more drift, more resting light, a longer trail, so the slow opening is never empty.
-  dust: { colors: generateColors(0, 0, 'grayscale'), params: { 'look.glow': 2.2, 'field.size': 1.3, 'field.drift': 1.8, 'look.trail': 0.55, 'sound.beat': 0.35, 'sound.sparks': 1.5 } },
+  dust: { colors: generateColors(0, 0, 'grayscale'), params: { 'look.glow': 2.2, 'field.size': 1.3, 'field.drift': 1.8, 'look.trail': 0.55, 'sound.beat': 0.12, 'sound.sparks': 0.5, 'sound.bass': 0.4 } },
   line: {
     colors: generateColors(0, 0, 'grayscale'),
     params: {
@@ -174,7 +174,7 @@ const GUIDE_STYLE = Math.max(1, Math.min(5, Number(new URLSearchParams(location.
 
 const NONE: HandData = { left: null, right: null };
 /** How long each visual stays on Auto. */
-const AUTO_SECONDS = 30;
+const AUTO_SECONDS = 45;
 const GESTURE_WORDS = ['5 fingers', '2 fingers', 'fist', 'pinch', 'clap'];
 const SILENT: AudioData = { bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 };
 
@@ -384,10 +384,9 @@ function Demo() {
         if (!l) continue;
         const amount = fx.amounts[l.v];
         if (l.v === 'dust') {
-          // While the music is still calm the dust slowly gathers into a ring;
-          // as it fills, the ring lets go. Eased over seconds, so it is never a jump.
+          // As in the silence, whatever the music does: a soft ring, only nudged by the sound.
           const full = sound.live ? Math.min(1, (sound.energy ?? sound.overall) * 1.4) : 0;
-          calm += ((1 - full) * 0.3 - calm) * (1 - Math.exp(-dt * 0.4));
+          calm += ((1 - full * 0.25) * 0.3 - calm) * (1 - Math.exp(-dt * 0.3));
           if (Math.abs(calm - l.circle) > 0.01 || Math.abs(amount - l.amount) > 0.001) {
             l.r.setParams?.({ ...paramsFor(l.v, amount), 'form.circle': calm });
             l.amount = amount; l.circle = calm;
@@ -514,7 +513,7 @@ function Demo() {
         </div>
         <div className="sep" />
         {/* On a phone the effects wait behind this, centred over the bar when opened. */}
-        <button className={`autobtn ${auto ? 'on' : ''}`} onClick={() => setAuto((a) => !a)} title="Auto: the next visual every 30 seconds">auto</button>
+        <button className={`autobtn ${auto ? 'on' : ''}`} onClick={() => setAuto((a) => !a)} title="Auto: the next visual every 45 seconds">auto</button>
         <button className={`fxbtn ${fxOpen ? 'on' : ''}`} onClick={() => { setFxOpen((o) => !o); mark('fx'); }}>FX</button>
         <button className={`camera ${camera === 'on' ? 'on' : ''}`} onClick={camera === 'on' ? undefined : startCamera} title="Play with your hand through the camera">
           {camera === 'on' ? <><span className={`dot ${seen ? 'seen' : ''}`}>●</span> hand</> : camera === 'refused' ? 'mouse' : 'camera'}
