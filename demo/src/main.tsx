@@ -4,6 +4,8 @@ import type { AudioData, Hand, HandData } from '@/App';
 import { DustRenderer } from '@/components/renderers/DustRenderer';
 import { FirstLineRenderer } from '@/components/renderers/FirstLineRenderer';
 import { DandelionRenderer } from '@/components/renderers/DandelionRenderer';
+import { JellyfishRenderer } from '@/components/renderers/JellyfishRenderer';
+import { MachineRenderer } from '@/components/renderers/MachineRenderer';
 import { HandTracker } from '@/components/HandTracker';
 import { analyse, createState, AnalyserState } from '@/audio/analyse';
 import { generateColors } from '@/config/palette';
@@ -22,24 +24,30 @@ import { Pages, PageName } from './pages';
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-type Visual = 'dust' | 'line' | 'dandelion';
+type Visual = 'dust' | 'line' | 'dandelion' | 'jellyfish' | 'machine';
 const VISUALS: { id: Visual; name: string; note: string }[] = [
   { id: 'dust', name: 'Dust', note: 'a fist gathers it into a circle' },
   { id: 'line', name: 'Line', note: 'an open hand unfolds it' },
   { id: 'dandelion', name: 'Dandelion', note: 'the hand moves the wind' },
+  { id: 'jellyfish', name: 'Jellyfish', note: 'a fist closes the bells' },
+  { id: 'machine', name: 'Machine', note: 'what the machine sees of you' },
 ];
 /** Each visual's look for the demo: its colours and a few settings. */
 const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }> = {
   dust: { colors: generateColors(0, 0, 'grayscale'), params: { 'look.glow': 1.6, 'field.size': 1.3 } },
   line: { colors: generateColors(268, 70, 'black'), params: { 'line.weight': 1.4 } },
   dandelion: { colors: generateColors(200, 60, 'black'), params: { 'field.count': 3 } },
+  jellyfish: { colors: generateColors(200, 70, 'black'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3 } },
+  machine: { colors: generateColors(225, 80, 'black'), params: {} },
 };
 
 /** "Amount": how many things each visual shows, from few to many. */
 const AMOUNT: Record<Visual, { path: string; min: number; max: number; start: number }> = {
-  dust: { path: 'field.count', min: 200, max: 5000, start: 0.3 },
+  dust: { path: 'field.count', min: 200, max: 5000, start: 0.6 },
   line: { path: 'line.count', min: 1, max: 40, start: 0.33 },
   dandelion: { path: 'field.count', min: 1, max: 12, start: 0.2 },
+  jellyfish: { path: 'swarm.count', min: 1, max: 8, start: 0.43 },
+  machine: { path: 'picture.detail', min: 0.25, max: 1, start: 0.47 },
 };
 
 const TRACKS: { name: string; src: string }[] = [
@@ -49,16 +57,20 @@ const TRACKS: { name: string; src: string }[] = [
 type Renderer = {
   render: (h: HandData, c: string[], a?: AudioData) => void;
   setParams?: (v: Record<string, number>) => void;
+  setVideoElement?: (v: HTMLVideoElement) => void;
   destroy?: () => void;
 };
 function build(v: Visual, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): Renderer {
   return v === 'dust' ? new DustRenderer(canvas, ctx)
     : v === 'line' ? new FirstLineRenderer(canvas, ctx)
-      : new DandelionRenderer(canvas, ctx);
+      : v === 'jellyfish' ? new JellyfishRenderer(canvas, ctx)
+        : v === 'machine' ? new MachineRenderer(canvas, ctx)
+          : new DandelionRenderer(canvas, ctx);
 }
 const paramsFor = (v: Visual, amount: number) => {
   const a = AMOUNT[v];
-  return { ...LOOKS[v].params, [a.path]: Math.round(a.min + amount * (a.max - a.min)) };
+  const n = a.min + amount * (a.max - a.min);
+  return { ...LOOKS[v].params, [a.path]: a.max > 2 ? Math.round(n) : n };
 };
 
 /** Where the guide sits: next to the thing to act on, with its arrow towards it. */
@@ -86,6 +98,7 @@ function guideAt(sel: string): React.CSSProperties {
 const GUIDE_STYLE = Math.max(1, Math.min(5, Number(new URLSearchParams(location.search).get('guide')) || 2));
 
 const NONE: HandData = { left: null, right: null };
+const GESTURE_WORDS = ['5 fingers', '2 fingers', 'fist', 'pinch', 'clap'];
 const SILENT: AudioData = { bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 };
 
 /** The mouse as a hand: where it points, held down a fist, a quick click a clap. */
@@ -118,7 +131,7 @@ function Demo() {
   // The effects: a trail, the colour turned round, and how many things.
   const [trail, setTrail] = useState(0);
   const [hue, setHue] = useState(0);
-  const [amounts, setAmounts] = useState<Record<Visual, number>>({ dust: AMOUNT.dust.start, line: AMOUNT.line.start, dandelion: AMOUNT.dandelion.start });
+  const [amounts, setAmounts] = useState<Record<Visual, number>>(() => Object.fromEntries(VISUALS.map((v) => [v.id, AMOUNT[v.id].start])) as Record<Visual, number>);
   const [fxOpen, setFxOpen] = useState(false);
   const fxRef = useRef({ trail, hue, amounts });
   fxRef.current = { trail, hue, amounts };
@@ -127,6 +140,8 @@ function Demo() {
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [camera, setCamera] = useState<'off' | 'asking' | 'on' | 'refused'>('off');
   const camHands = useRef<HandData>(NONE);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  videoRef.current = video;
   const mouse = useRef({ x: 0.5, y: 0.5, on: false, down: 0, closed: 0, clapAt: 0, moved: 0 });
   const startCamera = useCallback(async () => {
     setCamera('asking');
@@ -174,10 +189,13 @@ function Demo() {
 
   // ── the guide ─────────────────────────────────────────────────────────────
   const [done, setDone] = useState<Set<StepKey>>(new Set());
-  const [guide, setGuide] = useState(true);
+  // The guide shows once: whoever has been through it (or closed it) is not shown it again.
+  const [guide, setGuideRaw] = useState(() => { try { return !localStorage.getItem('n4th-guide-seen'); } catch { return true; } });
+  const setGuide = (on: boolean) => { setGuideRaw(on); if (!on) { try { localStorage.setItem('n4th-guide-seen', '1'); } catch { /* private window */ } } };
   const mark = useCallback((k: StepKey) => setDone((d) => (d.has(k) ? d : new Set(d).add(k))), []);
   useEffect(() => { if (playing !== null) mark('play'); }, [playing, mark]);
   const step = STEPS.find((s) => !done.has(s.key));
+  useEffect(() => { if (!step) { try { localStorage.setItem('n4th-guide-seen', '1'); } catch { /* private window */ } } }, [step]);
 
   // ── the loop ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -186,11 +204,12 @@ function Demo() {
     // The visual draws here; the stage takes it with the trail and the colour.
     const work = document.createElement('canvas');
     const wctx = work.getContext('2d')!;
-    let current: { v: Visual; r: Renderer; amount: number } | null = null;
+    let current: { v: Visual; r: Renderer; amount: number; video?: HTMLVideoElement } | null = null;
     let fade = 1;
     let last = performance.now();
     let raf = 0;
     const gesture = createGestureState();
+    let pulse = 0, clapSeen = 0, lastSeen = '';
     const size = () => {
       const k = Math.min(window.devicePixelRatio || 1, 1920 / Math.max(1, window.innerWidth));
       const w = Math.round(window.innerWidth * k), h = Math.round(window.innerHeight * k);
@@ -209,9 +228,14 @@ function Demo() {
         if (fade <= 0 || !current) {
           current?.r.destroy?.();
           current = { v: want, r: build(want, work, wctx), amount: -1 };
+          if (videoRef.current) current.r.setVideoElement?.(videoRef.current);
           fade = 0;
         }
-      } else fade = Math.min(1, fade + dt * 1.2);
+      } else {
+        fade = Math.min(1, fade + dt * 1.2);
+        // The camera may arrive after the visual did.
+        if (videoRef.current && current.video !== videoRef.current) { current.r.setVideoElement?.(videoRef.current); current.video = videoRef.current; }
+      }
 
       // The hands: the camera's if it sees one, else the mouse while it moves.
       const m = mouse.current;
@@ -226,8 +250,27 @@ function Demo() {
       const an = analysis.current;
       if (an && audioRef.current && !audioRef.current.paused) {
         an.analyser.getByteFrequencyData(an.data);
-        sound = { ...analyse(an.data, an.ctx.sampleRate, an.state, 0.5, Date.now()), live: true };
+        // Turned up: the quiet passages still move things, the loud ones only reach the top sooner.
+        sound = { ...analyse(an.data, an.ctx.sampleRate, an.state, 0.8, Date.now()), live: true };
       }
+
+      // Each kick gives the whole stage a small push, whatever the visual does with it.
+      if (sound.beat) pulse = Math.max(pulse, 0.6 + 0.4 * (sound.beatIntensity || 0));
+      pulse *= Math.exp(-dt * 7);
+
+      // Which gestures are seen now, for the words in the bar.
+      const seenNow = new Set<string>();
+      for (const h of [hands.left, hands.right]) {
+        if (!h) continue;
+        if (h.gesture === 'fist') seenNow.add('fist');
+        else if (h.gesture === 'pinch') seenNow.add('pinch');
+        else if (h.fingerCount === 2) seenNow.add('2 fingers');
+        else if ((h.fingerCount ?? 0) >= 5 || (h.openness ?? 0) > 0.85) seenNow.add('5 fingers');
+      }
+      if (hands.clapping) clapSeen = now;
+      if (now - clapSeen < 500) seenNow.add('clap');
+      const key = [...seenNow].sort().join('|');
+      if (key !== lastSeen) { lastSeen = key; setLit(seenNow); }
 
       advanceClock(dt, [gestureRate(hands, gesture, dt)]);
       useLayerClock(0);
@@ -252,7 +295,11 @@ function Demo() {
       ctx.filter = !fx.hue ? 'none'
         : current.v === 'dust' ? `sepia(1) saturate(5) hue-rotate(${fx.hue - 40}deg)`
           : `hue-rotate(${fx.hue}deg)`;
-      ctx.drawImage(work, 0, 0);
+      if (pulse > 0.01) {
+        const k = 1 + 0.035 * pulse;
+        ctx.filter = (ctx.filter === 'none' ? '' : ctx.filter + ' ') + `brightness(${1 + 0.45 * pulse})`;
+        ctx.drawImage(work, (canvas.width * (1 - k)) / 2, (canvas.height * (1 - k)) / 2, canvas.width * k, canvas.height * k);
+      } else ctx.drawImage(work, 0, 0);
       ctx.filter = 'none';
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
@@ -284,6 +331,7 @@ function Demo() {
     m.down = 0;
   };
   const [seen, setSeen] = useState(false);
+  const [lit, setLit] = useState<Set<string>>(new Set());
   const onHands = useCallback((h: HandData) => {
     camHands.current = h;
     setSeen(!!(h.left || h.right));
@@ -356,6 +404,10 @@ function Demo() {
         <button className={`camera ${camera === 'on' ? 'on' : ''}`} onClick={camera === 'on' ? undefined : startCamera} title="Play with your hand through the camera">
           {camera === 'on' ? <><span className={`dot ${seen ? 'seen' : ''}`}>●</span> hand</> : camera === 'refused' ? 'mouse' : 'camera'}
         </button>
+        {/* What the machine reads of the hand, lit while it sees it. */}
+        <div className="words">
+          {GESTURE_WORDS.map((w) => <span key={w} className={lit.has(w) ? 'lit' : ''}>{w}</span>)}
+        </div>
       </footer>
 
       {page && <Pages page={page} onClose={() => setPage(null)} onGo={setPage} />}

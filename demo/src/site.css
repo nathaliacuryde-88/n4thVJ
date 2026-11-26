@@ -129,3 +129,16 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .page.wide .shows.wide video:last-child { grid-column: 1 / -1; }
 @media (max-width: 720px) { .fx { bottom: 226px; z-index: 6; } }
 .camera .dot { transition: color .15s; } .camera .dot.seen { color: #9ad600; text-shadow: 0 0 6px var(--lime); }
+
+/* What the machine reads of the hand: the words light up in lime. */
+.words { display: flex; gap: 10px; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.words span { opacity: .3; transition: opacity .12s, color .12s; white-space: nowrap; }
+.words span.lit { opacity: 1; color: var(--lime); text-shadow: 0 0 8px rgba(198,255,0,.5); }
+@media (max-width: 720px) { .words { flex-basis: 100%; justify-content: center; gap: 8px; font-size: 9px; } }
+@media (max-width: 720px) {
+  .cards { gap: 4px; width: 100%; justify-content: space-between; }
+  .card { flex: 1 1 0; min-width: 0; }
+  .card img { width: 100%; max-width: 60px; height: 36px; }
+  .card .name { font-size: 9px; }
+  .card .num { top: 20px; }
+}
