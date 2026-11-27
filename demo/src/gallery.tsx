@@ -9,14 +9,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  */
 
 type Take = { id: string; name: string; tall: boolean };
+// In the order of the night: as they come in her set (Origem, slots 1–23).
 const TAKES: Take[] = [
-  { id: 'w2', name: 'Line', tall: false },
-  { id: 't2', name: 'Points', tall: true },
-  { id: 'w1', name: 'Blobs', tall: false },
-  { id: 't3', name: 'Sphere', tall: true },
-  { id: 'w3', name: 'Dust', tall: false },
-  { id: 't1', name: 'Circle', tall: true },
-  { id: 'w5', name: 'Flowers', tall: false },
+  { id: 'w3', name: 'Dust', tall: false },     // 1
+  { id: 't3', name: 'Sphere', tall: true },    // 4
+  { id: 'w2', name: 'Line', tall: false },     // 6
+  { id: 'w5', name: 'Bloom', tall: false },    // 12
+  { id: 'w1', name: 'Atlas', tall: false },    // 21
+  { id: 't2', name: 'Machine', tall: true },   // 22
+  { id: 't1', name: 'Standby', tall: true },   // 23
 ];
 const pad = (n: number) => String(n).padStart(2, '0');
 const clock = (s: number) => `${pad(Math.floor(s / 60))}:${pad(Math.floor(s % 60))}`;
