@@ -14,8 +14,8 @@ const TAKES: Take[] = [
   { id: 'w3', name: 'Dust', tall: false },     // 1
   { id: 't3', name: 'Sphere', tall: true },    // 4
   { id: 'w2', name: 'Line', tall: false },     // 6
+  { id: 'w1', name: 'Crowd', tall: false },    // 8
   { id: 'w5', name: 'Bloom', tall: false },    // 12
-  { id: 'w1', name: 'Atlas', tall: false },    // 21
   { id: 't2', name: 'Machine', tall: true },   // 22
   { id: 't1', name: 'Standby', tall: true },   // 23
 ];
@@ -103,13 +103,13 @@ export function Gallery() {
     const now = performance.now();
     const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     if (w.locked) {
-      if (now - w.quietAt > 220 && now - w.stepAt > 650) w.locked = false; // a pause in the scrolling: a new gesture
+      if (now - w.quietAt > 160 && now - w.stepAt > 420) w.locked = false; // a pause in the scrolling: a new gesture
       else { w.quietAt = now; return; }
     }
-    if (now - w.quietAt > 220) w.sum = 0;
+    if (now - w.quietAt > 160) w.sum = 0;
     w.quietAt = now;
     w.sum += d;
-    if (Math.abs(w.sum) < 40) return;
+    if (Math.abs(w.sum) < 18) return;
     go(motion.current.target + Math.sign(w.sum));
     w.sum = 0;
     w.locked = true;
@@ -134,7 +134,7 @@ export function Gallery() {
     const dx = (e.clientX - m.lastX) / spacing;
     // Heavier the further it is pulled from where it started: it resists going past the next one.
     const off = m.pos - m.from;
-    const give = Math.abs(off) < 0.5 ? 1 : 0.35;
+    const give = Math.abs(off) < 0.6 ? 1 : 0.6;
     m.pos = Math.max(-0.4, Math.min(TAKES.length - 0.6, m.pos - dx * give));
     m.vel = -dx / Math.max(0.008, (now - m.lastT) / 1000);
     m.lastX = e.clientX; m.lastT = now;
@@ -148,7 +148,7 @@ export function Gallery() {
     else {
       // A throw goes one take on (or stays), never several at once.
       const want = m.pos - m.from + m.vel * 0.12;
-      const by = Math.abs(want) > 0.2 ? Math.sign(want) : 0;
+      const by = Math.abs(want) > 0.12 ? Math.sign(want) : 0;
       m.target = Math.max(0, Math.min(TAKES.length - 1, m.from + by));
     }
     run();
