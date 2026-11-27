@@ -106,6 +106,9 @@ interface Jelly {
   rise: number;
   /** How far the hand has pulled it, eased at its own rate. */
   pull: THREE.Vector3;
+  /** In water (swarm.water): where it is and how it is moving, carried by its own weight. */
+  sp?: THREE.Vector3;
+  sv?: THREE.Vector3;
   /** The bell as the hand holds it: 0 open, 1 closed — and where it was last frame. */
   grip?: number;
   gripWas?: number;
@@ -438,10 +441,30 @@ export class JellyfishRenderer {
         p.x = cx + (p.x - cx) * calm;
         p.z = cz + (p.z - cz) * calm;
       }
+      /*
+       * Water: it does not go where the drift says, it is carried there — a
+       * soft spring through heavy water, a little past and back — while its
+       * own weight sinks it between pulses and each squeeze of the bell
+       * drives it up. Floating, not placed.
+       */
+      const water = Math.max(0, cfg.swarm.water ?? 0);
+      if (water > 0) {
+        if (!j.sp || !j.sv) { j.sp = p.clone(); j.sv = new THREE.Vector3(); }
+        const k = 2.2 / (water * water), c = 1.9 / water;
+        j.sv.x += ((p.x - j.sp.x) * k - j.sv.x * c) * dt;
+        j.sv.y += ((p.y - j.sp.y) * k - j.sv.y * c) * dt;
+        j.sv.z += ((p.z - j.sp.z) * k - j.sv.z * c) * dt;
+        // Its weight, and the thrust of each closing of the bell.
+        j.sv.y += (push * 2.4 - 0.7) * dt * Math.min(1, water);
+        j.sp.addScaledVector(j.sv, dt);
+        p.copy(j.sp);
+      }
       // Swimming up its own axis, which leans the way it drifts.
       if (j.last) {
         v.subVectors(p, j.last).divideScalar(Math.max(dt, 1e-3));
-        const target = new THREE.Vector3(v.x * 0.12, 1, v.z * 0.08).normalize();
+        // Carried by water it leans less: a gentle tilt into the drift, not a dive.
+        const leanBy = 1 / (1 + 1.5 * water);
+        const target = new THREE.Vector3(THREE.MathUtils.clamp(v.x * 0.12 * leanBy, -0.6, 0.6), 1, v.z * 0.08 * leanBy).normalize();
         j.up.lerp(target, 1 - Math.exp(-dt * 1.5)).normalize();
       }
       j.last = (j.last ?? new THREE.Vector3()).copy(p);

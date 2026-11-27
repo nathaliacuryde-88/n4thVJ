@@ -1521,6 +1521,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'swarm.tentacles', label: 'Tentacles', min: 0.3, max: 2, step: 0.05 },
           { path: 'swarm.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
           { path: 'swarm.arrival', label: 'Arrival', min: 1, max: 20, step: 0.5, hint: 'seconds each takes to rise into view' },
+          { path: 'swarm.water', label: 'Water', min: 0, max: 3, step: 0.05, hint: 'carried through heavy water: sinks between pulses, driven up by each' },
         ],
       },
       {

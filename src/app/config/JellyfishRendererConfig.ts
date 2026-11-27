@@ -36,6 +36,8 @@ export const JellyfishConfig = {
     backdrop: 1,
     /** Seconds each takes to rise into view; the gap between arrivals grows with it. */
     arrival: 5,
+    /** Water: carried by a soft spring through heavy water, sinking between pulses and driven up by each. 0: placed directly. */
+    water: 0,
   },
 
   hands: {
