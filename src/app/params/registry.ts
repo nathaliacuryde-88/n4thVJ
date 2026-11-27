@@ -569,6 +569,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'field.orbit', label: 'Orbit', min: 0, max: 1, step: 0.05, hint: 'slow camera swing' },
           { path: 'field.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
           { path: 'field.return', label: 'Seeds return', min: 0.25, max: 4, step: 0.05, hint: 'how quickly loose seeds come home' },
+          { path: 'field.glide', label: 'Glide', min: 0, max: 4, step: 0.1, hint: 'the music eased into the sway over seconds, never a lurch' },
         ],
       },
       {

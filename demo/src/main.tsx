@@ -50,7 +50,7 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
   dandelion: {
     colors: generateColors(200, 60, 'black'),
     // Flowing, not hopping: the kick barely bounces them, the music's wind carries them.
-    params: { 'sound.gust': 0, 'sound.wind': 1.4, 'field.return': 7.5, 'field.sway': 1.9, 'field.bounce': 0, 'field.drift': 0.44, 'field.backdrop': 0, 'colour.speed': 2.5, 'colour.offset': 0, 'colour.palette': 0, 'colour.depth': 0.32 },
+    params: { 'sound.gust': 0, 'sound.wind': 1.4, 'field.return': 7.5, 'field.glide': 1.5, 'field.sway': 1.9, 'field.bounce': 0, 'field.drift': 0.44, 'field.backdrop': 0, 'colour.speed': 2.5, 'colour.offset': 0, 'colour.palette': 0, 'colour.depth': 0.32 },
   },
   // All in blues (the Ink palette), carried further by the music, swelling apart on a heavy bass hit.
   jellyfish: { colors: generateColors(245, 100, 'contrast'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'swarm.arrival': 11, 'colour.palette': 3, 'sound.flow': 1.7, 'swarm.drift': 1.3, 'sound.swell': 1.2, 'sound.beat': 0.6 } },

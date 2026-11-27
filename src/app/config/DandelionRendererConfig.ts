@@ -34,6 +34,8 @@ export const DandelionConfig = {
     backdrop: 1,
     /** How quickly loose seeds come home: 1 as before, 2 twice as soon. */
     return: 1,
+    /** Seconds over which the music's pace and loudness are eased into the sway, so the stems never stall or lurch. 0: at once. */
+    glide: 0,
   },
 
   hands: {

@@ -380,6 +380,9 @@ export class DandelionRenderer {
   private motionTime = 0;
   private colourTime = 0;
   private gust = 0;
+  /** Glide: the clock's pace and the room's loudness, eased (see field.glide). */
+  private pace = 0;
+  private levelE = 0;
   private lastBeat = false;
   private lastClap = false;
   /** A kick's hop, jumping to 1 and settling over a third of a second. */
@@ -557,10 +560,21 @@ export class DandelionRenderer {
     const play = this.playing;
     play.read(handData, audioData);
     const { dt } = play;
-    const step = Math.max(0, play.step);
+    /*
+     * Glide: the shared clock's pace — which the music's stand-in hand keeps
+     * changing, at times almost to a stop — and the loudness, which flickers
+     * frame to frame in a busy passage, both eased over seconds. Without it
+     * the stems' sway stalls and then lurches, and their whip shudders.
+     */
+    const glide = Math.max(0, cfg.field.glide ?? 0);
+    const easeG = (secs: number) => (glide > 0 ? 1 - Math.exp(-dt / (secs * glide)) : 1);
+    this.pace += (Math.max(0, play.step) - this.pace) * easeG(1.4);
+    const step = glide > 0 ? Math.max(this.pace, dt * 0.35) : Math.max(0, play.step);
     const handed = handData.left || handData.right ? 1 : 0;
     this.present += (handed - this.present) * (1 - Math.exp(-dt * 3));
-    const level = Math.min(1, (audioData?.overall ?? 0) * 1.4) * cfg.sound.wind;
+    const rawLevel = Math.min(1, (audioData?.overall ?? 0) * 1.4) * cfg.sound.wind;
+    this.levelE += (rawLevel - this.levelE) * easeG(0.9);
+    const level = glide > 0 ? this.levelE : rawLevel;
 
     this.motionTime += step;
     this.colourTime += (step * cfg.colour.speed * (1 + play.mid * cfg.sound.mid * 1.2)
