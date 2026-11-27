@@ -356,7 +356,8 @@ export class JellyfishRenderer {
     this.bassAvg += (bassNow - this.bassAvg) * (1 - Math.exp(-dt * 0.5));
     const swellTo = Math.min(1, hitBy * 2.2) * cfg.sound.swell;
     this.swell += (swellTo - this.swell) * (1 - Math.exp(-dt * (swellTo > this.swell ? 2.5 : 0.45)));
-    const scatter = (handed ? Math.max(0.3, 1 + (play.spread - 0.4) * cfg.hands.spread * 1.6) : 1) * (1 + this.swell * 0.9);
+    const handScatter = handed ? Math.max(0.3, 1 + (play.spread - 0.4) * cfg.hands.spread * 1.6) : 1;
+    const scatter = handScatter * (1 + this.swell * 0.9);
     const hand = new THREE.Vector3(play.aim.x * 4.6, play.aim.y * 2.1, 0)
       .multiplyScalar(cfg.hands.follow * handed);
     const wander = cfg.swarm.drift * (1 + play.bass * cfg.sound.bass * 0.8);
@@ -372,6 +373,7 @@ export class JellyfishRenderer {
     const size = cfg.swarm.size;
 
     const p = new THREE.Vector3();
+    const kickOff = new THREE.Vector3();
     const q = new THREE.Quaternion();
     const Y = new THREE.Vector3(0, 1, 0);
     const v = new THREE.Vector3();
@@ -426,11 +428,13 @@ export class JellyfishRenderer {
       const lag = 0.8 + 1.6 * (1 - index / SWARM.length);
       j.pull.lerp(hand, 1 - Math.exp(-dt * lag));
       p.add(j.pull);
+      kickOff.set(0, 0, 0);
       // A clap jets them out from the middle.
       if (burst > 0.001) {
         v.set(p.x, p.y - 0.5, 0);
         if (v.lengthSq() < 0.01) v.set(index % 2 ? 1 : -1, 0.4, 0);
-        p.addScaledVector(v.normalize(), burst * 2.6);
+        kickOff.copy(v.normalize()).multiplyScalar(burst * 2.6);
+        p.add(kickOff);
       }
       // Still arriving, it rises straight and calm: the drift, the current and
       // the hand only take hold of it as it settles in.
@@ -449,6 +453,11 @@ export class JellyfishRenderer {
        */
       const water = Math.max(0, cfg.swarm.water ?? 0);
       if (water > 0) {
+        // The music's own throws — a heavy bass hit swelling the swarm apart, a
+        // clap jetting them out — ride on top of the water, so they still land.
+        kickOff.x += sw.c[0] * handScatter * this.swell * 0.9;
+        kickOff.y += sw.c[1] * (Math.min(1.4, scatter) - Math.min(1.4, handScatter));
+        p.sub(kickOff);
         if (!j.sp || !j.sv) { j.sp = p.clone(); j.sv = new THREE.Vector3(); }
         const k = 2.2 / (water * water), c = 1.9 / water;
         j.sv.x += ((p.x - j.sp.x) * k - j.sv.x * c) * dt;
@@ -457,7 +466,7 @@ export class JellyfishRenderer {
         // Its weight, and the thrust of each closing of the bell.
         j.sv.y += (push * 2.4 - 0.7) * dt * Math.min(1, water);
         j.sp.addScaledVector(j.sv, dt);
-        p.copy(j.sp);
+        p.copy(j.sp).add(kickOff);
       }
       // Swimming up its own axis, which leans the way it drifts.
       if (j.last) {

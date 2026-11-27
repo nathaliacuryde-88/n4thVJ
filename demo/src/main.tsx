@@ -53,7 +53,7 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
     params: { 'sound.gust': 0, 'sound.wind': 1.4, 'field.return': 7.5, 'field.glide': 1.2, 'field.sway': 1.9, 'field.bounce': 0, 'field.drift': 0.44, 'field.backdrop': 0, 'colour.speed': 2.5, 'colour.offset': 0, 'colour.palette': 0, 'colour.depth': 0.32 },
   },
   // All in blues (the Ink palette), carried further by the music, swelling apart on a heavy bass hit.
-  jellyfish: { colors: generateColors(245, 100, 'contrast'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'swarm.arrival': 11, 'colour.palette': 3, 'sound.flow': 2.4, 'swarm.drift': 1.9, 'swarm.pulse': 1.6, 'swarm.water': 1.2, 'sound.swell': 1.2, 'sound.beat': 0.6 } },
+  jellyfish: { colors: generateColors(245, 100, 'contrast'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'swarm.arrival': 11, 'colour.palette': 3, 'sound.flow': 2.4, 'swarm.drift': 1.9, 'swarm.pulse': 1.25, 'swarm.water': 1.2, 'sound.swell': 1.2, 'sound.beat': 0.6 } },
   standby: { colors: generateColors(0, 0, 'grayscale'), params: { 'sound.quiet': 0.4, 'grid.words': 0 } },
   sphere: {
     colors: generateColors(0, 0, 'grayscale'),
@@ -151,10 +151,17 @@ function build(v: Visual, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext
           : v === 'sphere' ? new MorphingSphereRenderer(canvas, ctx)
           : new DandelionRenderer(canvas, ctx);
 }
-const paramsFor = (v: Visual, amount: number) => {
+/** For testing, a Glide slider in the effects: which setting it moves on each visual, and where it starts. (To be taken out once tuned.) */
+const GLIDE: Partial<Record<Visual, { path: string; start: number }>> = {
+  dandelion: { path: 'field.glide', start: 1.2 },
+  jellyfish: { path: 'swarm.water', start: 1.2 },
+  sphere: { path: 'motion.glide', start: 2 },
+};
+const paramsFor = (v: Visual, amount: number, glide?: number) => {
   const a = AMOUNT[v];
   const n = a.min + amount * (a.max - a.min);
-  return { ...LOOKS[v].params, [a.path]: a.max > 2 ? Math.round(n) : n };
+  const g = GLIDE[v];
+  return { ...LOOKS[v].params, ...(g && glide !== undefined ? { [g.path]: glide } : {}), [a.path]: a.max > 2 ? Math.round(n) : n };
 };
 
 /** Where the guide sits: next to the thing to act on, with its arrow towards it. */
@@ -239,8 +246,9 @@ function Demo() {
     setHue(0);
     setAmounts((a) => ({ ...a, [visual]: AMOUNT[visual].start }));
   }, [visual]);
-  const fxRef = useRef({ trail, hue, amounts });
-  fxRef.current = { trail, hue, amounts };
+  const [glides, setGlides] = useState<Partial<Record<Visual, number>>>(() => Object.fromEntries(Object.entries(GLIDE).map(([k, g]) => [k, g!.start])));
+  const fxRef = useRef({ trail, hue, amounts, glides });
+  fxRef.current = { trail, hue, amounts, glides };
 
   // ── the hand: the camera's, or the mouse ─────────────────────────────────
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
@@ -454,18 +462,20 @@ function Demo() {
       for (const l of [leaving, current]) {
         if (!l) continue;
         const amount = fx.amounts[l.v];
+        const glide = fx.glides[l.v];
+        const sig = amount + (glide ?? 0) * 10;
         if (l.v === 'dust') {
           // As the silence has it at the start — the soft ring, rings of light
           // opening here and there — and livelier as the music gets going.
           const go = sound.live ? Math.max(0, Math.min(1, (busy - 520) / 260)) : 0;
           calm += ((1 - go * 0.6) * 0.3 - calm) * (1 - Math.exp(-dt * 0.3));
-          if (Math.abs(calm - l.circle) > 0.01 || Math.abs(go - l.go) > 0.04 || Math.abs(amount - l.amount) > 0.001) {
+          if (Math.abs(calm - l.circle) > 0.01 || Math.abs(go - l.go) > 0.04 || Math.abs(sig - l.amount) > 0.001) {
             l.r.setParams?.({
-              ...paramsFor(l.v, amount), 'form.circle': calm,
+              ...paramsFor(l.v, amount, glide), 'form.circle': calm,
               'sound.quiet': 1.6 * (1 - go) + 0.4, 'sound.beat': 0.12 + 0.8 * go, 'sound.sparks': 0.5 + 1.3 * go,
               'sound.bass': 0.4 + 0.8 * go, 'field.drift': 1.8 + 0.8 * go,
             });
-            l.amount = amount; l.circle = calm; l.go = go;
+            l.amount = sig; l.circle = calm; l.go = go;
           }
         } else if (l.v === 'sphere') {
           // A heavy bass hit plays the planet's shape to the full — Morph at
@@ -479,11 +489,11 @@ function Demo() {
           const go = sound.live ? Math.max(0, Math.min(1, (busy - 520) / 260)) : 0;
           const rest = 0.32 + 0.22 * go;
           const morph = rest + (0.85 - rest) * shapeHit;
-          if (Math.abs(morph - l.circle) > 0.003 || Math.abs(go - l.go) > 0.008 || Math.abs(amount - l.amount) > 0.001) {
-            l.r.setParams?.({ ...paramsFor(l.v, amount), 'shape.morph': morph, 'motion.flow': 1 + 1.6 * go, 'motion.spin': 0.4 + 0.5 * go });
-            l.amount = amount; l.circle = morph; l.go = go;
+          if (Math.abs(morph - l.circle) > 0.003 || Math.abs(go - l.go) > 0.008 || Math.abs(sig - l.amount) > 0.001) {
+            l.r.setParams?.({ ...paramsFor(l.v, amount, glide), 'shape.morph': morph, 'motion.flow': 1 + 1.6 * go, 'motion.spin': 0.4 + 0.5 * go });
+            l.amount = sig; l.circle = morph; l.go = go;
           }
-        } else if (Math.abs(amount - l.amount) > 0.001) { l.r.setParams?.(paramsFor(l.v, amount)); l.amount = amount; }
+        } else if (Math.abs(sig - l.amount) > 0.001) { l.r.setParams?.(paramsFor(l.v, amount, glide)); l.amount = sig; }
         // A bass hit arrives like a soft clap, as strong as each visual takes it.
         const hit = now - impactAt < 140 && !hands.clapping
           ? { ...hands, clapping: true, clapIntensity: impact * IMPACT[l.v] }
@@ -591,6 +601,9 @@ function Demo() {
         <label>Trail<input type="range" min={0} max={1} step={0.01} value={trail} onChange={(e) => setTrail(+e.target.value)} /></label>
         <label>Colour<input type="range" min={0} max={360} step={1} value={hue} onChange={(e) => setHue(+e.target.value)} /></label>
         <label>Amount<input type="range" min={0} max={1} step={0.01} value={amounts[visual]} onChange={(e) => setAmounts((a) => ({ ...a, [visual]: +e.target.value }))} /></label>
+        {GLIDE[visual] && (
+          <label>Glide · {(glides[visual] ?? 0).toFixed(2)}<input type="range" min={0} max={3} step={0.05} value={glides[visual] ?? 0} onChange={(e) => setGlides((g) => ({ ...g, [visual]: +e.target.value }))} /></label>
+        )}
       </aside>
 
       <footer className="desk">
