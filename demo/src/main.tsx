@@ -163,6 +163,10 @@ const BANDS: Partial<Record<Visual, { path: string; label: string; start: number
     { path: 'sound.stems', label: 'Stems', start: 1 },
     { path: 'sound.seeds', label: 'Seeds', start: 3 },
   ],
+  jellyfish: [
+    { path: 'sound.bell', label: 'Bells', start: 1 },
+    { path: 'sound.tentacles', label: 'Tentacles', start: 3 },
+  ],
 };
 const BAND_NAMES = ['all', 'low', 'mid', 'high'];
 const bandsStart = () => Object.fromEntries(Object.values(BANDS).flat().map((b) => [b!.path, b!.start])) as Record<string, number>;

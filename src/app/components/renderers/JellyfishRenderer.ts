@@ -165,6 +165,9 @@ export class JellyfishRenderer {
   /** How far the music's current has carried the swarm, and how strongly it carries it now. */
   private current = 0;
   private carry = 0;
+  /** The bands the bell and the tentacles hear, eased (sound.bell, sound.tentacles). */
+  private bellE = 0;
+  private tentE = 0;
   /** How far a heavy bass hit has swelled the swarm apart, and the bass it is measured against. */
   private swell = 0;
   private bassAvg = 0;
@@ -360,7 +363,24 @@ export class JellyfishRenderer {
     const scatter = handScatter * (1 + this.swell * 0.9);
     const hand = new THREE.Vector3(play.aim.x * 4.6, play.aim.y * 2.1, 0)
       .multiplyScalar(cfg.hands.follow * handed);
-    const wander = cfg.swarm.drift * (1 + play.bass * cfg.sound.bass * 0.8);
+    /*
+     * Which part of the sound moves what (sound.bell, sound.tentacles): -1 as
+     * designed (the bass for the bell, the hats for the tentacles), 0 all of
+     * it, 1 the lows, 2 the mids, 3 the highs. The bell — its swell, its
+     * squeeze, its wandering — follows one; the tentacles' ripple the other.
+     */
+    const band = (b: number, fallback: number) => {
+      const r = Math.round(b);
+      const a = audioData;
+      if (r < 0 || !a) return fallback;
+      return r === 1 ? Math.max(a.bass, a.lowMid * 0.6) : r === 2 ? a.mid : r === 3 ? a.high : a.overall;
+    };
+    const bellPick = Math.round(cfg.sound.bell ?? -1);
+    this.bellE += (band(bellPick, play.bass) - this.bellE) * (1 - Math.exp(-dt * 3));
+    const bellHears = bellPick < 0 ? play.bass : this.bellE;
+    this.tentE += (band(cfg.sound.tentacles ?? -1, play.high) - this.tentE) * (1 - Math.exp(-dt * 6));
+    const tentHears = Math.round(cfg.sound.tentacles ?? -1) < 0 ? play.high : this.tentE;
+    const wander = cfg.swarm.drift * (1 + bellHears * cfg.sound.bass * 0.8);
     // The current: with music it runs faster and sways them further, slowly
     // easing in and out so a change in the music is a change of tide, not a jolt.
     const live = !!audioData?.live;
@@ -368,8 +388,8 @@ export class JellyfishRenderer {
     this.carry += (cfg.sound.flow * fullness - this.carry) * (1 - Math.exp(-dt * 0.35));
     // On the shared clock, so the finger count sets its pace as everywhere.
     this.current += step * (0.18 + 0.5 * this.carry);
-    const spec = 0.16 * (1 + play.high * cfg.sound.high * 2.5);
-    const ripple = 1 + play.high * cfg.sound.high * 1.5;
+    const spec = 0.16 * (1 + tentHears * cfg.sound.high * 2.5);
+    const ripple = 1 + tentHears * cfg.sound.high * 1.5;
     const size = cfg.swarm.size;
 
     const p = new THREE.Vector3();
@@ -395,7 +415,8 @@ export class JellyfishRenderer {
       // The pulse: on the clock, quicker for a clap, and each kick a squeeze.
       j.beat += step * TAU * (sw.pulses / LOOP) + dt * burst * TAU * 1.5;
       const own = squeeze(j.beat);
-      const squeezed = Math.min(1.3, Math.max(own, bump * 0.7) + burst * 0.4);
+      // The band the bell hears squeezes it too, as it swells and falls.
+      const squeezed = Math.min(1.3, Math.max(own, bump * 0.7) + burst * 0.4 + (bellPick >= 0 ? this.bellE * 0.35 : 0));
       // The hand's bell: each follows the hand a moment behind the one before,
       // so the swarm closes and opens as a ripple rather than all at once.
       const grip = (j.grip ?? 0) + (play.fist - (j.grip ?? 0)) * (1 - Math.exp(-dt * (7 - index * 0.7)));
@@ -485,7 +506,7 @@ export class JellyfishRenderer {
       p.y -= (1 - grow) * 7;
       // They swim a little lower in the frame, with room above them…
       p.y -= 0.9;
-      const s = sw.s * size * (0.3 + 0.7 * grow) * (1 + play.bass * cfg.sound.bass * 0.08 + bump * 0.04);
+      const s = sw.s * size * (0.3 + 0.7 * grow) * (1 + bellHears * cfg.sound.bass * 0.08 + bump * 0.04);
       // …and never up through the top edge: a soft ceiling a bell's height
       // under it, so the heads stay whole however high they swim or drift.
       {

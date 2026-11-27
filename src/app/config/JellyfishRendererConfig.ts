@@ -62,5 +62,9 @@ export const JellyfishConfig = {
     flow: 1,
     /** A heavy bass hit swells the swarm apart, and it drifts slowly back together. 0: off. */
     swell: 0,
+    /** Which part of the sound the bell hears (its swell, squeeze, wandering): -1 the bass, as designed; 0 all, 1 lows, 2 mids, 3 highs. */
+    bell: -1,
+    /** Which part of the sound ripples the tentacles: -1 the hats, as designed; 0 all, 1 lows, 2 mids, 3 highs. */
+    tentacles: -1,
   },
 };
