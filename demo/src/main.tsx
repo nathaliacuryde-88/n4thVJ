@@ -88,7 +88,7 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60))
 /** The tracks, with their length (shown before one has loaded, and for Auto). */
 const TRACKS: { name: string; src: string; seconds: number }[] = [
   { name: 'Johan Nex · Machine', src: '/tracks/m4n4th.mp3', seconds: 362 },
-  { name: 'Johan Nex · Human', src: '/tracks/human.mp3', seconds: 395 },
+  { name: 'Johan Nex · Human', src: '/tracks/human-2.mp3', seconds: 395 },
 ];
 
 type Renderer = {
