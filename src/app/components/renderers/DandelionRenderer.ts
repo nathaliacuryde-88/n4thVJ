@@ -383,6 +383,7 @@ export class DandelionRenderer {
   /** Glide: the clock's pace and the room's loudness, eased (see field.glide). */
   private pace = 0;
   private levelE = 0;
+  private seedsE = 0;
   private lastBeat = false;
   private lastClap = false;
   /** A kick's hop, jumping to 1 and settling over a third of a second. */
@@ -572,9 +573,23 @@ export class DandelionRenderer {
     const step = glide > 0 ? Math.max(this.pace, dt * 0.35) : Math.max(0, play.step);
     const handed = handData.left || handData.right ? 1 : 0;
     this.present += (handed - this.present) * (1 - Math.exp(-dt * 3));
-    const rawLevel = Math.min(1, (audioData?.overall ?? 0) * 1.4) * cfg.sound.wind;
+    /*
+     * Which part of the sound moves what (sound.stems, sound.seeds): 0 all of
+     * it, 1 the lows (kick, bass), 2 the mids (the melody), 3 the highs (hats,
+     * air). The stems sway with theirs, the loose seeds lift with theirs.
+     */
+    const band = (b: number) => {
+      const a = audioData;
+      if (!a) return 0;
+      const r = Math.round(b);
+      return r === 1 ? Math.max(a.bass, a.lowMid * 0.6) : r === 2 ? a.mid : r === 3 ? a.high : a.overall;
+    };
+    const rawLevel = Math.min(1, band(cfg.sound.stems ?? 0) * 1.4) * cfg.sound.wind;
     this.levelE += (rawLevel - this.levelE) * easeG(0.9);
     const level = glide > 0 ? this.levelE : rawLevel;
+    const rawSeeds = Math.min(1, band(cfg.sound.seeds ?? 0) * 1.4) * cfg.sound.wind;
+    this.seedsE += (rawSeeds - this.seedsE) * easeG(0.5);
+    const seedLevel = glide > 0 ? this.seedsE : rawSeeds;
 
     this.motionTime += step;
     this.colourTime += (step * cfg.colour.speed * (1 + play.mid * cfg.sound.mid * 1.2)
@@ -634,7 +649,7 @@ export class DandelionRenderer {
     const amount = cfg.field.drift;
     const master = Math.min(1, amount * 2);
     const crowd = Math.sqrt(Math.min(1, 3 / Math.max(1, Math.round(cfg.field.count))));
-    const loose = Math.min(0.72, crowd * (amount * (0.25 + level * 0.45) + hold * 0.3 * this.present * master));
+    const loose = Math.min(0.72, crowd * (amount * (0.25 + seedLevel * 0.45) + hold * 0.3 * this.present * master));
     const clapTake = clapShare * Math.min(1, cfg.hands.clap) * master * crowd;
     /** How quickly loose seeds come home: their time away shortened, their glide back quickened. */
     const back = Math.max(0.25, cfg.field.return ?? 1);
@@ -740,7 +755,7 @@ export class DandelionRenderer {
         (0.08 + level * 0.22) * Math.sin((TAU * d) / 1.2 - across + slot.ph)
         + 0.3 * this.hop * (0.6 + 0.4 * hash1(i + 7)));
       f.root.position.y += bounce;
-      f.u.uShimmer.value = play.high * cfg.sound.high * 2;
+      f.u.uShimmer.value = (Math.round(cfg.sound.seeds ?? 0) ? seedLevel : play.high) * cfg.sound.high * 2;
 
       // ── its seeds ─────────────────────────────────────────────────────────
       const headX = f.root.position.x + wx * s;

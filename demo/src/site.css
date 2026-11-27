@@ -207,3 +207,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .fx input[type=range]::-moz-range-thumb { width: 7px; height: 7px; border-radius: 50%; background: #fff; border: 0; }
 .fx input[type=range]:hover::-webkit-slider-thumb { background: var(--lime); }
 .fx input[type=range]:hover::-moz-range-thumb { background: var(--lime); }
+/* Which part of the sound moves what (a test with Johan). */
+.fx .bands { display: flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #a8a8a8; }
+.fx .bands span { flex: 1; }
+.fx .bands button { padding: 3px 5px; border-radius: 4px; color: #777; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.fx .bands button.on { color: #000; background: var(--lime); }
+.fx .bands { flex-wrap: wrap; gap: 4px 6px; }
+.fx .bands span { flex-basis: 100%; }
+.fx .bands button { flex: 1; text-align: center; }
+.fx .bands button { flex: 1 1 0; min-width: 0; padding: 3px 0; letter-spacing: 0; }

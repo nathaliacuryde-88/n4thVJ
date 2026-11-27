@@ -825,6 +825,8 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.mid', label: 'Melody flow', min: 0, max: 2, step: 0.05 },
           { path: 'sound.high', label: 'Hats', min: 0, max: 2, step: 0.05 },
           { path: 'sound.wind', label: 'Music wind', min: 0, max: 2, step: 0.05 },
+          { path: 'sound.stems', label: 'Stems hear', min: 0, max: 3, step: 1, hint: '0 all · 1 lows · 2 mids · 3 highs' },
+          { path: 'sound.seeds', label: 'Seeds hear', min: 0, max: 3, step: 1, hint: '0 all · 1 lows · 2 mids · 3 highs' },
         ],
       },
     ],

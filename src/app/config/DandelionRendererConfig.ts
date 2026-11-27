@@ -58,5 +58,9 @@ export const DandelionConfig = {
     mid: 1,
     /** Hats and air make the hairs shimmer. */
     high: 1,
+    /** Which part of the sound sways the stems: 0 all, 1 lows, 2 mids, 3 highs. */
+    stems: 0,
+    /** Which part of the sound lifts the loose seeds: 0 all, 1 lows, 2 mids, 3 highs. */
+    seeds: 0,
   },
 };

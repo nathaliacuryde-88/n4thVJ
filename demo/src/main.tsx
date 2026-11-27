@@ -157,11 +157,21 @@ const GLIDE: Partial<Record<Visual, { path: string; start: number }>> = {
   jellyfish: { path: 'swarm.water', start: 1.2 },
   sphere: { path: 'motion.glide', start: 2 },
 };
-const paramsFor = (v: Visual, amount: number, glide?: number) => {
+/** For testing with Johan: which part of the sound moves which part of a visual. (To be taken out once chosen.) */
+const BANDS: Partial<Record<Visual, { path: string; label: string; start: number }[]>> = {
+  dandelion: [
+    { path: 'sound.stems', label: 'Stems', start: 1 },
+    { path: 'sound.seeds', label: 'Seeds', start: 3 },
+  ],
+};
+const BAND_NAMES = ['all', 'low', 'mid', 'high'];
+const bandsStart = () => Object.fromEntries(Object.values(BANDS).flat().map((b) => [b!.path, b!.start])) as Record<string, number>;
+const paramsFor = (v: Visual, amount: number, glide?: number, bands?: Record<string, number>) => {
   const a = AMOUNT[v];
   const n = a.min + amount * (a.max - a.min);
   const g = GLIDE[v];
-  return { ...LOOKS[v].params, ...(g && glide !== undefined ? { [g.path]: glide } : {}), [a.path]: a.max > 2 ? Math.round(n) : n };
+  const own = Object.fromEntries((BANDS[v] ?? []).map((b) => [b.path, bands?.[b.path] ?? b.start]));
+  return { ...LOOKS[v].params, ...own, ...(g && glide !== undefined ? { [g.path]: glide } : {}), [a.path]: a.max > 2 ? Math.round(n) : n };
 };
 
 /** Where the guide sits: next to the thing to act on, with its arrow towards it. */
@@ -247,8 +257,9 @@ function Demo() {
     setAmounts((a) => ({ ...a, [visual]: AMOUNT[visual].start }));
   }, [visual]);
   const [glides, setGlides] = useState<Partial<Record<Visual, number>>>(() => Object.fromEntries(Object.entries(GLIDE).map(([k, g]) => [k, g!.start])));
-  const fxRef = useRef({ trail, hue, amounts, glides });
-  fxRef.current = { trail, hue, amounts, glides };
+  const [bands, setBands] = useState<Record<string, number>>(bandsStart);
+  const fxRef = useRef({ trail, hue, amounts, glides, bands });
+  fxRef.current = { trail, hue, amounts, glides, bands };
 
   // ── the hand: the camera's, or the mouse ─────────────────────────────────
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
@@ -463,7 +474,7 @@ function Demo() {
         if (!l) continue;
         const amount = fx.amounts[l.v];
         const glide = fx.glides[l.v];
-        const sig = amount + (glide ?? 0) * 10;
+        const sig = amount + (glide ?? 0) * 10 + (BANDS[l.v] ?? []).reduce((n, b, k) => n + (fx.bands[b.path] ?? 0) * 100 * (k + 1), 0);
         if (l.v === 'dust') {
           // As the silence has it at the start — the soft ring, rings of light
           // opening here and there — and livelier as the music gets going.
@@ -471,7 +482,7 @@ function Demo() {
           calm += ((1 - go * 0.6) * 0.3 - calm) * (1 - Math.exp(-dt * 0.3));
           if (Math.abs(calm - l.circle) > 0.01 || Math.abs(go - l.go) > 0.04 || Math.abs(sig - l.amount) > 0.001) {
             l.r.setParams?.({
-              ...paramsFor(l.v, amount, glide), 'form.circle': calm,
+              ...paramsFor(l.v, amount, glide, fx.bands), 'form.circle': calm,
               'sound.quiet': 1.6 * (1 - go) + 0.4, 'sound.beat': 0.12 + 0.8 * go, 'sound.sparks': 0.5 + 1.3 * go,
               'sound.bass': 0.4 + 0.8 * go, 'field.drift': 1.8 + 0.8 * go,
             });
@@ -490,10 +501,10 @@ function Demo() {
           const rest = 0.32 + 0.22 * go;
           const morph = rest + (0.85 - rest) * shapeHit;
           if (Math.abs(morph - l.circle) > 0.003 || Math.abs(go - l.go) > 0.008 || Math.abs(sig - l.amount) > 0.001) {
-            l.r.setParams?.({ ...paramsFor(l.v, amount, glide), 'shape.morph': morph, 'motion.flow': 1 + 1.6 * go, 'motion.spin': 0.4 + 0.5 * go });
+            l.r.setParams?.({ ...paramsFor(l.v, amount, glide, fx.bands), 'shape.morph': morph, 'motion.flow': 1 + 1.6 * go, 'motion.spin': 0.4 + 0.5 * go });
             l.amount = sig; l.circle = morph; l.go = go;
           }
-        } else if (Math.abs(sig - l.amount) > 0.001) { l.r.setParams?.(paramsFor(l.v, amount, glide)); l.amount = sig; }
+        } else if (Math.abs(sig - l.amount) > 0.001) { l.r.setParams?.(paramsFor(l.v, amount, glide, fx.bands)); l.amount = sig; }
         // A bass hit arrives like a soft clap, as strong as each visual takes it.
         const hit = now - impactAt < 140 && !hands.clapping
           ? { ...hands, clapping: true, clapIntensity: impact * IMPACT[l.v] }
@@ -601,6 +612,14 @@ function Demo() {
         <label>Trail<input type="range" min={0} max={1} step={0.01} value={trail} onChange={(e) => setTrail(+e.target.value)} /></label>
         <label>Colour<input type="range" min={0} max={360} step={1} value={hue} onChange={(e) => setHue(+e.target.value)} /></label>
         <label>Amount<input type="range" min={0} max={1} step={0.01} value={amounts[visual]} onChange={(e) => setAmounts((a) => ({ ...a, [visual]: +e.target.value }))} /></label>
+        {(BANDS[visual] ?? []).map((b) => (
+          <div key={b.path} className="bands" role="group" aria-label={`${b.label} move with`}>
+            <span>{b.label}</span>
+            {BAND_NAMES.map((n, k) => (
+              <button key={n} type="button" className={(bands[b.path] ?? b.start) === k ? 'on' : ''} onClick={() => setBands((x) => ({ ...x, [b.path]: k }))}>{n}</button>
+            ))}
+          </div>
+        ))}
         {GLIDE[visual] && (
           <label>Glide · {(glides[visual] ?? 0).toFixed(2)}<input type="range" min={0} max={3} step={0.05} value={glides[visual] ?? 0} onChange={(e) => setGlides((g) => ({ ...g, [visual]: +e.target.value }))} /></label>
         )}
