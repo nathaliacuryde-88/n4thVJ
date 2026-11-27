@@ -29,7 +29,7 @@ export function Gallery() {
   const [time, setTime] = useState({ at: 0, of: 20 });
   const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const vids = useRef<(HTMLVideoElement | null)[]>([]);
-  const motion = useRef({ pos: 0, vel: 0, target: 0, dragging: false, lastX: 0, lastT: 0, raf: 0, downX: 0, downOn: -1 });
+  const motion = useRef({ pos: 0, vel: 0, target: 0, dragging: false, lastX: 0, lastT: 0, raf: 0, downX: 0, downOn: -1, from: 0 });
 
   useEffect(() => {
     const r = () => setSize({ w: window.innerWidth, h: window.innerHeight });
@@ -91,12 +91,29 @@ export function Gallery() {
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [go, active]);
-  const wheelAt = useRef(0);
+  /*
+   * The wheel and the trackpad: one take per gesture. A trackpad keeps sending
+   * scroll for a second or more after the fingers leave (its inertia), so after
+   * a step the strip stays put until the scrolling has gone quiet for a moment
+   * — it stops on each take, and the next one needs a new push.
+   */
+  const wheel = useRef({ locked: false, quietAt: 0, sum: 0, stepAt: 0 });
   const onWheel = (e: React.WheelEvent) => {
+    const w = wheel.current;
+    const now = performance.now();
     const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-    if (Math.abs(d) < 8 || performance.now() - wheelAt.current < 380) return;
-    wheelAt.current = performance.now();
-    go(motion.current.target + Math.sign(d));
+    if (w.locked) {
+      if (now - w.quietAt > 220 && now - w.stepAt > 650) w.locked = false; // a pause in the scrolling: a new gesture
+      else { w.quietAt = now; return; }
+    }
+    if (now - w.quietAt > 220) w.sum = 0;
+    w.quietAt = now;
+    w.sum += d;
+    if (Math.abs(w.sum) < 40) return;
+    go(motion.current.target + Math.sign(w.sum));
+    w.sum = 0;
+    w.locked = true;
+    w.stepAt = now;
   };
 
   // Dragging and swiping: the strip follows the finger, then settles where it was thrown.
@@ -104,6 +121,7 @@ export function Gallery() {
   const onDown = (e: React.PointerEvent) => {
     const m = motion.current;
     m.dragging = true; m.lastX = e.clientX; m.lastT = performance.now(); m.vel = 0;
+    m.from = Math.round(m.pos);
     m.downX = e.clientX;
     m.downOn = Number((e.target as Element).closest('[data-i]')?.getAttribute('data-i') ?? -1);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -114,7 +132,10 @@ export function Gallery() {
     if (!m.dragging) return;
     const now = performance.now();
     const dx = (e.clientX - m.lastX) / spacing;
-    m.pos = Math.max(-0.4, Math.min(TAKES.length - 0.6, m.pos - dx));
+    // Heavier the further it is pulled from where it started: it resists going past the next one.
+    const off = m.pos - m.from;
+    const give = Math.abs(off) < 0.5 ? 1 : 0.35;
+    m.pos = Math.max(-0.4, Math.min(TAKES.length - 0.6, m.pos - dx * give));
     m.vel = -dx / Math.max(0.008, (now - m.lastT) / 1000);
     m.lastX = e.clientX; m.lastT = now;
   };
@@ -124,7 +145,12 @@ export function Gallery() {
     m.dragging = false;
     // A tap (no drag) on a take goes to it; a throw settles where it carries.
     if (Math.abs(e.clientX - m.downX) < 6 && m.downOn >= 0) m.target = m.downOn;
-    else m.target = Math.max(0, Math.min(TAKES.length - 1, Math.round(m.pos + m.vel * 0.18)));
+    else {
+      // A throw goes one take on (or stays), never several at once.
+      const want = m.pos - m.from + m.vel * 0.12;
+      const by = Math.abs(want) > 0.2 ? Math.sign(want) : 0;
+      m.target = Math.max(0, Math.min(TAKES.length - 1, m.from + by));
+    }
     run();
   };
 
