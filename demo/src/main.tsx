@@ -553,6 +553,10 @@ function Demo() {
     const p = location.pathname.replace(/^\/+|\/+$/g, '') as PageName;
     return (['about', 'instrument', 'performances'] as string[]).includes(p) ? p : null;
   });
+  // The performances have their own sound: the site's track pauses for them.
+  useEffect(() => {
+    if (page === 'performances' && audioRef.current && !audioRef.current.paused) { audioRef.current.pause(); setPlaying(null); }
+  }, [page]);
   const setPage = (p: PageName | null) => { setPageRaw(p); try { history.replaceState(null, '', '/' + (p ?? '')); } catch {} };
 
   return (

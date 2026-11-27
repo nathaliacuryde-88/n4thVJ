@@ -1,8 +1,6 @@
 export type PageName = 'about' | 'instrument' | 'performances';
 
-// Wide ones first, then the upright one; each a different visual.
-const WIDE = ['w2', 'w1', 'w3', 'w5'].map((n) => ({ src: `/media/${n}.mp4`, poster: `/media/${n}.jpg` }));
-const TALL = ['t2', 't3', 't1'].map((n) => ({ src: `/media/${n}.mp4`, poster: `/media/${n}.jpg` }));
+import { Gallery } from './gallery';
 
 /** The classic pages, over the instrument: it keeps playing behind them. */
 export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => void; onGo: (p: PageName) => void }) {
@@ -70,18 +68,7 @@ export function Pages({ page, onClose, onGo }: { page: PageName; onClose: () => 
           </section>
         )}
 
-        {page === 'performances' && (
-          <section>
-            <h2>Performances</h2>
-            <p className="sub">Stuttgart, November 2026 — Nische at Kultur Bunker. Live with a DJ set.</p>
-            <div className="shows wide">
-              {WIDE.map((v) => <video key={v.src} src={v.src} poster={v.poster} autoPlay muted loop playsInline disablePictureInPicture disableRemotePlayback />)}
-            </div>
-            <div className="shows tall">
-              {TALL.map((v) => <video key={v.src} src={v.src} poster={v.poster} autoPlay muted loop playsInline disablePictureInPicture disableRemotePlayback />)}
-            </div>
-          </section>
-        )}
+        {page === 'performances' && <Gallery />}
       </article>
     </div>
   );

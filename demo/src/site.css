@@ -165,3 +165,34 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .timeline input::-webkit-slider-thumb { -webkit-appearance: none; width: 7px; height: 7px; border-radius: 50%; background: #fff; border: 0; margin-top: -3px; }
 .timeline input::-moz-range-thumb { width: 7px; height: 7px; border-radius: 50%; background: #fff; border: 0; }
 .timeline span { opacity: .6; }
+
+/* ── Performances: the strip ─────────────────────────────────────────────── */
+.page.wide article { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 24px; }
+.gal { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; font-family: inherit; user-select: none; }
+.gal-sub { margin: 0 0 8px; font-size: 11px !important; letter-spacing: .14em; color: #8a8a8a; opacity: 1 !important; }
+.gal-stage { position: relative; flex: 1; min-height: 0; touch-action: pan-y; cursor: grab; overflow: visible; }
+.gal-stage:active { cursor: grabbing; }
+.gal-card { position: absolute; left: 50%; top: 46%; border-radius: 10px; overflow: hidden; background: #0b0b0b;
+  border: 1px solid rgba(255,255,255,.14); box-shadow: 0 24px 50px rgba(0,0,0,.6); will-change: transform; }
+.gal-card.on { border-color: var(--lime); box-shadow: 0 50px 90px rgba(0,0,0,.78); }
+.gal-card video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.gal-hud { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 14px 12px; display: flex; justify-content: space-between;
+  font-size: 11px; letter-spacing: .12em; background: linear-gradient(transparent, rgba(0,0,0,.72)); pointer-events: none; }
+.gal-hud .lime { color: var(--lime); }
+.gal-ruler-wrap { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.gal-names { display: flex; justify-content: space-between; }
+.gal-names button { font-size: 10px; letter-spacing: .16em; color: #6f6f6f; padding: 6px 0; min-height: 32px; }
+.gal-names button.on { color: var(--lime); }
+.gal-ruler { position: relative; height: 22px; cursor: pointer; touch-action: none;
+  background-image: repeating-linear-gradient(90deg, rgba(255,255,255,.28) 0 1px, transparent 1px 12px);
+  background-size: 100% 8px; background-repeat: no-repeat; background-position: bottom; border-bottom: 1px solid rgba(255,255,255,.3); }
+.gal-mark { position: absolute; bottom: -5px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--lime); }
+.gal-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; letter-spacing: .14em; color: #8a8a8a; }
+.gal-btns { display: flex; gap: 10px; }
+.gal-btns button { min-width: 44px; height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.25); color: #e6e6e6; font-size: 11px; letter-spacing: .1em; }
+@media (max-width: 720px) {
+  .gal-names .nm { display: none; }
+  .gal-names button.on .nm { display: inline; }
+  .gal-card { top: 40%; }
+  .gal-foot { font-size: 10px; }
+}
