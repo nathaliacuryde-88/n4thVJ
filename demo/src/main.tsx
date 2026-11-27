@@ -82,12 +82,13 @@ const AMOUNT: Record<Visual, { path: string; min: number; max: number; start: nu
   sphere: { path: 'shape.detail', min: 2, max: 6, start: 0 },
 };
 
-/** The track's length, shown before it has loaded. */
-const TRACK_SECONDS = 362;
+
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-const TRACKS: { name: string; src: string }[] = [
-  { name: 'Johannex · m4n4th', src: '/tracks/m4n4th.mp3' },
+/** The tracks, with their length (shown before one has loaded, and for Auto). */
+const TRACKS: { name: string; src: string; seconds: number }[] = [
+  { name: 'Johan Nex · m4n4th', src: '/tracks/m4n4th.mp3', seconds: 362 },
+  { name: 'Johan Nex · Human', src: '/tracks/human.mp3', seconds: 395 },
 ];
 
 type Renderer = {
@@ -184,8 +185,6 @@ const NONE: HandData = { left: null, right: null };
 /** How hard a heavy bass hit lands on each visual, as a share of a clap. */
 const IMPACT: Record<Visual, number> = { dust: 0.35, sphere: 0, line: 0.8, jellyfish: 0.7, dandelion: 0.35, standby: 0.8 };
 /** How long each visual stays on Auto. */
-/** Each visual's share of the track on Auto: the track's length divided among them, so one pass of the music shows them all. */
-const AUTO_SECONDS = TRACK_SECONDS / VISUALS.length;
 const GESTURE_WORDS = ['5 fingers', '2 fingers', 'fist', 'pinch', 'clap'];
 const SILENT: AudioData = { bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 };
 
@@ -214,18 +213,19 @@ type StepKey = (typeof STEPS)[number]['key'];
 function Demo() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [visual, setVisualRaw] = useState<Visual>('dust');
-  // Auto: every half minute the next visual melts in. Choosing one by hand
-  // starts the half minute again from there.
+  // Auto: the track's length shared among the visuals, so one pass of the
+  // music shows them all; choosing one by hand starts its share again.
   const [auto, setAuto] = useState(true);
   const [autoFrom, setAutoFrom] = useState(0);
+  const [autoSeconds, setAutoSeconds] = useState(TRACKS[0].seconds / VISUALS.length);
   const setVisual = (v: Visual) => { setVisualRaw(v); setAutoFrom((n) => n + 1); };
   useEffect(() => {
     if (!auto) return;
     const t = window.setInterval(() => {
       setVisualRaw((v) => VISUALS[(VISUALS.findIndex((x) => x.id === v) + 1) % VISUALS.length].id);
-    }, AUTO_SECONDS * 1000);
+    }, autoSeconds * 1000);
     return () => window.clearInterval(t);
-  }, [auto, autoFrom]);
+  }, [auto, autoFrom, autoSeconds]);
   const visualRef = useRef(visual);
   visualRef.current = visual;
   // The effects: a trail, the colour turned round, and how many things.
@@ -270,7 +270,8 @@ function Demo() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState<number | null>(null);
   const [pos, setPos] = useState(0);
-  const [dur, setDur] = useState(TRACK_SECONDS);
+  const [dur, setDurRaw] = useState(TRACKS[0].seconds);
+  const setDur = (d: number) => { setDurRaw(d); if (d > 0) setAutoSeconds(d / VISUALS.length); };
   const posRef = useRef(0);
   const srcOf = useRef('');
   posRef.current = pos;
@@ -300,6 +301,9 @@ function Demo() {
     if (playing === i) { a.pause(); setPlaying(null); return; }
     // Resumed where it was paused, or from where the timeline was set.
     if (srcOf.current !== TRACKS[i].src) {
+      // Another track starts from its beginning (unless the timeline was set before any played).
+      if (srcOf.current) { posRef.current = 0; setPos(0); }
+      setDur(TRACKS[i].seconds);
       srcOf.current = TRACKS[i].src;
       a.src = TRACKS[i].src;
       a.currentTime = posRef.current;
@@ -398,7 +402,7 @@ function Demo() {
       if (an && audioRef.current && !audioRef.current.paused) {
         an.analyser.getByteFrequencyData(an.data);
         /*
-         * The heavy, distorted bass hits (every four bars or so in Johannex's
+         * The heavy, distorted bass hits (every four bars or so in Johan Nex's
          * track): the sub-bass leaping far above where it has been sitting.
          * The usual readings are already near the top through the whole
          * passage, so on their own the hits do not stand out; caught here,
