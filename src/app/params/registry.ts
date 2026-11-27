@@ -1524,6 +1524,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'swarm.backdrop', label: 'Backdrop', min: 0, max: 1, step: 0.05, hint: '0 = black, stacks cleanly' },
           { path: 'swarm.arrival', label: 'Arrival', min: 1, max: 20, step: 0.5, hint: 'seconds each takes to rise into view' },
           { path: 'swarm.water', label: 'Water', min: 0, max: 3, step: 0.05, hint: 'carried through heavy water: sinks between pulses, driven up by each' },
+          { path: 'swarm.flow', label: 'Tentacle flow', min: 0, max: 3, step: 0.05, hint: 'a long slow wave down each strand, opening with the music' },
         ],
       },
       {
@@ -1557,6 +1558,7 @@ export const RENDERER_PARAMS: Partial<Record<VisualPattern, RendererParams>> = {
           { path: 'sound.flow', label: 'Music current', min: 0, max: 2.5, step: 0.05, hint: 'the music sways the swarm side to side, wider as it fills' },
           { path: 'sound.swell', label: 'Bass swell', min: 0, max: 2, step: 0.05, hint: 'a heavy bass hit swells the swarm apart; it drifts back together' },
           { path: 'sound.bell', label: 'Bell hears', min: -1, max: 3, step: 1, hint: '-1 bass (as designed) · 0 all · 1 lows · 2 mids · 3 highs' },
+          { path: 'sound.open', label: 'Open on the dum', min: 0, max: 2, step: 0.05, hint: 'a heavy bass hit opens the bells and spreads the strands' },
           { path: 'sound.tentacles', label: 'Tentacles hear', min: -1, max: 3, step: 1, hint: '-1 hats (as designed) · 0 all · 1 lows · 2 mids · 3 highs' },
         ],
       },

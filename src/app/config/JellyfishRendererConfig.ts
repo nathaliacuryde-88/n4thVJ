@@ -38,6 +38,8 @@ export const JellyfishConfig = {
     arrival: 5,
     /** Water: carried by a soft spring through heavy water, sinking between pulses and driven up by each. 0: placed directly. */
     water: 0,
+    /** Flowing tentacles: a long slow wave down each, opening outward with the music. 0: the fine shiver, as designed. */
+    flow: 0,
   },
 
   hands: {
@@ -64,6 +66,8 @@ export const JellyfishConfig = {
     swell: 0,
     /** Which part of the sound the bell hears (its swell, squeeze, wandering): -1 the bass, as designed; 0 all, 1 lows, 2 mids, 3 highs. */
     bell: -1,
+    /** On a heavy bass hit (the dum) the bells open wide and the strands spread, the swell coming in as a breath. 0: off. */
+    open: 0,
     /** Which part of the sound ripples the tentacles: -1 the hats, as designed; 0 all, 1 lows, 2 mids, 3 highs. */
     tentacles: -1,
   },

@@ -168,6 +168,7 @@ export class JellyfishRenderer {
   /** The bands the bell and the tentacles hear, eased (sound.bell, sound.tentacles). */
   private bellE = 0;
   private tentE = 0;
+  private tentT = 0;
   /** How far a heavy bass hit has swelled the swarm apart, and the bass it is measured against. */
   private swell = 0;
   private bassAvg = 0;
@@ -358,7 +359,9 @@ export class JellyfishRenderer {
     const hitBy = Math.max(0, bassNow - this.bassAvg - 0.12);
     this.bassAvg += (bassNow - this.bassAvg) * (1 - Math.exp(-dt * 0.5));
     const swellTo = Math.min(1, hitBy * 2.2) * cfg.sound.swell;
-    this.swell += (swellTo - this.swell) * (1 - Math.exp(-dt * (swellTo > this.swell ? 2.5 : 0.45)));
+    // Opening on the dum (sound.open): the swell comes in slower, a breath rather than a jolt.
+    const opens = Math.max(0, cfg.sound.open ?? 0);
+    this.swell += (swellTo - this.swell) * (1 - Math.exp(-dt * (swellTo > this.swell ? (opens > 0 ? 1.1 : 2.5) : 0.45)));
     const handScatter = handed ? Math.max(0.3, 1 + (play.spread - 0.4) * cfg.hands.spread * 1.6) : 1;
     const scatter = handScatter * (1 + this.swell * 0.9);
     const hand = new THREE.Vector3(play.aim.x * 4.6, play.aim.y * 2.1, 0)
@@ -380,6 +383,8 @@ export class JellyfishRenderer {
     const bellHears = bellPick < 0 ? play.bass : this.bellE;
     this.tentE += (band(cfg.sound.tentacles ?? -1, play.high) - this.tentE) * (1 - Math.exp(-dt * 6));
     const tentHears = Math.round(cfg.sound.tentacles ?? -1) < 0 ? play.high : this.tentE;
+    // The tentacles' own time: a slow wave, quickened a little by what they hear.
+    this.tentT += dt * (0.5 + 0.9 * tentHears);
     const wander = cfg.swarm.drift * (1 + bellHears * cfg.sound.bass * 0.8);
     // The current: with music it runs faster and sways them further, slowly
     // easing in and out so a change in the music is a change of tide, not a jolt.
@@ -398,6 +403,7 @@ export class JellyfishRenderer {
     const Y = new THREE.Vector3(0, 1, 0);
     const v = new THREE.Vector3();
     const side = new THREE.Vector3();
+    const out = new THREE.Vector3();
     const centre = new THREE.Vector3();
 
     this.swarm.forEach((j, index) => {
@@ -416,7 +422,9 @@ export class JellyfishRenderer {
       j.beat += step * TAU * (sw.pulses / LOOP) + dt * burst * TAU * 1.5;
       const own = squeeze(j.beat);
       // The band the bell hears squeezes it too, as it swells and falls.
-      const squeezed = Math.min(1.3, Math.max(own, bump * 0.7) + burst * 0.4 + (bellPick >= 0 ? this.bellE * 0.35 : 0));
+      const squeezed = Math.max(0, Math.min(1.3, Math.max(own, bump * 0.7) + burst * 0.4 + (bellPick >= 0 ? this.bellE * 0.35 : 0))
+        // On the dum the bell opens wide instead.
+        - this.swell * opens * 0.7);
       // The hand's bell: each follows the hand a moment behind the one before,
       // so the swarm closes and opens as a ripple rather than all at once.
       const grip = (j.grip ?? 0) + (play.fist - (j.grip ?? 0)) * (1 - Math.exp(-dt * (7 - index * 0.7)));
@@ -532,12 +540,17 @@ export class JellyfishRenderer {
       // down the body's axis and waving sideways in a travelling ripple.
       j.root.updateMatrix();
       const trail = cfg.swarm.tentacles;
+      const flow = Math.max(0, cfg.swarm.flow ?? 0);
       const down = j.up.clone().negate();
       side.set(1, 0, 0).applyQuaternion(j.root.quaternion);
       for (const strand of j.strands) {
         const links = strand.links;
         if (strand.angle !== null) rim(strand.angle, lean, strand.from);
         const head = links[0].copy(strand.from).applyMatrix4(j.root.matrix);
+        // Outward from the bell's middle, level: where an opening strand leans.
+        out.set(head.x - j.root.position.x, 0, head.z - j.root.position.z);
+        if (out.lengthSq() < 1e-6) out.set(1, 0, 0);
+        out.normalize();
         if (!j.primed) {
           for (let i = 1; i < LINKS; i++) links[i].copy(head).addScaledVector(down, strand.link * s * trail * i);
         }
@@ -546,9 +559,21 @@ export class JellyfishRenderer {
           const link = links[i];
           v.subVectors(link, prev);
           if (v.lengthSq() < 1e-8) v.copy(down);
-          v.normalize().lerp(down, 0.22 + 0.1 * pulse).normalize();
-          const wave = Math.sin(strand.phase + w * 3 * ripple - i * 0.75) * 0.06 * ripple * (i / LINKS);
-          v.addScaledVector(side, wave).normalize();
+          if (flow > 0) {
+            // Flowing: hanging looser, a long slow wave travelling down each
+            // strand, and the strands opening outward from the bell — wider
+            // as what they hear rises and on the dum.
+            v.normalize().lerp(down, 0.12 + 0.1 * pulse).normalize();
+            const along = i / LINKS;
+            const wave = Math.sin(strand.phase + this.tentT * 2.2 - i * 0.45) * (0.06 + flow * (0.1 + 0.16 * tentHears)) * along;
+            v.addScaledVector(side, wave);
+            v.addScaledVector(out, flow * (0.06 + 0.22 * this.swell * Math.max(0.5, opens) + 0.1 * tentHears) * along);
+            v.normalize();
+          } else {
+            v.normalize().lerp(down, 0.22 + 0.1 * pulse).normalize();
+            const wave = Math.sin(strand.phase + w * 3 * ripple - i * 0.75) * 0.06 * ripple * (i / LINKS);
+            v.addScaledVector(side, wave).normalize();
+          }
           link.copy(prev).addScaledVector(v, strand.link * s * trail);
         }
         strand.tube.update(strand.radius * s, 0.25);

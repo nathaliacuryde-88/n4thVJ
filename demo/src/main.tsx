@@ -53,7 +53,7 @@ const LOOKS: Record<Visual, { colors: string[]; params: Record<string, number> }
     params: { 'sound.gust': 0, 'sound.wind': 1.4, 'field.return': 7.5, 'field.glide': 1.2, 'field.sway': 1.9, 'field.bounce': 0, 'field.drift': 0.44, 'field.backdrop': 0, 'colour.speed': 2.5, 'colour.offset': 0, 'colour.palette': 0, 'colour.depth': 0.32 },
   },
   // All in blues (the Ink palette), carried further by the music, swelling apart on a heavy bass hit.
-  jellyfish: { colors: generateColors(245, 100, 'contrast'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'swarm.arrival': 11, 'colour.palette': 3, 'sound.flow': 2.4, 'swarm.drift': 1.9, 'swarm.pulse': 1.25, 'swarm.water': 1.2, 'sound.swell': 1.2, 'sound.beat': 0.6 } },
+  jellyfish: { colors: generateColors(245, 100, 'contrast'), params: { 'swarm.backdrop': 0, 'swarm.height': 0.3, 'swarm.arrival': 11, 'colour.palette': 3, 'sound.flow': 2.4, 'swarm.drift': 1.9, 'swarm.pulse': 1.25, 'swarm.water': 1.2, 'swarm.flow': 1.2, 'sound.open': 1, 'sound.swell': 1.2, 'sound.beat': 0.35 } },
   standby: { colors: generateColors(0, 0, 'grayscale'), params: { 'sound.quiet': 0.4, 'grid.words': 0 } },
   sphere: {
     colors: generateColors(0, 0, 'grayscale'),
@@ -204,7 +204,7 @@ const GUIDE_STYLE = Math.max(1, Math.min(5, Number(new URLSearchParams(location.
 
 const NONE: HandData = { left: null, right: null };
 /** How hard a heavy bass hit lands on each visual, as a share of a clap. */
-const IMPACT: Record<Visual, number> = { dust: 0.35, sphere: 0, line: 0.8, jellyfish: 0.7, dandelion: 0.35, standby: 0.8 };
+const IMPACT: Record<Visual, number> = { dust: 0.35, sphere: 0, line: 0.8, jellyfish: 0, dandelion: 0.35, standby: 0.8 };
 /** How long each visual stays on Auto. */
 const GESTURE_WORDS = ['5 fingers', '2 fingers', 'fist', 'pinch', 'clap'];
 const SILENT: AudioData = { bass: 0, lowMid: 0, mid: 0, high: 0, overall: 0, beat: false, beatIntensity: 0, onset: 0 };
